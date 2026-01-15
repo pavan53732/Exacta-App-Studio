@@ -120,7 +120,6 @@ Any other network activity is treated as a **fatal error**.
 ---
 
 ## Knowledge Base (Canonical)
-
 - A. Product & Principles: [Product principles](01-principles/product-principles.md)
 - B. Security & Trust: [Threat model](02-security/threat-model.md)
 - C. Core Architecture: [High-level architecture](03-architecture/high-level-architecture.md)
