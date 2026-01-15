@@ -119,12 +119,12 @@ Any other network activity is treated as a **fatal error**.
 
 ---
 
-## Knowledge Base (Canonical)
-- A. Product & Principles: [Product principles](01-principles/product-principles.md)
-- B. Security & Trust: [Threat model](02-security/threat-model.md)
-- C. Core Architecture: [High-level architecture](03-architecture/high-level-architecture.md)
-- D. AI Interaction Pipeline: [AI contracts](04-ai-pipeline/ai-contracts.md)
-- E. Execution & Validation: [Execution gates](05-execution-validation/execution-gates.md)
-- F. Operations: [Operational limits](06-operations/logging-audit-trail.md)
-- G. Roadmap: [Roadmap](07-roadmap/roadmap.md)
-- H. Reference: [Glossary / error codes](99-reference/error-codes.md)
+## Sections
+- [A. Product & Principles](A.%20Product%20%26%20Principles/README.md)
+- [B. Security & Trust](B.%20Security%20%26%20Trust/README.md)
+- [C. Core Architecture](C.%20Core%20Architecture/README.md)
+- [D. AI Interaction Pipeline](D.%20AI%20Interaction%20Pipeline/README.md)
+- [E. Execution & Validation](E.%20Execution%20%26%20Validation/README.md)
+- [F. Operations](F.%20Operations/README.md)
+- [G. Roadmap](G.%20Roadmap/README.md)
+- [H. Reference](H.%20Reference/README.md)
