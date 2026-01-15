@@ -6,8 +6,9 @@ This section defines the **trust model**, **security boundaries**, and **privacy
 
 ## Documents in This Section
 
-- [Security, Privacy and Local-Only Guarantees](Security%2C%20Privacy%20and%20Local-Only%20Guarantees.md)
-- [AI Trust Boundary & Threat Model](AI%20Trust%20Boundary%20%26%20Threat%20Model.md)
+- [Security, Privacy and Local-Only Guarantees](Security, Privacy and Local-Only Guarantees.md)
+- [AI Trust Boundary & Threat Model](AI Trust Boundary & Threat Model.md)
+- [Security Review Checklists (Subsystems)](Security Review Checklists (Subsystems).md)
 
 ---
 

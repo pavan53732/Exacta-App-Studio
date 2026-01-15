@@ -8,6 +8,7 @@ This section defines **operational constraints**, **guardrails**, **logging**, a
 
 - [Operational Limits & Guardrails](Operational Limits & Guardrails.md)
 - [Debugging, Logs & Support Workflow](Debugging, Logs & Support Workflow.md)
+- [Installer, Updates & Prerequisite Enforcement](Installer, Updates & Prerequisite Enforcement.md)
 
 ---
 

@@ -10,6 +10,7 @@ This section covers **build execution**, **validation**, **failure detection**, 
 - [Failure Modes and Recovery](Failure Modes and Recovery.md)
 - [Error Taxonomy & Recovery Paths](Error Taxonomy & Recovery Paths.md)
 - [Error Categories, User Messages & Recovery Paths](Error Categories, User Messages & Recovery Paths.md)
+- [Canonical Error Code Registry (Single Source)](Canonical Error Code Registry (Single Source).md)
 
 ---
 

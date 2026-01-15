@@ -120,11 +120,11 @@ Any other network activity is treated as a **fatal error**.
 ---
 
 ## Sections
-- [A. Product & Principles](A.%20Product%20%26%20Principles/README.md)
-- [B. Security & Trust](B.%20Security%20%26%20Trust/README.md)
-- [C. Core Architecture](C.%20Core%20Architecture/README.md)
-- [D. AI Interaction Pipeline](D.%20AI%20Interaction%20Pipeline/README.md)
-- [E. Execution & Validation](E.%20Execution%20%26%20Validation/README.md)
-- [F. Operations](F.%20Operations/README.md)
-- [G. Roadmap](G.%20Roadmap/README.md)
-- [H. Reference](H.%20Reference/README.md)
+- [A. Product & Principles](A. Product & Principles/README.md)
+- [B. Security & Trust](B. Security & Trust/README.md)
+- [C. Core Architecture](C. Core Architecture/README.md)
+- [D. AI Interaction Pipeline](D. AI Interaction Pipeline/README.md)
+- [E. Execution & Validation](E. Execution & Validation/README.md)
+- [F. Operations](F. Operations/README.md)
+- [G. Roadmap](G. Roadmap/README.md)
+- [H. Reference](H. Reference/README.md)

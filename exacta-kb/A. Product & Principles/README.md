@@ -5,9 +5,10 @@ This section defines what Exacta App Studio is, what it promises to users, and w
 These documents define the user-facing contract and the non-negotiable principles that govern all behavior.
 
 ## Documents
-- [User Contract & Mental Model](User%20Contract%20%26%20Mental%20Model.md)
-- [Non-Goals & Explicit Exclusions](Non-Goals%20%26%20Explicit%20Exclusions.md)
-- [Core Principles and Invariants](Core%20Principles%20and%20Invariants.md)
+- [User Contract & Mental Model](User Contract & Mental Model.md)
+- [Non-Goals & Explicit Exclusions](Non-Goals & Explicit Exclusions.md)
+- [Core Principles and Invariants](Core Principles and Invariants.md)
+- [UI Capability Gating & Why Blocked Contract](UI Capability Gating & Why Blocked Contract.md)
 
 ## Scope Rules
 - This section SHOULD describe behavior in plain language, but it MAY reference invariants and enforcement mechanisms.

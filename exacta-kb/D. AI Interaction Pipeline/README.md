@@ -6,11 +6,11 @@ This section specifies how **user intent is captured**, **constraints are enforc
 
 ## Documents in This Section
 
-- [Intent Extraction and Planning](Intent%20Extraction%20and%20Planning.md)
-- [Intent Model & Supported Intent Types (V1)](Intent%20Model%20%26%20Supported%20Intent%20Types%20%28V1%29.md)
-- [Constraint Model & Propagation](Constraint%20Model%20%26%20Propagation.md)
-- [Plan Model & Approval Semantics](Plan%20Model%20%26%20Approval%20Semantics.md)
-- [Plan Validation Rules & Completeness Criteria](Plan%20Validation%20Rules%20%26%20Completeness%20Criteria.md)
-- [Diff Generation, Validation & Application](Diff%20Generation%2C%20Validation%20%26%20Application.md)
-- [Unified Diff Contract & File Modification Rules](Unified%20Diff%20Contract%20%26%20File%20Modification%20Rules.md)
+- [Intent Extraction and Planning](Intent Extraction and Planning.md)
+- [Intent Model & Supported Intent Types (V1)](Intent Model & Supported Intent Types (V1).md)
+- [Constraint Model & Propagation](Constraint Model & Propagation.md)
+- [Plan Model & Approval Semantics](Plan Model & Approval Semantics.md)
+- [Plan Validation Rules & Completeness Criteria](Plan Validation Rules & Completeness Criteria.md)
+- [Diff Generation, Validation & Application](Diff Generation, Validation & Application.md)
+- [Unified Diff Contract & File Modification Rules](Unified Diff Contract & File Modification Rules.md)
 - Back to KB root: [Exacta KB](../README.md)
