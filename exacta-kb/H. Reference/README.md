@@ -1,13 +1,17 @@
 # H. Reference
 
-## Purpose
-This section contains reference materials and canonical definitions used throughout the specification.
+This section contains **reference materials** and **canonical definitions**.
 
-## Documents
-- [Glossary and Terminology](Glossary%20and%20Terminology.md)
+---
 
-## Scope Rules
-- Definitions here are canonical. Other documents MUST use terms consistently with this section.
+## Documents in This Section
 
-## Navigation
-- Back to KB root: [Exacta KB](../README.md)
+- [Glossary and Terminology](Glossary and Terminology.md)
+
+---
+
+## Section Summary
+
+| Document | Purpose |
+| --- | --- |
+| **Glossary** | Canonical definitions of all terms used in this specification |
