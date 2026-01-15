@@ -1,16 +1,18 @@
 # G. Roadmap
 
-## Purpose
-This section contains the development roadmap and phase definitions.
-It specifies scope boundaries and planned expansions, without weakening current guarantees.
+This section contains the **development roadmap** and **phase definitions**.
 
-## Documents
-- [Phase Plan and Scope Control](Phase%20Plan%20and%20Scope%20Control.md)
-- [Advanced Mode & Guardrail Overrides (Future)](Advanced%20Mode%20%26%20Guardrail%20Overrides%20%28Future%29.md)
+---
 
-## Scope Rules
-- Roadmap items MUST NOT be treated as current capabilities.
-- Future features MUST not violate the global invariants.
+## Documents in This Section
 
-## Navigation
-- Back to KB root: [Exacta KB](../README.md)
+- [Phase Plan and Scope Control](Phase Plan and Scope Control.md)
+- [Advanced Mode & Guardrail Overrides (Future)](Advanced Mode & Guardrail Overrides (Future).md)
+
+---
+
+## Section Summary
+
+| Document | Purpose |
+| --- | --- |
+| **Phase Plan** | Development phases, scope boundaries, milestone definitions |
