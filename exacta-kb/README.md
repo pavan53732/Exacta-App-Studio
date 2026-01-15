@@ -116,3 +116,16 @@ The only permitted network calls are:
 - Optional documentation fetches (user-approved)
 
 Any other network activity is treated as a **fatal error**.
+
+---
+
+## Knowledge Base (Canonical)
+
+- A. Product & Principles: [Product principles](01-principles/product-principles.md)
+- B. Security & Trust: [Threat model](02-security/threat-model.md)
+- C. Core Architecture: [High-level architecture](03-architecture/high-level-architecture.md)
+- D. AI Interaction Pipeline: [AI contracts](04-ai-pipeline/ai-contracts.md)
+- E. Execution & Validation: [Execution gates](05-execution-validation/execution-gates.md)
+- F. Operations: [Operational limits](06-operations/logging-audit-trail.md)
+- G. Roadmap: [Roadmap](07-roadmap/roadmap.md)
+- H. Reference: [Glossary / error codes](99-reference/error-codes.md)
