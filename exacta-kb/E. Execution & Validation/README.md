@@ -1,18 +1,22 @@
 # E. Execution & Validation
 
-## Purpose
-This section covers build execution, validation, failure detection, and error handling.
-It defines how changes are applied safely and how failures are classified and recovered.
+This section covers **build execution**, **validation**, **failure detection**, and **error handling**.
 
-## Documents
-- [Build, Validation and Preview](Build%2C%20Validation%20and%20Preview.md)
-- [Failure Modes and Recovery](Failure%20Modes%20and%20Recovery.md)
-- [Error Taxonomy & Recovery Paths](Error%20Taxonomy%20%26%20Recovery%20Paths.md)
-- [Error Categories, User Messages & Recovery Paths](Error%20Categories%2C%20User%20Messages%20%26%20Recovery%20Paths.md)
+---
 
-## Scope Rules
-- Execution MUST NOT proceed without explicit approval and passed eligibility gates.
-- Failures MUST be explicit, classified, and user-actionable.
+## Documents in This Section
 
-## Navigation
-- Back to KB root: [Exacta KB](../README.md)
+- [Build, Validation and Preview](Build, Validation and Preview.md)
+- [Failure Modes and Recovery](Failure Modes and Recovery.md)
+- [Error Taxonomy & Recovery Paths](Error Taxonomy & Recovery Paths.md)
+- [Error Categories, User Messages & Recovery Paths](Error Categories, User Messages & Recovery Paths.md)
+
+---
+
+## Section Summary
+
+| Document | Purpose |
+| --- | --- |
+| **Build & Validation** | Toolchain invocation, syntax checks, build verification |
+| **Failure Handling** | How failures are detected, classified, and surfaced |
+| **Error Taxonomy & Recovery Paths** | Canonical error categories and prescribed recovery actions |
