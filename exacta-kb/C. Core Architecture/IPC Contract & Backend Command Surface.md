@@ -509,3 +509,87 @@ Used internally by execution, but exposed for CLI/testing.
 If/when JSON schemas are formalized:
 - Each command/event MUST have a schema ID.
 - Schema IDs MUST be versioned and tied to `ipc_version`.
+
+---
+
+## Transport Framing Rules (Tauri `invoke`) — V1
+
+## Purpose
+Define how the IPC contract is carried over Tauri's `invoke` boundary while preserving determinism, safety, and traceability.
+
+## Model
+- UI calls backend using `invoke(command, payload)`.
+- Backend returns a **single response** per invoke call.
+- Streaming is achieved by emitting **events** from backend to UI (Tauri event channel).
+
+## Mapping: IPC Envelopes → Tauri
+
+### Requests
+- Each IPC **Request** maps to a single Tauri `invoke`.
+- `command` maps to the Tauri command name.
+- `payload` maps to the invoke payload.
+
+The invoke payload MUST include:
+- `ipc_version`
+- `request_id`
+- `sent_at`
+- command-specific payload fields
+
+### Responses
+Each invoke MUST return a Response-shaped JSON object:
+- `ipc_version`
+- `type = "response"`
+- `request_id`
+- `correlation_id`
+- `ok`
+- `result` or `error`
+
+UI MUST treat a non-conforming response as a **fatal protocol violation**.
+
+### Events
+Backend emits events using a single stream name (recommended):
+- `exacta:event`
+
+Each emitted event payload MUST conform to the IPC Event Envelope:
+- `ipc_version`
+- `type = "event"`
+- `event`
+- `event_id`
+- `sent_at`
+- `request_id` (nullable)
+- `correlation_id`
+- `payload`
+
+## Message Boundaries
+- Each `invoke` call + returned JSON is an atomic message boundary.
+- Each emitted event is an atomic message boundary.
+No additional framing is required.
+
+## Ordering Guarantees
+- For a given `correlation_id`, backend MUST emit events in deterministic order.
+- If transport reorders events, UI MUST reorder by `sent_at` and (recommended) `seq`.
+
+### Optional `seq` Field (Recommended)
+Backend MAY include:
+- `seq`: integer, monotonically increasing per `correlation_id`
+
+If present, UI SHOULD order primarily by `(correlation_id, seq)`.
+
+## Error Handling Rules
+- Invoke-level failure (panic, serialization failure, internal exception) MUST be converted into:
+  - `type="response"`, `ok=false`, and structured `error`.
+- Backend MUST NOT return raw stack traces to UI by default.
+- UI MUST surface a protocol error if:
+  - `ipc_version` missing/mismatched
+  - `request_id` missing
+  - response missing both `result` and `error`
+
+## Backpressure and Rate Limits
+- UI MUST NOT start a new plan execution while another execution is in progress (unless explicitly supported).
+- Backend MAY reject requests with Resource or State error codes when overloaded.
+- Backend MUST remain responsive to `Cancel` best-effort, respecting atomic boundaries.
+
+## Security and Isolation
+- IPC MUST NOT expose API keys or credentials.
+- UI MUST NOT send secrets via invoke payloads.
+- Backend MUST treat all UI-provided strings as untrusted input.
