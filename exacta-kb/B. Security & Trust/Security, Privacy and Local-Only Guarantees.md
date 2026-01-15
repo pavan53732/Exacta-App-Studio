@@ -7,7 +7,7 @@ This document defines the security model, privacy guarantees, and local-only con
 ## Local-Only Execution
 
 ### Definition
-All processing occurs on the user's local machine. The only network traffic is AI API calls initiated by the user.
+All processing occurs on the user's local machine. The only network traffic is AI API calls initiated by the user and optional documentation retrieval.
 
 ### What Runs Locally
 - Application UI

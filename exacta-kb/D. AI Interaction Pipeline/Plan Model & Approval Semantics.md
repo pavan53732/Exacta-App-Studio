@@ -1,3 +1,4 @@
+
 # Plan Model & Approval Semantics
 
 This document specifies the **plan data model**, **validation rules**, and **approval gate semantics** for Exacta App Studio.
@@ -12,7 +13,6 @@ A Plan is the intermediate representation between user intent and executable dif
 ## Plan Data Model
 
 ### Plan Structure
-
 ```
 
 interface Plan {
@@ -62,7 +62,6 @@ type PlanStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 ## Plan Validation Rules
 
 ### Structural Validation
-
 | Rule ID | Rule | Failure Behavior |
 | --- | --- | --- |
 | **PV-1** | Plan MUST have at least one step | Reject plan; request clarification |
@@ -72,7 +71,6 @@ type PlanStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 | **PV-5** | Token estimate MUST be within budget | Reject plan; report budget exceeded |
 
 ### Semantic Validation
-
 | Rule ID | Rule | Failure Behavior |
 | --- | --- | --- |
 | **PS-1** | Plan MUST satisfy all extracted constraints | Reject plan; report constraint violation |
@@ -87,7 +85,6 @@ type PlanStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 > **The Approval Gate is a hard synchronization point.** No plan step executes until the user explicitly approves. There is no timeout-based auto-approval.
 
 ### Approval States
-
 | State | Meaning | Transitions |
 | --- | --- | --- |
 | **Pending** | Awaiting user decision | → Approved, Rejected, Expired |
@@ -107,7 +104,6 @@ A pending plan expires (transitions to `expired`) if:
 ## User Approval Interface
 
 ### Required Information Display
-
 | Element | Description |
 | --- | --- |
 | **Step list** | All steps with descriptions |
@@ -117,7 +113,6 @@ A pending plan expires (transitions to `expired`) if:
 | **Token estimate** | Estimated token usage |
 
 ### User Actions
-
 | Action | Effect |
 | --- | --- |
 | **Approve All** | Approve entire plan; proceed to execution |
@@ -188,7 +183,6 @@ This component enforces the following Global System Invariants:
 ---
 
 ## Does / Does Not
-
 | **System DOES** | **System DOES NOT** |
 | --- | --- |
 | Show complete diff before approval | Execute any step before approval |
@@ -196,3 +190,4 @@ This component enforces the following Global System Invariants:
 | Allow partial approval (creates derived plan) | Allow partial approval with missing dependencies |
 | Validate derived plans before execution | Allow step reordering by user |
 | Log all approval/rejection decisions | Remember approval decisions across sessions |
+```
