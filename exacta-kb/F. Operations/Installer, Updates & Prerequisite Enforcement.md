@@ -16,8 +16,8 @@ Specify installer behavior, prerequisites, signing, update policy, and uninstall
 	- Installer MAY offer to download/install WebView2 automatically **only with explicit user consent**.
 - **Detection (registry)**:
 	- Installer MUST check both registry views:
-		- `HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}\pv`
-		- `HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}\pv`
+		- `HKLM\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}\\pv`
+		- `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}\\pv`
 
 #### .NET Desktop Runtime (x64)
 - **Requirement**: .NET 8 Desktop Runtime (Windows Desktop)
@@ -60,7 +60,7 @@ Specify installer behavior, prerequisites, signing, update policy, and uninstall
 ### Installation Process
 1. **Elevation check**: Prompt for admin rights if installing system-wide
 2. **Prerequisite validation**: Check all requirements (fail-fast, no partial install)
-3. **File extraction**: Install to `C:\Program Files\Exacta App Studio\` (or user choice)
+3. **File extraction**: Install to `C:\\Program Files\\Exacta App Studio\\` (or user choice)
 4. **Registry entries**: Add uninstall info, file associations (if applicable)
 5. **Shortcut creation**: Desktop and Start Menu shortcuts
 6. **First-run setup**: Launch app to complete configuration (optional, user-controlled)
@@ -118,7 +118,7 @@ Specify installer behavior, prerequisites, signing, update policy, and uninstall
 ### Clean Removal Guarantees
 - **Complete artifact removal**:
 	- All files in installation directory
-	- Registry entries created by the installer (e.g., `HKLM\SOFTWARE\Exacta App Studio`)
+	- Registry entries created by the installer (e.g., `HKLM\\SOFTWARE\\Exacta App Studio`)
 	- File associations owned by the app (if any)
 	- Start Menu/Desktop shortcuts
 - **User data preservation**:
