@@ -13,4 +13,5 @@ This section specifies how **user intent is captured**, **constraints are enforc
 - [Plan Validation Rules & Completeness Criteria](Plan Validation Rules & Completeness Criteria.md)
 - [Diff Generation, Validation & Application](Diff Generation, Validation & Application.md)
 - [Unified Diff Contract & File Modification Rules](Unified Diff Contract & File Modification Rules.md)
+- [AI Provider Capability Matrix (Contract)](AI Provider Capability Matrix (Contract).md)
 - Back to KB root: [Exacta KB](../README.md)

@@ -11,6 +11,9 @@ This section describes the internal architecture of Exacta App Studio: component
 - [IPC Contract & Backend Command Surface](IPC Contract & Backend Command Surface.md)
 - [Project Configuration Schema & Storage Layout](Project Configuration Schema & Storage Layout.md)
 - [Context Builder Contract (Selection, Budgeting, Redaction)](Context Builder Contract (Selection, Budgeting, Redaction).md)
+- [Drift Detection & Fingerprint Contract](Drift Detection & Fingerprint Contract.md)
+- [Cancellation, Pause & Resume Semantics](Cancellation, Pause & Resume Semantics.md)
+- [Project Root Detection & Multi-Project Handling](Project Root Detection & Multi-Project Handling.md)
 
 ## Scope Rules
 - Architecture MUST be described as explicit components with explicit contracts.
