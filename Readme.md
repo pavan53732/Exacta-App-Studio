@@ -320,9 +320,6 @@ Context management is an implementation detail, not a product feature.
 - The **full semantic closure MUST be covered across cycles**
 - Dependency edges MAY NOT be violated between cycles
 
-In **DEBUG mode only**, the system MAY surface a banner:
-> â€œProgressive Context Mode Active â€” semantic coverage in progressâ€
-
 **MAY-CTX-FAST: Throughput Mode (Operator-Controlled)**
 
 **Shard Computation Algorithm:**
@@ -338,8 +335,6 @@ When enabled:
 - Semantic coverage guarantees are DISABLED
 - Determinism guarantees are SUSPENDED
 - Audit logs SHALL record `context_mode=FAST`
-- UI SHALL display:
-  > â€œFAST MODE â€” semantic safety reducedâ€
 
 **INV-CTX-FAST-1: Risk Escalation**
 
@@ -655,26 +650,6 @@ System SHALL:
 
 **INV-MEM-1: Atomic State Commit** â€” Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
 
-**Checkpoint Retention Policy:**
-
-- **Last 10 checkpoints** â€” Always retained (guaranteed rollback window)
-- **Hourly checkpoints** â€” Retained for 24 hours
-- **Daily checkpoints** â€” Retained for 7 days
-- **Goal completion checkpoint** â€” Retained for 30 days
-- **Manual checkpoints** â€” Never auto-deleted (user must explicitly delete)
-- **Storage limit** â€” If checkpoint storage exceeds 10GB or 90% of available disk, oldest auto-checkpoints pruned first
-- **Precedence rule** â€” Last 3 checkpoints are NEVER pruned regardless of storage pressure. If remaining checkpoints exceed quota, oldest of those beyond the last 3 are pruned.
-- **Edge case handling** â€” If only 3 checkpoints exist and storage limit is reached, system SHALL halt autonomous execution and warn Operator (no auto-pruning of the minimum guaranteed set)
-- **Minimum guaranteed** â€” Last 3 checkpoints are never auto-deleted, even under storage pressure
-- **Critical disk pressure** â€” If available disk drops below 5%, the system SHALL pause autonomous execution and require Operator intervention before continuing
-
-**Storage Management:**
-
-- Checkpoints are incremental (only changed files stored)
-- Deduplication across checkpoints (identical files stored once)
-- Compression applied to all snapshots
-- User can manually prune checkpoints older than N cycles via UI
-
 ### Persistent Memory Quotas
 
 **Default Limits:**
@@ -820,7 +795,6 @@ Any detection of persistent AI memory behavior SHALL be classified as a **SANDBO
 - Real-time supervision with live action stream
 - Capability toggles and budget meters visible during execution
 - Emergency stop at any time
-- Rollback to any checkpoint in execution history
 
 ### **Goal Types**
 
@@ -860,25 +834,6 @@ Goals are evaluated for success/failure at the end of each cycle using a combina
 4. If >80%, mark SUCCESS and halt
 5. If <20%, mark FAILURE and halt
 6. Otherwise, continue loop with refined plan
-
-### **Budget Enforcement**
-
-**Hard Runtime Limits (per cycle or per goal):**
-
-**Note:** A "cycle" is one complete Goal â†’ Perceive â†’ Decide â†’ Act â†’ Observe â†’ Checkpoint loop. Each cycle may execute multiple plan steps (typically 1-10). Each step may modify multiple files via atomic diff application.
-
-| Budget Type | Default Cap | Scope |
-| --- | --- | --- |
-| Files modified | 50 | per cycle |
-| Lines changed | 2,000 | per cycle |
-| Shell commands | 25 | per cycle |
-| Build runs | 5 | per goal |
-| Network calls | 200 | per goal |
-| Tokens used | 500,000 | per goal |
-| Time elapsed | 30 minutes | per goal |
-| Rollbacks | Unlimited | per goal |
-
-Exceeding any budget triggers automatic HALT with rollback option.
 
 **Budget Enforcement (Non-Visual)**
 
@@ -1378,11 +1333,6 @@ Generating diffs... [â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ�
   â€¢ src/utils/helpers.ts (in progress...)
 ```
 
-**Streaming Diff Preview:**
-- Show diffs as they're generated (line-by-line)
-- Syntax highlighting for code changes
-- Collapsible sections for large diffs
-
 **Rationale:** Improve perceived performance and give Operator visibility into AI progress without violating any security boundaries.
 
 ### **AI Progress Indicators (Lovable-Inspired)**
@@ -1398,22 +1348,6 @@ When the AI starts processing a user request, Exacta displays layered progress i
 â”‚                                                      â”‚
 â”‚     Current Step: Adding SQLite persistence         â”‚
 â”‚     Estimated time: 45 seconds remaining            â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-```
-
-**Level 2: File-Level Progress (Expandable)**
-
-Click "Show Details" to see:
-
-```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Step 1: Analyzing dependencies          âœ“ Complete â”‚
-â”‚  Step 2: Generating data models           â³ Active  â”‚
-â”‚    â””â”€ src/models/Todo.cs        [â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘] 80%    â”‚
-â”‚    â””â”€ src/models/TodoContext.cs [â–ˆâ–ˆâ–‘â–‘â–‘â–‘â–‘â–‘â–‘â–‘] 20%    â”‚
-â”‚  Step 3: Creating database layer           â—‹ Pending â”‚
-â”‚  Step 4: Updating UI components            â—‹ Pending â”‚
-â”‚  Step 5: Running tests                     â—‹ Pending â”‚
 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
@@ -1461,71 +1395,11 @@ Applying changes...
 ```
 âœ… Checkpoint created: cp_a3f9c2
    3 files modified, 68 lines changed
-   
-[View Changes] [Rollback] [Continue]
 ```
 
 **Rationale:** Keep Operator informed during atomic commit without allowing partial state visibility.
 
 ---
-
-### **Context Coverage Transparency (Internal System Function â€” Not Exposed in UI)**
-
-When Progressive Context Mode activates:
-
-```
-ðŸ“Š Context Coverage: 42% (517 / 1,234 files)
-
-Current shard includes:
-â€¢ 12 files from src/core/
-â€¢ 5 files from src/api/
-â€¢ 3 files from src/utils/
-
-Files deferred to next shard:
-â€¢ 8 files from src/components/
-â€¢ 15 files from tests/
-
-Estimated shards remaining: 5
-Estimated time to full coverage: 12 minutes
-
-[View Coverage Map] [Adjust Shard Size]
-```
-
-**Rationale:** Make Progressive Context Mode's behavior transparent and give Operator control over shard sizing.
-
----
-
-### **Interactive Checkpoint Timeline**
-
-**Visual Timeline:**
-
-```
-Goal: Build WPF Todo App (ID: goal_f4a9)
-
-â”œâ”€ cp_001 (12:05) Initial scaffold â—
-â”œâ”€ cp_002 (12:18) Added SQLite â—
-â”œâ”€ cp_003 (12:31) UI components â— â† Current
-â””â”€ cp_004 (12:45) Packaging â—‹ (pending)
-
-Click checkpoint to:
-â€¢ View file changes
-â€¢ Inspect budget state
-â€¢ Rollback to this point
-â€¢ Compare with other checkpoints
-```
-
-**Diff Comparison:**
-```
-Compare: [cp_001] âŸ· [cp_003]
-
-Files changed: 15
-Lines added: 342
-Lines removed: 87
-
-[View Full Diff] [Rollback to cp_001] [Export Diff]
-```
-
-**Rationale:** Make checkpoint system more accessible and encourage frequent rollbacks when needed.
 
 ## ðŸ’¬ **Chat Interface & Interaction Patterns**
 
@@ -1547,8 +1421,6 @@ Lines removed: 87
 â”‚  â€¢ Add Todo.Id property                     â”‚
 â”‚  â€¢ Register DbContext in Program.cs         â”‚
 â”‚                                             â”‚
-â”‚  Budget impact: 2 files, 54 lines, ~1.2k tokens â”‚
-â”‚  [Preview Changes] [Apply]                  â”‚
 â”‚                                             â”‚
 â”‚  ðŸ‘¤ You (12:35 PM)                          â”‚
 â”‚  Also add due dates to tasks               â”‚
@@ -1571,7 +1443,6 @@ Lines removed: 87
 **2. AI Responses (Read-Only)**
 - High-level explanation
 - Proposed changes summary
-- Budget impact preview
 - Action buttons (Preview, Apply, Reject)
 
 **3. System Messages**
@@ -1691,9 +1562,7 @@ All Operator actions are recorded with:
 The Operator CANNOT override budget caps, capability enforcement, or sandbox rules at runtime. Operator authority is limited to:
 
 - âœ… Halt execution
-- âœ… Rollback to checkpoint
 - âœ… Approve upgrades
-- âœ… Evidence and Legal Hold control
 - âœ… Enable/disable Safe Mode (system-wide safety profile)
 - âœ… Grant or revoke capability tokens for goals
 - âŒ **Cannot bypass budgets** (hard enforced by Core)
@@ -1864,7 +1733,6 @@ The following UI panels are **required for advanced operation**:
 
 **Panel 1 (Left - 20% width):**
 - **Chat Interface** (top): Natural language input for AI
-- **Active Files Overview** (bottom): Shows only files currently being worked on
 
 **Panel 2 (Center - 50% width):**
 - **Live Preview**: Interactive sandbox showing app
@@ -2222,7 +2090,9 @@ All security and audit guarantees apply only to the Exacta runtime and enforceme
 
 ---
 
-**Built for developers who refuse to compromise on control.**
+**Built for developers who value speed, momentum, and continuous forward progress over formal control, auditability, and reversible execution.**
+
+
 
 
 
