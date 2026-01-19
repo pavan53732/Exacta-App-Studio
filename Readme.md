@@ -19,7 +19,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 Goal (user-defined with success criteria)
   ↓
 Continuous autonomous loop until goal satisfied:
-  → Perceive (analyze project state + execution history)
+  → Perceive (analyze project state + redacted outcome summaries only)
   → Decide (AI proposes next actions)
   → Act (Guardian validates → Core executes with capability tokens)
   → Observe (check results + drift detection)
@@ -214,6 +214,33 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 **Invariant:**  
 **INV-MEM-CTX-1: Forensic Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
 
+**INV-MEM-9: No Forensic Perception** — AI SHALL NOT perceive, infer from, or receive execution logs, checkpoints, policy decisions, or causal traces. Only redacted outcome summaries produced by Core MAY be provided.
+
+### Redacted Outcome Schema (AI-Visible)
+
+Each outcome summary injected into context MUST conform to:
+
+```tsx
+OutcomeSummary {
+  step_id: UUID
+  status: 'SUCCESS' | 'FAILURE'
+  high_level_effect: string      // e.g. "Build failed due to missing NuGet package"
+  files_touched_count: number
+}
+```
+
+**Explicitly forbidden fields:**
+
+* Timestamps
+* File paths
+* Command strings
+* Capability tokens
+* Policy results
+* Budget values
+* Error codes
+* Stack traces
+* Hashes or IDs from forensic systems
+
 ### **Core Autonomous Components**
 
 ## Formal Definitions — Memory vs State vs Context
@@ -387,6 +414,20 @@ System SHALL:
 - Compression applied to all snapshots
 - User can manually prune checkpoints older than N cycles via UI
 
+### Persistent Memory Quotas
+
+**Default Limits:**
+- Execution Logs: 500MB
+- Project Index Cache: 200MB
+- Goal State Store: 50MB
+- Checkpoint Metadata: 100MB (excluding file blobs)
+
+**Invariant:**  
+**INV-MEM-10: Quota Enforcement** — If any memory class exceeds its quota, system SHALL:
+1. Halt autonomous execution
+2. Notify Operator
+3. Require explicit approval to expand quota or prune non-evidence data
+
 **Evidence Classification Rule:** If a checkpoint is referenced by an audit log, security incident, or forensic export, it is reclassified as EVIDENCE and becomes subject to Evidence Retention and Legal Hold rules. Such checkpoints MUST NOT be auto-deleted.
 
 - **Agent Supervisor (Non-AI)**
@@ -476,10 +517,15 @@ Only Core-generated state may influence policy evaluation.
 
 ### **World Model Hard Containment Rule**
 
-The World Model SHALL be isolated from all policy, execution, and audit functions. It SHALL NOT be used for:
+The World Model SHALL be isolated from all policy, execution, and audit functions. 
+
+The World Model MAY be used internally by the AI Agent for reasoning,
+but SHALL NOT be persisted, exported, logged, checkpointed, or treated
+as authoritative input to Core, Guardian, Policy Engine, or Capability Authority.
+
+It SHALL NOT be used for:
 
 - Policy evaluation or capability decisions
-- Execution planning or command generation
 - Audit logging or forensic analysis
 - State persistence across sessions
 
@@ -568,6 +614,8 @@ System automatically halts if:
 
 **INV-MEM-0: System-Owned Memory Authority** — All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
 
+**INV-MEM-13: Goal Isolation** — Persistent State, Index views, and Outcome Summaries SHALL be goal-scoped. Data from Goal A SHALL NOT be injected into AI context for Goal B under any condition.
+
 **INV-A1: System Authority Supremacy** — Only Guardian and Core Runtime have execution authority. AI is untrusted decision proposer.
 
 **INV-A2: Capability-Scoped Actions Only** — Every action must present valid capability token (FS_READ, FS_WRITE, BUILD_EXEC, etc.). No raw system access.
@@ -637,6 +685,12 @@ This sandbox does NOT defend against kernel-level compromise, firmware attacks, 
 ### **AI Provider Trust Assumption**
 
 External AI providers and local model runtimes are treated as **untrusted data sources**.
+
+Exacta App Studio DOES NOT control or guarantee memory behavior of external AI providers.
+Providers may retain, log, or train on submitted prompts according to their own policies.
+
+**Invariant:**  
+**INV-MEM-14: Provider Memory Boundary** — System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
 
 ### Supply Chain Trust Boundary
 
@@ -843,6 +897,18 @@ Every autonomous cycle enforces:
 **Invariant:**
 
 **INV-INDEX-1: Index Follows File System** — The Project Index is a cache, not authority. File system is ground truth. Any detected drift triggers reconciliation before execution continues.
+
+### Index Trust Boundary
+
+The Project Index is treated as **untrusted cache** until validated.
+
+Before each cycle:
+- Guardian MUST verify index fingerprints against filesystem hashes
+- If mismatch exists, index is invalidated and rebuilt from disk
+- AI context injection is BLOCKED until rebuild completes
+
+**Invariant:**  
+**INV-MEM-11: No Unverified Index Exposure** — AI SHALL NOT receive Project Index data that has not passed Guardian verification in the current cycle.
 
 ### **Index Rebuild Failure Mode**
 
@@ -1977,6 +2043,18 @@ CausalRecord {
 - **Execution determinism** — Same orchestration decisions + same AI outputs + same file states = same execution results
 
 **Replay Scope Limitation:** Replay determinism does NOT apply to time-based, provider-latency, or token-consumption budgets. These are validated for policy compliance, not identical numerical reproduction.
+
+### Replay Authority Rule
+
+Only Operator via Guardian MAY initiate:
+- Deterministic replay
+- Best-effort replay
+- Forensic rehydration
+
+Core and AI SHALL NOT request or trigger replay modes.
+
+**Invariant:**  
+**INV-MEM-12: Replay is Human-Authorized** — Replay functions are forensic tools, not operational capabilities.
 
 ### **Sandbox Incident Forensics**
 
