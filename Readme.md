@@ -2364,6 +2364,16 @@ The documentation endpoint allowlist is stored in Guardian policy storage and ma
 
 Exacta App Studio is **fail-closed**. If execution is halted (budget exhaustion, policy violation, crash, or manual stop), **all in-flight subprocesses are terminated as a group** using the Windows Job Object boundary, including any child processes spawned by build tools or CLIs. Any step that does not reach a recorded “safe boundary” is treated as **failed**, and Exacta will not continue autonomously. For power loss or OS crash mid-cycle, Exacta guarantees that on next launch it will either (a) resume from the **last fully committed checkpoint**, or (b) require Operator review if recovery cannot be proven. Partially applied file operations are prevented by atomic write/replace semantics, so the project is restored to a known checkpointed state rather than an in-between state.
 
+### Cold Start Memory Rule
+
+On fresh launch or crash recovery:
+
+- AI SHALL receive NO prior context
+- Only Core-generated Goal State Summary and Verified Index Snapshot may be injected
+- Execution resumes strictly from last COMMITTED checkpoint
+
+**INV-MEM-CS1:** AI SHALL NOT be used to reconstruct system state after restart.
+
 ### **Versioning & Backward Compatibility (Audit Guarantees)**
 
 - **Checkpoint format is versioned.** Each checkpoint includes a schema version and the Exacta build identifier that produced it.
