@@ -224,6 +224,13 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 **Invariant:**  
 **INV-MEM-CTX-1: Forensic Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
 
+**INV-MEM-FW-2: Semantic Neutralization**
+All injected content SHALL be normalized to prevent:
+- Implicit execution order inference
+- File hierarchy reconstruction
+- Change chronology reconstruction
+- Goal lineage reconstruction
+
 **INV-MEM-9: No Forensic Perception** — AI SHALL NOT perceive, infer from, or receive execution logs, checkpoints, policy decisions, or causal traces. Only redacted outcome summaries produced by Core MAY be provided.
 
 **INV-MEM-15: No Execution Trace in Context** — Execution traces, causal records, and audit logs SHALL NOT be exposed to the AI Agent during PERCEIVE under any condition.
