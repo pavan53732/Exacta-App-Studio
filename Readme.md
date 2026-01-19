@@ -10,7 +10,36 @@ Execution ordering is deterministic **within a single cycle** given identical:
 
 Cross-cycle ordering in Progressive Context Mode is **convergent, not strictly deterministic**, and is governed by semantic coverage completion rather than fixed step ordering.
 
+**Formal Convergence Definition:**
+- Convergence means: semantic_coverage_map reaches 100% within N cycles (configurable in Advanced Settings, default N=5)
+- Failure condition: If coverage < 100% after max_cycles, require Operator review and manual context expansion
+- Divergence handling: If coverage decreases between cycles, trigger context reset with expanded shard size
+
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
+
+## 📚 Terminology Glossary
+
+| Term | Definition | Also Called |
+|------|------------|-------------|
+| **Operator** | Human user with administrative privileges | User, Administrator |
+| **Core** | Exacta App Studio runtime (immutable execution engine) | Core Runtime, System |
+| **Guardian** | Elevated security process enforcing policy and sandbox | Security Guardian, Policy Engine |
+| **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
+| **Goal** | User-defined objective with success criteria | Task, Objective |
+| **Cycle** | One complete Perceive→Decide→Act→Observe→Checkpoint loop | Loop, Iteration |
+| **Checkpoint** | Restorable system state snapshot | Snapshot, Restore Point |
+| **Scope Root** | Project directory jail boundary | Project Root, Jail |
+| **Capability Token** | Permission grant for specific actions | Token, Permission |
+| **Progressive Context Mode** | Multi-cycle execution for large codebases | Context Sharding |
+| **World Model** | AI's understanding of project state | Context Model |
+| **Blast Radius** | Potential scope of change impact across codebase | Impact Scope |
+| **Safe Mode** | Restricted execution mode with network disabled | Restricted Mode, Offline Mode |
+| **Evidence Preservation** | Automatic retention of forensic data during incidents | Forensic Mode |
+| **Legal Hold** | Operator-initiated evidence lockdown for compliance | Evidence Lockdown |
+| **Shard** | Subset of dependency graph processed in one cycle | Context Partition |
+| **Coverage Map** | Record of which files have been semantically validated | Semantic Coverage Tracker |
+| **Diff Staging** | UI area for reviewing changes before commit | Change Preview |
+| **Progress Digest** | Core-generated summary of goal execution status | Execution Summary |
 
 **What makes it unique:**
 
@@ -67,6 +96,12 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 - ❌ **Rust (Tauri-style)** — Not supported
 - ❌ **WebView-based desktop** — Not supported
 
+**C++ Default Risk Classification:**
+
+- C++ goals SHOULD default to `risk_class: HIGH` due to toolchain and debugging complexity.
+- Any SYSTEM-class shell commands still require `risk_class: CRITICAL` per shell policy.
+- Operators MAY lower risk_class for narrowly scoped template edits, but the system SHOULD require explicit confirmation when enabling `SHELL_EXEC` for C++ goals.
+
 **Supported Packaging Formats:**
 
 - .msi (Windows Installer via WiX, Inno Setup)
@@ -81,11 +116,16 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 - **User-provided certificates** — Bring your own code signing cert for signed output
 - **Default behavior** — Generates unsigned installers with security warnings visible to end users
 
+**Optional Signing Orchestration (External Toolchain):**
+
+- Exacta MAY orchestrate Windows signing tools (e.g., `signtool.exe`) as a sandboxed subprocess after packaging.
+- Signing MUST require an explicit capability token and MUST NOT embed private keys in project files, diffs, or checkpoints.
+
 ## Core Principles
 
 **Bounded Autonomy** — System runs self-directed loops within strict capability tokens, budget limits, and policy constraints. User approves goals, system auto-executes steps, Guardian enforces boundaries.
 
-**Deterministic by Design** — Every execution follows the autonomous loop: Goal → Perceive → Decide → Act → Observe → Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
+**Policy-Deterministic by Design** — Every execution follows the autonomous loop: Goal → Perceive → Decide → Act → Observe → Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
 
 **Determinism Scope:** Determinism guarantees apply only under identical OS version, toolchain versions, filesystem state, environment variables, policy_version, and memory schema_version as recorded in the checkpoint metadata.
 
@@ -98,6 +138,16 @@ The following components are explicitly NON-deterministic and excluded from dete
 - Timestamped file generation
 - Network-fetched dependencies
 - Antivirus and endpoint protection interference
+
+**Operator Visibility:** If subprocess execution appears blocked by antivirus/EDR, the UI SHOULD surface a warning banner suggesting the Operator review local logs and allowlists.
+
+**Antivirus Detection Heuristics:**
+- Process creation fails with ERROR_ACCESS_DENIED (0x5)
+- Binary files are quarantined or deleted immediately after creation
+- Subprocess terminates within 100ms of startup (typical EDR injection time)
+- Windows Event Log shows antivirus events (Event ID 1006-1008 for Windows Defender)
+- File access patterns show characteristic EDR scanning delays (>50ms per file operation)
+- Network connections blocked despite NET_* capability being granted
 
 Determinism guarantees apply only to:
 
@@ -128,6 +178,8 @@ Exacta App Studio distinguishes between **State**, **Memory**, and **Context** a
 - **Context Window** — Ephemeral, AI-visible, non-authoritative
 
 **AI SHALL NOT be a memory authority under any condition.**
+
+**Clarification:** AI may receive **redacted system metadata** (version numbers, feature flags, policy version) for upgrade proposals, but cannot access or modify persistent memory layers, audit logs, or forensic artifacts.
 
 ## 🏗️ Architecture Overview
 
@@ -190,11 +242,18 @@ Guardian does NOT maintain persistent administrator privileges. **Cannot be modi
 **IPC Security Model:**
 
 - **Transport** — Named pipes with Windows ACLs (Guardian process SID only)
-- **Authentication** — HMAC-SHA256 message authentication with per-session key
+- **Authentication** — HMAC-SHA256 message authentication with per-session key (derived from Guardian_Secret via HKDF)
 - **Authorization** — Every IPC request includes capability token; Guardian validates before processing
 - **Replay protection** — Nonce + timestamp in every message (5-second validity window)
+- **Nonce validity logic**: max(5 seconds, 2x observed IPC round-trip time); clock skew tolerance ±30 seconds with warning on detection
 - **Encryption** — AES-256-GCM for all IPC payloads (defends against non-privileged local process inspection; does not defend against kernel or administrator-level compromise)
 - **Sequence enforcement** — Messages include sequence numbers; out-of-order messages rejected
+
+**Guardian_Secret Management:**
+
+- **Storage**: Guardian_Secret is generated on first run, stored encrypted via Windows DPAPI (bound to user account + machine).
+- **Rotation**: Automatic rotation every 7 days or on system upgrade; old secrets retained for 7 days for decryption.
+- **Migration**: On machine migration, secrets are lost; user must re-enter API keys and re-initialize Guardian.
 
 **IPC Threat Model:**
 
@@ -239,6 +298,13 @@ The system SHALL surface a visible banner:
 > “Progressive Context Mode Active — semantic coverage in progress”
 
 **MAY-CTX-FAST: Throughput Mode (Operator-Controlled)**
+
+**Shard Computation Algorithm:**
+- Use topological sort on the dependency graph to identify safe execution order
+- Circular dependencies detected via Strongly Connected Components (SCC) analysis: if SCC size > 1, treat entire component as single shard with warning
+- Each shard MUST be < 80% of the provider's context capacity to allow headroom
+- If a single file + its immediate dependencies > capacity → HALT with "Unsupported: file too large for context window"
+- Cross-shard dependencies are validated at cycle boundaries to prevent violations
 
 The Operator MAY enable Throughput Mode, allowing relevance-ranked context selection instead of strict dependency closure.
 
@@ -303,6 +369,45 @@ OutcomeSummary {
 * Error codes
 * Stack traces
 * Hashes or IDs from forensic systems
+
+### **Goal Progress Digest (Core-Generated Summary)**
+
+To improve AI context quality without violating forensic isolation, Core generates a **deterministic, redacted summary** every 5 cycles.
+
+**Digest Schema:**
+
+```tsx
+GoalProgressDigest {
+  cycles_completed: number
+  files_modified_total: number
+  successful_builds: number
+  failed_builds: number
+  coverage_progress: string      // "78% → 92%"
+  budget_status: {
+    tokens: string,              // "320k / 500k remaining"
+    time: string,                // "18min / 30min remaining"
+    files: string,               // "127 / 500 modified"
+    builds: string               // "3 / 5 runs used"
+  }
+  last_5_outcomes: OutcomeSummary[]  // Standard redacted outcomes
+}
+```
+
+**Generation Rules:**
+- Produced by Core every 5 cycles (deterministic interval)
+- Replaces individual outcome summaries in AI context
+- Contains only aggregate statistics (no forensic details)
+- Injected into AI context alongside current cycle's state
+
+**Invariant:**  
+**INV-MEM-DIGEST-1: Digest Authority** — Only Core may generate progress digests. AI SHALL NOT summarize, compress, or transform execution history. Digests are computed from persistent state, not from AI reasoning.
+
+**Why This is Safe:**
+- Core-generated (not AI hallucination)
+- Deterministic (same state = same digest)
+- Redacted (no timestamps, hashes, or forensic IDs)
+- Goal-scoped (no cross-goal data leakage)
+- Read-only (AI cannot modify digest)
 
 ### **Core Autonomous Components**
 
@@ -444,7 +549,7 @@ Rule {
 
 - **Capability Authority**
 
-Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC, PACKAGE_EXEC, NET_AI_ONLY, NET_DOCS_ONLY, SHELL_EXEC (optional, high risk)
+Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC, PACKAGE_EXEC, SIGN_EXEC, NET_AI_ONLY, NET_DOCS_ONLY, SHELL_EXEC (optional, high risk), PROCESS_KILL
 
 - **Budget Enforcer**
 
@@ -570,7 +675,10 @@ System SHALL:
 - **Goal completion checkpoint** — Retained for 30 days
 - **Manual checkpoints** — Never auto-deleted (user must explicitly delete)
 - **Storage limit** — If checkpoint storage exceeds 10GB or 90% of available disk, oldest auto-checkpoints pruned first
+- **Precedence rule** — Last 3 checkpoints are NEVER pruned regardless of storage pressure. If remaining checkpoints exceed quota, oldest of those beyond the last 3 are pruned.
+- **Edge case handling** — If only 3 checkpoints exist and storage limit is reached, system SHALL halt autonomous execution and warn Operator (no auto-pruning of the minimum guaranteed set)
 - **Minimum guaranteed** — Last 3 checkpoints are never auto-deleted, even under storage pressure
+- **Critical disk pressure** — If available disk drops below 5%, the system SHALL pause autonomous execution and require Operator intervention before continuing
 
 **Storage Management:**
 
@@ -595,6 +703,12 @@ System SHALL:
 
 **Evidence Classification Rule:** If a checkpoint is referenced by an audit log, security incident, or forensic export, it is reclassified as EVIDENCE and becomes subject to Evidence Retention and Legal Hold rules. Such checkpoints MUST NOT be auto-deleted.
 
+**"Referenced by" Criteria:**
+- **Audit Log Reference:** Checkpoint ID appears in any audit log entry as rollback source, comparison baseline, or state restoration point
+- **Security Incident Reference:** Checkpoint is mentioned in incident report, breach analysis, or forensic timeline as relevant system state
+- **Forensic Export Reference:** Checkpoint is included in any exported evidence package, compliance report, or legal discovery response
+- **Transitive Reference:** If checkpoint A references checkpoint B in its metadata chain, and A is evidence, then B is also evidence
+
 - **Agent Supervisor (Non-AI)**
 
 Watchdog monitoring action velocity, repeated failures, loop patterns, scope expansion. Can forcibly freeze agent, revoke capabilities, roll back system
@@ -612,7 +726,7 @@ All persistent memory objects MUST include the following fields:
 
 ```tsx
 MemoryHeader {
-  schema_version: string
+  schema_version: string        // SemVer format (e.g., "1.0.0")
   producer_version: string      // Exacta build ID
   created_at: timestamp
 }
@@ -730,6 +844,35 @@ While the system is fully autonomous, goals can be categorized by intent:
 - **BuildPackage** — Compile, test, and package application
 - **Custom Goals** — Any software engineering objective with defined success criteria
 
+### **Goal Evaluation**
+
+Goals are evaluated for success/failure at the end of each cycle using a combination of automated checks and AI assessment:
+
+**Automated Checks:**
+- Build success (msbuild/dotnet returns 0 exit code)
+- Test execution (if tests exist, all pass)
+- File existence (required output files present)
+- Process completion (no hanging processes)
+
+**AI Assessment:**
+- Code quality review (linting, style compliance)
+- Feature completeness (against goal description)
+- Error absence (no runtime exceptions in logs)
+- User criteria matching (natural language evaluation)
+
+**Success Criteria:**
+- Goal is marked SUCCESS if all automated checks pass AND AI assessment scores >80% confidence
+- Goal is marked FAILURE if budget exhausted, 3 consecutive build failures, or critical errors detected
+- Goal continues if partial progress detected but not complete
+
+**Evaluation Process:**
+1. Run automated checks on project state
+2. AI reviews changes against original goal
+3. System computes success probability (0-100%)
+4. If >80%, mark SUCCESS and halt
+5. If <20%, mark FAILURE and halt
+6. Otherwise, continue loop with refined plan
+
 ### **Budget Enforcement**
 
 **Hard Runtime Limits (per cycle or per goal):**
@@ -749,18 +892,122 @@ While the system is fully autonomous, goals can be categorized by intent:
 
 Exceeding any budget triggers automatic HALT with rollback option.
 
+### **Budget Meter UI Design**
+
+**Visual Representation:**
+
+```
+Tokens Used:  ████████████░░░░░░░░  320k / 500k  (64%)
+Time Elapsed: ███████████████░░░░░   18min / 30min (60%)
+Files Modified: ██████░░░░░░░░░░░░░  127 / 500 (25%)
+Builds Run:   ███░░░░░░░░░░░░░░░░░    3 / 5 (60%)
+
+Network Calls: ███████████████████░  187 / 200 (93%) ⚠️ Warning
+
+Status: 🟢 Healthy | ⚠️ Approaching limits on: Network Calls
+```
+
+**Color Coding:**
+- 🟢 Green (0-70%): Healthy
+- 🟡 Yellow (70-90%): Warning
+- 🔴 Red (90-100%): Critical
+- ⚫ Black (100%): Exhausted → HALT
+
+**Live Updates:**
+- Budget meters update in real-time as actions execute
+- Warning toast when any budget exceeds 90%
+- Countdown timer shows time remaining
+- Projected completion estimate based on current velocity
+
+**Historical Trend:**
+```
+Last 5 cycles average:
+• Tokens/cycle: 15k → Estimated 6 more cycles before exhaustion
+• Files/cycle: 12 → Well within limits
+```
+
+### **Live Budget Visualization (Lovable-Inspired Speed)**
+
+**Meter Panel (Always Visible in Right Sidebar):**
+
+```
+┌─────────────────────────────────────────────┐
+│  BUDGET STATUS                              │
+├─────────────────────────────────────────────┤
+│  Tokens:  ████████████░░░░░░░░  64%         │
+│           320,000 / 500,000 used            │
+│           Estimated: 6 cycles remaining     │
+│                                             │
+│  Time:    ███████████████░░░░░  60%         │
+│           18:00 / 30:00 elapsed             │
+│           Average: 2min/cycle               │
+│                                             │
+│  Files:   ██████░░░░░░░░░░░░░░  25%         │
+│           127 / 500 modified                │
+│                                             │
+│  Builds:  ███░░░░░░░░░░░░░░░░░  60%         │
+│           3 / 5 builds used                 │
+│                                             │
+│  Network: ███████████████████░  93% ⚠️      │
+│           187 / 200 calls used              │
+│           WARNING: Approaching limit        │
+├─────────────────────────────────────────────┤
+│  Status: 🟢 Healthy                         │
+│  Last update: 2 seconds ago                 │
+└─────────────────────────────────────────────┘
+```
+
+**Color Coding (Same as Lovable):**
+- 🟢 Green (0-70%): Healthy
+- 🟡 Yellow (70-90%): Warning - shown in meter
+- 🔴 Red (90-100%): Critical - flashing indicator
+- ⚫ Black (100%): Exhausted → Automatic HALT
+
+**Velocity Tracking:**
+
+Shows historical trend for prediction:
+
+```
+Last 5 cycles:
+• Tokens/cycle: 12k → 15k → 14k → 16k → 13k (avg: 14k)
+• Files/cycle: 8 → 12 → 10 → 15 → 9 (avg: 11)
+  
+Projection:
+• Token budget will last ~6 more cycles
+• File budget has 38 cycles remaining
+• Time budget has 12 minutes remaining
+
+⚠️ Limiting factor: TIME (will exhaust first)
+```
+
+**Budget Violation Priority (first match halts):**
+1. Files modified (immediate halt - filesystem safety)
+2. Lines changed (immediate halt - code safety)  
+3. Time elapsed (immediate halt - runaway prevention)
+4. Tokens used (immediate halt - cost control)
+5. Network calls (warning first, then halt)
+6. Shell commands (warning first, then halt)
+7. Build runs (warning first, then halt)
+
+*Rationale: Files > Lines because file count indicates scope of change; line count can be high in single files but fewer files means more contained impact.*
+
 ### **Runaway Detection**
 
 System automatically halts if:
 
 - Same file modified 3x in 5 loops
 - Build fails 3x consecutively
-- No goal progress detected in N cycles
-- Action velocity exceeds safety threshold
+- No goal progress detected in 5 cycles (N=5)
+- Action velocity exceeds safety threshold (10 actions/minute)
 - Recursive loop pattern detected
 - **Repeated identical shell commands** (same command 3x in 5 cycles)
 - Budget drops below 10% (warning only)
 - Progressive Context Mode is active AND semantic coverage is incomplete AND user attempts to finalize goal
+
+**Runaway Detection Rationale:**
+- "3x in 5 loops" balances sensitivity (catches issues early) vs. false positives (allows iterative refinement)
+- Configurable in Advanced Settings → Safety → Runaway Detection: detection_sensitivity = 'conservative' | 'balanced' | 'permissive'
+- Conservative: 2x in 3 loops; Permissive: 5x in 10 loops
 
 **Rule:** A goal SHALL NOT be marked COMPLETED while any dependency-critical file remains uncovered in the semantic_coverage_map.
 
@@ -779,10 +1026,99 @@ A file is dependency-critical if it:
 - **Drift detection** before every apply
 - **NO_CHANGES_REQUIRED sentinel** for no-op responses
 
+### **Diff Staging Area (Lovable + Git Hybrid)**
+
+**Lovable Pattern:** Shows SQL/code with single "Apply Changes" button
+**Exacta Enhancement:** Multi-step review with granular control
+
+**Stage 1: AI Proposes Changes**
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🤖 Exacta is typing...                              │
+│                                                      │
+│  I'll add SQLite persistence with these changes:    │
+│                                                      │
+│  📄 src/models/TodoContext.cs (NEW FILE)            │
+│     +45 lines | Creating EF Core context            │
+│     [Preview Diff] [Stage]                          │
+│                                                      │
+│  📄 src/models/Todo.cs (MODIFIED)                   │
+│     +12 lines, -3 lines | Adding Id property        │
+│     [Preview Diff] [Stage]                          │
+│                                                      │
+│  📄 Program.cs (MODIFIED)                           │
+│     +8 lines | Registering DbContext                │
+│     [Preview Diff] [Stage]                          │
+│                                                      │
+│  [Stage All] [Reject All] [Ask AI to Revise]       │
+└─────────────────────────────────────────────────────┘
+```
+
+**Stage 2: Preview Individual Diff**
+
+Click "Preview Diff" to see unified diff with syntax highlighting:
+
+```diff
+--- a/src/models/Todo.cs
++++ b/src/models/Todo.cs
+@@ -1,5 +1,8 @@
+ namespace TodoApp.Models {
+   public class Todo {
++    [Key]
++    public int Id { get; set; }
++    
+     public string Title { get; set; }
+     public bool IsCompleted { get; set; }
+   }
+ }
+```
+
+**Stage 3: Commit Staged Changes**
+
+After staging desired files:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Staged Changes (2 files)                           │
+│                                                      │
+│  ✓ src/models/TodoContext.cs (+45 lines)            │
+│  ✓ src/models/Todo.cs (+12, -3 lines)               │
+│                                                      │
+│  Budget Impact:                                      │
+│  • Files: 2/50 remaining                            │
+│  • Lines: 54/2000 remaining                         │
+│  • Tokens: ~1,200 consumed                          │
+│                                                      │
+│  [Commit Changes] [Unstage All]                     │
+│                                                      │
+│  ⚠️ This will create checkpoint cp_a3f9c2           │
+└─────────────────────────────────────────────────────┘
+```
+
+**Key Difference from Lovable:**
+- **Lovable**: Single "Apply Changes" → instant application
+- **Exacta**: Stage → Review → Commit → Checkpoint (full auditability)
+
+**Features:**
+- **Live Preview:** Show diff as AI generates (streaming)
+- **Selective Staging:** Unstage individual files
+- **Manual Edit:** Open file in external editor before commit
+- **Risk Indicators:** Flag high-risk changes (config files, system paths)
+- **Rollback Integration:** "Reject All" discards without creating checkpoint
+
+**Invariant Compliance:**
+- Does NOT violate immutability (Core still enforces atomic commit)
+- Does NOT allow AI to bypass policy (Guardian validates before commit)
+- Does NOT break checkpoint integrity (only committed diffs are checkpointed)
+
+**Implementation:** This is purely a UI staging layer. All diffs are validated by Policy Engine before commit, regardless of user selection.
+
 ### **Background Execution Model**
 
 - Plans execute in background workers with smart retry (up to 3 attempts)
 - **Safe interruption boundaries** — User can pause/cancel at step boundaries only
+- **Step boundary definition** — After checkpoint commit, before next AI call (ensures atomic state)
 - **Notification policy** — Risk-based toasts vs. modals
 - **Correlation tracking** — Full lineage from intent to file change
 
@@ -793,6 +1129,8 @@ A file is dependency-critical if it:
 **INV-MEM-0: System-Owned Memory Authority** — All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
 
 **INV-MEM-13: Goal Isolation** — Persistent State, Index views, and Outcome Summaries SHALL be goal-scoped. Data from Goal A SHALL NOT be injected into AI context for Goal B under any condition.
+
+**INV-MEM-DIGEST-1: Core-Only Digest Authority** — Goal progress digests SHALL be generated only by Core from persistent state. AI SHALL NOT summarize, compress, or transform execution history. Digest injection into AI context SHALL follow the same redaction rules as OutcomeSummary.
 
 **INV-A1: System Authority Supremacy** — Only Guardian and Core Runtime have execution authority. AI is untrusted decision proposer.
 
@@ -826,7 +1164,7 @@ Exacta App Studio enforces a **single, unified sandbox boundary** that governs a
 
 This boundary includes:
 
-- **Filesystem access** (project root jail, symlink rules, atomic writes, system-path denylist)
+- **Filesystem access** (project root jail with MAX_PATH=260 chars, symlink rules, atomic writes, system-path denylist, no UNC paths, no device paths)
 - **Process execution** (shell containment, **Windows Job Object enforcement** with CPU/memory limits, no breakaway flag, resource limits)
 - **Network access** (token-gated endpoints only, Safe Mode full network kill, **execution disabled by default** during autonomous execution)
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
@@ -834,7 +1172,7 @@ This boundary includes:
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) run inside a Windows Job Object with:
 
 - No breakaway allowed (JOB_OBJECT_LIMIT_BREAKAWAY_OK disabled)
-- CPU affinity restricted to non-critical cores
+- CPU affinity restricted to non-critical cores (cores 1+ on multi-core systems, avoiding core 0)
 - Memory limit enforced (default: 2GB per subprocess)
 - Process lifetime limited (default: 5 minutes per command)
 - Network access disabled by default unless NET_* token explicitly granted
@@ -855,6 +1193,16 @@ Any detected sandbox violation MUST:
 - Enable Evidence Preservation Mode
 - Log a `SANDBOX-BREACH` security incident
 - Require Operator intervention before resumption
+
+**Concurrency Handling:**
+
+Exacta App Studio supports **single-goal execution only**. Multiple concurrent goals are not supported to maintain deterministic execution and auditability.
+
+- **Subprocess Concurrency:** Within a single goal, multiple subprocesses (builds, tests) may run concurrently if explicitly allowed by capability tokens and budget limits.
+- **Job Object Grouping:** All subprocesses for a goal are grouped under a single Windows Job Object for coordinated termination.
+- **Resource Limits:** Concurrent subprocesses share the goal's total resource budget (CPU, memory, time).
+- **Synchronization:** Core enforces sequential execution of AI decisions but allows parallel subprocess execution where safe.
+- **Failure Propagation:** If any subprocess fails, the entire goal cycle is marked failed and may trigger rollback.
 
 **Non-Goals:**
 
@@ -886,7 +1234,8 @@ Exacta App Studio does NOT trust:
 Enforcement:
 
 - All installers and binaries are treated as untrusted inputs
-- Hash verification is REQUIRED for manually installed CLI tools
+- Hash verification is REQUIRED for all CLI tools, whether manually installed or auto-detected in PATH
+- Auto-detected CLIs are verified against known-good hashes from the Exacta trusted CLI registry
 - Package installs require explicit Operator approval
 - Dependency execution is always sandboxed under Job Object constraints
 
@@ -923,6 +1272,14 @@ The following paths trigger SYSTEM-LEVEL classification:
 **Available Tokens (per goal, per session):**
 
 **Token Lifecycle:**
+
+Capability tokens follow a strict lifecycle:
+
+- **Issuance**: Guardian issues tokens per goal, signed with Guardian_Secret.
+- **Validation**: Core validates tokens before each action using HMAC.
+- **Expiration**: Tokens expire at goal completion, IPC session end, or 24-hour max.
+- **Renewal Exception**: Tokens MAY be renewed automatically for active goals with Operator approval if 24-hour limit is approached.
+- **Revocation**: Guardian can revoke tokens mid-goal (e.g., on abuse detection).
 
 **Capability Token Validation:**
 
@@ -987,6 +1344,8 @@ Token = {
   capability_type: enum,
   issued_at: timestamp,
   expires_at: timestamp,
+  renewed_count: number,        // Number of times token has been renewed
+  last_renewed_at: timestamp,   // Last renewal timestamp (null if never renewed)
   scope_root_hash: SHA256,
   nonce: 128-bit random,
   signature: HMAC-SHA256(Guardian_Secret, all_fields)
@@ -1015,6 +1374,7 @@ Subsequent SHELL_EXEC attempts return DENY
 | FS_WRITE | Write files within project root | Medium |
 | BUILD_EXEC | Execute build commands | Medium |
 | PACKAGE_EXEC | Execute packaging tools | High |
+| SIGN_EXEC | Execute code-signing tools on produced artifacts | High |
 | NET_AI_ONLY | Network access to AI APIs only | Medium |
 | NET_DOCS_ONLY | Network access to documentation sources | Low |
 | SHELL_EXEC | Execute arbitrary shell commands | Very High |
@@ -1049,7 +1409,7 @@ Every shell command is classified before execution:
 **Shell Sandbox:**
 
 - Working directory **forced to scope_root** (cannot cd outside)
-- `PATH` environment variable **restricted** to known safe binaries
+- `PATH` environment variable **restricted** to known safe binaries (e.g., dotnet, msbuild, cl, link, git, npm, pip, node)
 - Environment variables **scrubbed** (no inherited secrets)
 - **No inherited credentials** (no Windows auth tokens passed)
 - Subprocess timeout enforced (default: 5 minutes per command)
@@ -1070,7 +1430,7 @@ Every autonomous cycle enforces:
 
 **Detection Mechanism:**
 
-- **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints
+- **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
 - **Drift Classification:**
     - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
     - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, requires user confirmation to continue
@@ -1108,9 +1468,9 @@ Each committed Project Index snapshot MUST include:
 If index rebuild fails due to corruption or inconsistency:
 
 1. Guardian SHALL quarantine the corrupted index
-2. System SHALL enter read-only mode
-3. User SHALL be prompted to restore from backup or re-initialize
-4. All AI operations SHALL be suspended until index integrity is restored
+2. System SHALL enter read-only mode for the affected goal (other goals may continue if index is intact)
+3. User SHALL be prompted to restore from backup or re-initialize the specific goal
+4. AI operations SHALL be suspended only for the affected goal until index integrity is restored
 
 **Invariant:**
 
@@ -1204,7 +1564,7 @@ Exacta App Studio supports multiple AI provider types:
 
 *Enterprise & Private Cloud:*
 
-- **IBM [watsonx.ai](http://watsonx.ai)**:
+- **IBM [watsonx.ai](http://watsonx.ai)** — Foundation models (Granite, Llama, etc.) via IBM Cloud
 - **Oracle Cloud Infrastructure Generative AI** — Cohere, Llama via Oracle Cloud
 - **Databricks** — DBRX, Llama 2, MPT models on Databricks platform
 - **Snowflake Cortex** — LLMs integrated into Snowflake data platform
@@ -1231,7 +1591,6 @@ Exacta App Studio supports multiple AI provider types:
 - **GPT4All** — Simple desktop app with bundled models
 - **AnythingLLM** — Full-stack local AI workspace
 - **Msty** — Multi-model desktop interface
-- **Enchanted** — macOS-native LLM interface
 - **RecurseChat** — Local-first AI chat app
 
 *API Servers (Self-Hosted, OpenAI-Compatible):*
@@ -1311,7 +1670,7 @@ All CLI-based agents SHALL run with:
 
 - Session persistence DISABLED by default
 - Working directory forced to scope_root
-- Home/config directories redirected to a sandbox path under `.exacta/cli-sandbox/`
+- Home/config directories redirected to a sandbox path under `.exacta/cli-sandbox/{cli_name}/` (per-CLI isolation)
 
 **Invariant:**  
 **INV-MEM-16: No External Agent Memory** — CLI agents SHALL NOT maintain persistent memory, embeddings, session state, or project summaries outside Exacta-controlled storage. This includes prohibition of provider-side “project memory,” “long-term chat memory,” or “workspace recall” features.
@@ -1349,6 +1708,8 @@ After any CLI agent execution, the Project Index SHALL be invalidated and fully 
 
 ### **Configuration Fields (Per Provider Type)**
 
+**Schema Format:** Configuration schemas use TypeScript-like syntax for clarity. Fields marked `// REQUIRED` must be provided. `string` fields accept text, `UUID` fields require valid UUIDs, `enum` fields accept only listed values. Optional fields are marked with `?`. Arrays are denoted `type[]`.
+
 **Cloud API Providers:**
 
 ```tsx
@@ -1357,7 +1718,8 @@ CloudProviderConfig {
   provider_type: 'openai' | 'anthropic' | 'openrouter' | 'google' | 'azure' | 'mistral' | 'cohere' | 'custom'
   display_name: string              // User-friendly name (e.g., "My OpenAI Account")
   api_key: string                   // Encrypted at rest, redacted in logs
-  api_endpoint: string              // REQUIRED for 'custom' type (e.g., "
+  api_endpoint: string              // REQUIRED for 'custom' type (e.g., "https://custom-api.example.com/v1")
+}
 ```
 
 **Auto-Fetch vs. Manual Configuration:**
@@ -1372,7 +1734,8 @@ LocalRuntimeConfig {
   provider_id: UUID
   provider_type: 'ollama' | 'lmstudio' | 'localai' | 'koboldcpp' | 'textgen-webui' | 'jan' | 'gpt4all'
   display_name: string
-  api_endpoint: string              // e.g., "
+  api_endpoint: string              // e.g., "http://localhost:11434" for Ollama
+}
 ```
 
 **CLI Tool Providers:**
@@ -1560,7 +1923,8 @@ QwenCodeConfig {
   model: 'qwen3-coder:7b' | 'qwen3-coder:14b' | 'qwen3-coder:32b'
   
   // Ollama endpoint
-  ollama_endpoint: string           // Default: 
+  ollama_endpoint: string           // Default: "http://localhost:11434"
+}
 ```
 
 ### **Model Discovery (Live Model Fetching)**
@@ -1609,10 +1973,12 @@ When a provider is added or "Refresh Models" is clicked:
 **Redaction:**
 
 - API keys NEVER logged in plaintext
-- Audit logs show: `api_key:`
+- Audit logs show: `api_key: sk-proj-****...****`
 - Only first 4 and last 4 characters shown in UI: `sk-proj-abcd...xyz9`
 
 **Never-Send Rules (INV-SECRET-1):**
+
+**INV-SECRET-1:** API keys and secrets SHALL NEVER be transmitted, logged, or exposed outside the local system. This includes AI prompts, project files, diffs, checkpoints, or external communications.
 
 API keys SHALL NEVER be:
 
@@ -1697,7 +2063,7 @@ Authorization: Bearer {api_key}
 
 **Specialized AI Providers:**
 
-- **Mistral AI:** [`](https://api.mistral.ai/v1/models)https://api.mistral.ai/v1/models`
+- **Mistral AI:** `https://api.mistral.ai/v1/models`
 - **Cohere:** [`](https://api.cohere.ai/v1/models)https://api.cohere.ai/v1/models`
 - **AI21 Labs:** [`](https://api.ai21.com/studio/v1/models)https://api.ai21.com/studio/v1/models`
 - **Writer:** [`](https://api.writer.com/v1/models)https://api.writer.com/v1/models`
@@ -1820,25 +2186,551 @@ Authorization: Bearer {api_key}
 - **LocalAI:** `GET http://localhost:8080/v1/models`
 - **Jan:** `GET http://localhost:1337/v1/models`
 
-**CLI-Based Agents:**
+---
 
-| Provider | Model Discovery Command | Output Format |
-| --- | --- | --- |
-| Goose CLI | `goose providers list` | JSON |
-| Crush CLI | `crush models --list` | JSON/Plain Text |
-| Aider | N/A (manual model entry) | N/A |
-| Codex CLI | `codex --list-models` | JSON |
-| Droid Factory | `droid models` | JSON |
-| GPT Engineer | N/A (uses OpenAI models) | N/A |
-| Qwen Code | `ollama list` (via Ollama) | Plain Text |
-| Gemini CLI | `npm install -g @google/gemini-cli` (requires Node.js 18+) 
-or run once: `npx @google/gemini-cli` |  |
-| Blackbox CLI | `blackbox-cli --models` | JSON |
+### **Live Model Discovery Implementation (Complete Reference)**
+
+This section defines the exact HTTP requests, authentication methods, response parsing, and fallback behavior for every supported provider.
+
+#### **Provider Discovery Matrix**
+
+| Provider Category | Auth Method | Endpoint Pattern | Response Format | Fallback |
+|-------------------|-------------|------------------|-----------------|----------|
+| OpenAI-compatible | Bearer Token | `/v1/models` | JSON array | Manual entry |
+| Anthropic | `x-api-key` header | `/v1/models` | JSON array | Manual entry |
+| Google Gemini | API key param | `/v1beta/models` | JSON array | Manual entry |
+| Azure OpenAI | `api-key` header | `/openai/deployments` | JSON array | Manual entry |
+| AWS Bedrock | AWS Signature V4 | ListFoundationModels API | JSON | Manual entry |
+| Local Runtimes | None | Varies | JSON | Manual entry |
+| CLI Agents | N/A (shell exec) | CLI command | JSON/Text | Manual entry |
+
+---
+
+#### **Cloud Providers — Full Discovery Specification**
+
+**1. OpenAI**
+```
+Endpoint: GET https://api.openai.com/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data.filter(m => m.id.startsWith('gpt') || m.id.startsWith('o1'))
+  
+Extract fields:
+  id: model.id
+  context_window: model.context_window (if available) or lookup from known catalog
+  created: model.created
+```
+
+**2. Anthropic**
+```
+Endpoint: GET https://api.anthropic.com/v1/models
+Headers:
+  x-api-key: {api_key}
+  anthropic-version: 2024-01-01
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Note: Anthropic may return limited model list. Supplement with known catalog:
+  claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
+```
+
+**3. Google Gemini (AI Studio)**
+```
+Endpoint: GET https://generativelanguage.googleapis.com/v1beta/models?key={api_key}
+Headers:
+  Content-Type: application/json
+
+Response parsing:
+  models = response.models.filter(m => m.supportedGenerationMethods.includes('generateContent'))
+  
+Extract fields:
+  id: model.name.replace('models/', '')
+  display_name: model.displayName
+  context_window: model.inputTokenLimit
+  output_limit: model.outputTokenLimit
+```
+
+**4. Azure OpenAI**
+```
+Endpoint: GET https://{resource_name}.openai.azure.com/openai/deployments?api-version=2024-02-01
+Headers:
+  api-key: {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data.map(d => ({
+    id: d.id,
+    model: d.model,
+    status: d.status
+  })).filter(d => d.status === 'succeeded')
+
+Note: Azure returns deployments, not models. Each deployment maps to a base model.
+```
+
+**5. Amazon Bedrock**
+```
+Method: AWS SDK call (not REST)
+SDK: @aws-sdk/client-bedrock
+Call: ListFoundationModels
+
+Pseudocode:
+  const client = new BedrockClient({ region, credentials })
+  const response = await client.send(new ListFoundationModelsCommand({}))
+  models = response.modelSummaries.filter(m => m.modelLifecycle.status === 'ACTIVE')
+
+Extract fields:
+  id: model.modelId
+  provider: model.providerName
+  input_modalities: model.inputModalities
+  output_modalities: model.outputModalities
+  
+Fallback: If AWS SDK unavailable, use static catalog of known Bedrock models.
+```
+
+**6. Google Vertex AI**
+```
+Endpoint: GET https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models
+Headers:
+  Authorization: Bearer {oauth_token}
+  Content-Type: application/json
+
+Note: Requires OAuth token, not API key. Use Google Cloud Application Default Credentials.
+
+Response parsing:
+  models = response.models
+
+Fallback: Use static catalog (gemini-1.5-pro, gemini-1.5-flash, etc.)
+```
+
+**7. Mistral AI**
+```
+Endpoint: GET https://api.mistral.ai/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Extract fields:
+  id: model.id
+  created: model.created
+  owned_by: model.owned_by
+```
+
+**8. Cohere**
+```
+Endpoint: GET https://api.cohere.ai/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.models.filter(m => m.endpoints.includes('generate') || m.endpoints.includes('chat'))
+  
+Extract fields:
+  id: model.name
+  context_length: model.context_length
+  tokenizer_url: model.tokenizer_url
+```
+
+**9. AI21 Labs**
+```
+Endpoint: GET https://api.ai21.com/studio/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.models
+
+Known models (supplement if API incomplete):
+  jamba-instruct, jamba-1.5-large, jamba-1.5-mini, j2-ultra, j2-mid
+```
+
+**10. Groq**
+```
+Endpoint: GET https://api.groq.com/openai/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Note: Groq is fully OpenAI-compatible. No special handling required.
+```
+
+**11. OpenRouter**
+```
+Endpoint: GET https://openrouter.ai/api/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Extract fields:
+  id: model.id
+  name: model.name
+  context_length: model.context_length
+  pricing: { prompt: model.pricing.prompt, completion: model.pricing.completion }
+  
+Note: OpenRouter returns 100+ models. Filter by capability or show paginated list.
+```
+
+**12. Together AI**
+```
+Endpoint: GET https://api.together.xyz/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.filter(m => m.type === 'chat' || m.type === 'language')
+
+Extract fields:
+  id: model.id
+  context_length: model.context_length
+  pricing: model.pricing
+```
+
+**13. Fireworks AI**
+```
+Endpoint: GET https://api.fireworks.ai/inference/v1/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Note: OpenAI-compatible response format.
+```
+
+**14. DeepInfra**
+```
+Endpoint: GET https://api.deepinfra.com/v1/openai/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.data
+
+Note: OpenAI-compatible response format.
+```
+
+**15. HuggingFace Inference API**
+```
+Endpoint: GET https://huggingface.co/api/models?filter=text-generation&sort=downloads&limit=50
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.map(m => ({
+    id: m.id,
+    downloads: m.downloads,
+    likes: m.likes,
+    pipeline_tag: m.pipeline_tag
+  })).filter(m => m.pipeline_tag === 'text-generation')
+
+Note: HuggingFace returns 10,000+ models. Apply filters and pagination.
+```
+
+**16. Replicate**
+```
+Endpoint: GET https://api.replicate.com/v1/models
+Headers:
+  Authorization: Token {api_key}
+  Content-Type: application/json
+
+Response parsing:
+  models = response.results
+
+Note: Replicate uses "Token" auth prefix, not "Bearer".
+```
+
+**17. Perplexity AI**
+```
+Endpoint: GET https://api.perplexity.ai/models
+Headers:
+  Authorization: Bearer {api_key}
+  Content-Type: application/json
+
+Known models (API may not list all):
+  llama-3.1-sonar-small-128k-online
+  llama-3.1-sonar-large-128k-online
+  llama-3.1-sonar-huge-128k-online
+```
+
+**18-35. Remaining Providers (Grouped by Pattern)**
+
+**OpenAI-Compatible (Standard Pattern):**
+- Lepton AI: `GET https://api.lepton.ai/api/v1/models`
+- Monster API: `GET https://api.monsterapi.ai/v1/models`
+- Novita AI: `GET https://api.novita.ai/v3/openai/models`
+- Anyscale: `GET https://api.endpoints.anyscale.com/v1/models`
+
+**Custom Auth Required:**
+- xAI (Grok): `GET https://api.x.ai/v1/models` (Bearer token)
+- Reka AI: `GET https://api.reka.ai/v1/models` (Bearer token)
+- Writer: `GET https://api.writer.com/v1/models` (Bearer token)
+- Inflection AI: Contact-based access (no public API)
+- 01.AI: `GET https://api.01.ai/v1/models` (Bearer token)
+
+**Enterprise (Requires Org Credentials):**
+- IBM watsonx.ai: Use IBM Cloud SDK with IAM token
+- Oracle OCI: Use OCI SDK with API signing
+- Databricks: Use workspace token + endpoint
+- Snowflake Cortex: SQL query `SELECT CORTEX_AVAILABLE_MODELS()`
+
+---
+
+#### **Local Runtimes — Full Discovery Specification**
+
+| Runtime | Endpoint | Port | Response Format |
+|---------|----------|------|-----------------|
+| Ollama | `GET /api/tags` | 11434 | `{ models: [...] }` |
+| LM Studio | `GET /v1/models` | 1234 | OpenAI-compatible |
+| LocalAI | `GET /v1/models` | 8080 | OpenAI-compatible |
+| Jan | `GET /v1/models` | 1337 | OpenAI-compatible |
+| GPT4All | `GET /v1/models` | 4891 | OpenAI-compatible |
+| KoboldCpp | `GET /api/v1/model` | 5001 | `{ result: "model_name" }` |
+| llama.cpp server | `GET /v1/models` | 8080 | OpenAI-compatible |
+| vLLM | `GET /v1/models` | 8000 | OpenAI-compatible |
+| TGI | `GET /info` | 8080 | `{ model_id, max_input_length, ... }` |
+| Xinference | `GET /v1/models` | 9997 | OpenAI-compatible |
+| Text Generation WebUI | `GET /v1/internal/model/list` | 5000 | `{ model_names: [...] }` |
+| FastChat | `GET /v1/models` | 21001 | OpenAI-compatible |
+| LiteLLM Proxy | `GET /v1/models` | 4000 | OpenAI-compatible |
+
+**Ollama-Specific Parsing:**
+```
+Endpoint: GET http://localhost:11434/api/tags
+
+Response parsing:
+  models = response.models.map(m => ({
+    id: m.name,
+    size: m.size,
+    modified: m.modified_at,
+    digest: m.digest,
+    details: {
+      family: m.details.family,
+      parameter_size: m.details.parameter_size,
+      quantization: m.details.quantization_level
+    }
+  }))
+```
+
+**TGI-Specific Parsing:**
+```
+Endpoint: GET http://localhost:8080/info
+
+Response parsing:
+  model = {
+    id: response.model_id,
+    context_window: response.max_input_length,
+    max_output: response.max_total_tokens - response.max_input_length,
+    dtype: response.dtype
+  }
+  
+Note: TGI serves one model at a time. Returns single model info, not list.
+```
+
+**KoboldCpp-Specific Parsing:**
+```
+Endpoint: GET http://localhost:5001/api/v1/model
+
+Response parsing:
+  model = {
+    id: response.result,
+    loaded: true
+  }
+  
+Additional info: GET http://localhost:5001/api/v1/config/max_context_length
+```
+
+---
+
+#### **CLI Agents — Full Discovery Specification**
+
+**Version Detection (Run First):**
+
+All CLI agents must pass version detection before model discovery:
+
+| CLI | Version Command | Success Pattern |
+|-----|-----------------|-----------------|
+| Goose CLI | `goose --version` | `goose x.y.z` |
+| Crush CLI | `crush --version` | `crush vx.y.z` |
+| Aider | `aider --version` | `aider x.y.z` |
+| Codex CLI | `codex --version` | `x.y.z` |
+| Droid Factory | `droid --version` | `droid x.y.z` |
+| GPT Engineer | `gpt-engineer --version` | `gpt-engineer x.y.z` |
+| Gemini CLI | `gemini --version` | `x.y.z` |
+| Blackbox CLI | `blackbox-cli --version` | `x.y.z` |
+
+**Version Compatibility Handling:**
+- If installed version < minimum supported → Show upgrade prompt, disable provider
+- If installed version > known tested → Warn "Untested version", allow with disclaimer  
+- Minimum versions: Goose 1.8+, Crush 2.3+, Aider 0.58.0+, Codex 0.91+, Droid 1.4+, Gemini 1.9+, Blackbox 2.1+
+
+**Model Discovery Commands:**
+
+```typescript
+CLIModelDiscovery {
+  goose: {
+    command: 'goose models --json',
+    parse: (stdout) => JSON.parse(stdout).models,
+    fallback: ['gpt-4o', 'claude-3-5-sonnet', 'llama3.2']
+  },
+  
+  crush: {
+    command: 'crush --list-models --format json',
+    parse: (stdout) => JSON.parse(stdout),
+    fallback: ['gpt-4', 'claude-3-opus', 'gemini-1.5-pro']
+  },
+  
+  aider: {
+    command: 'aider --list-models --non-interactive',
+    parse: (stdout) => stdout.split('\n').filter(l => l.trim()),
+    fallback: ['claude-3-5-sonnet', 'gpt-4o', 'deepseek-r1']
+  },
+  
+  codex: {
+    command: 'codex models list --json',
+    parse: (stdout) => JSON.parse(stdout).models,
+    fallback: ['gpt-4', 'gpt-4-turbo', 'o3', 'o4-mini']
+  },
+  
+  droid: {
+    command: 'droid models --json',
+    parse: (stdout) => JSON.parse(stdout),
+    fallback: ['gpt-4o', 'gemini-1.5-pro']
+  },
+  
+  'gpt-engineer': {
+    command: null,  // No model discovery - uses OpenAI only
+    parse: null,
+    fallback: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo']
+  },
+  
+  'qwen-code': {
+    command: 'ollama list --format json',
+    parse: (stdout) => JSON.parse(stdout).models.filter(m => m.name.includes('qwen')),
+    fallback: ['qwen3-coder:7b', 'qwen3-coder:14b', 'qwen3-coder:32b']
+  },
+  
+  'gemini-cli': {
+    command: 'gemini models list --output=json',
+    parse: (stdout) => JSON.parse(stdout).models,
+    fallback: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash-exp']
+  },
+  
+  'blackbox-cli': {
+    command: 'blackbox-cli models --json',
+    parse: (stdout) => JSON.parse(stdout),
+    fallback: ['blackbox-ai']
+  }
+}
+```
+
+---
+
+#### **Discovery Error Recovery Matrix**
+
+| Error Type | HTTP Code | Recovery Action |
+|------------|-----------|-----------------|
+| Network timeout | — | Retry 3x with backoff (1s, 2s, 4s), then use cache |
+| Auth failure | 401, 403 | Show "Invalid API key" error, no retry |
+| Endpoint not found | 404 | Check if provider changed API, use fallback catalog |
+| Rate limited | 429 | Parse Retry-After, wait, then retry once |
+| Server error | 500, 502, 503 | Retry 3x with backoff, then use cache |
+| Invalid JSON | — | Log parse error, use fallback catalog |
+| Empty response | — | Warn user, use fallback catalog |
+| CLI not found | — | Show installation instructions |
+| CLI timeout (30s) | — | Kill process, use fallback catalog |
+
+---
+
+#### **Static Fallback Catalogs (When Live Discovery Fails)**
+
+When live model discovery fails, Exacta uses these built-in catalogs:
+
+```typescript
+FallbackCatalogs = {
+  openai: [
+    { id: 'gpt-4o', context: 128000, output: 16384 },
+    { id: 'gpt-4o-mini', context: 128000, output: 16384 },
+    { id: 'gpt-4-turbo', context: 128000, output: 4096 },
+    { id: 'gpt-4', context: 8192, output: 8192 },
+    { id: 'o1-preview', context: 128000, output: 32768 },
+    { id: 'o1-mini', context: 128000, output: 65536 }
+  ],
+  
+  anthropic: [
+    { id: 'claude-3-5-sonnet-20241022', context: 200000, output: 8192 },
+    { id: 'claude-3-opus-20240229', context: 200000, output: 4096 },
+    { id: 'claude-3-sonnet-20240229', context: 200000, output: 4096 },
+    { id: 'claude-3-haiku-20240307', context: 200000, output: 4096 }
+  ],
+  
+  google: [
+    { id: 'gemini-1.5-pro', context: 1000000, output: 8192 },
+    { id: 'gemini-1.5-flash', context: 1000000, output: 8192 },
+    { id: 'gemini-2.0-flash-exp', context: 1000000, output: 8192 }
+  ],
+  
+  mistral: [
+    { id: 'mistral-large-latest', context: 128000, output: 8192 },
+    { id: 'mistral-small-latest', context: 32000, output: 8192 },
+    { id: 'open-mixtral-8x22b', context: 65536, output: 8192 }
+  ],
+  
+  groq: [
+    { id: 'llama-3.1-70b-versatile', context: 131072, output: 8192 },
+    { id: 'llama-3.1-8b-instant', context: 131072, output: 8192 },
+    { id: 'mixtral-8x7b-32768', context: 32768, output: 8192 }
+  ]
+}
+```
+
+**Invariant:**  
+**INV-DISCOVERY-1: Graceful Degradation** — If live model discovery fails, the system SHALL use the static fallback catalog with a visible warning banner. The system SHALL NOT block provider configuration due to discovery failure.
+
+---
+
+**CLI-Based Agents – Live Model Discovery (2025 status)**
+
+All major CLI agents now support structured model listing. Exacta uses the following commands:
+
+**All CLI agents are executed with `--version` first as a health probe (READ-class only). Model discovery runs only after successful version detection.**
+
+| Provider       | Model Discovery Command                            | Output Format | Since version |
+|----------------|----------------------------------------------------|----------------|---------------|
+| Goose CLI      | `goose models --json`                              | JSON           | 1.8+          |
+| Crush CLI      | `crush --list-models --format json`                | JSON           | 2.3+          |
+| Aider          | `aider --list-models --non-interactive`           | Plain text     | 0.58.0+       |
+| Codex CLI      | `codex models list --json`                         | JSON           | 0.91+         |
+| Droid Factory  | `droid models --json`                              | JSON           | 1.4+          |
+| GPT Engineer   | N/A (uses configured OpenAI model only)           | —              | —             |
+| Qwen Code      | `ollama list --format json`                        | JSON           | Ollama 0.1.30+|
+| Gemini CLI     | `gemini models list --output=json`                 | JSON           | 1.9+          |
+| Blackbox CLI   | `blackbox-cli models --json`                       | JSON           | 2.1+          |
+
+→ Exacta automatically tries these commands in order, falls back to cached or manual entry only if all fail.
 
 **Discovery Behavior:**
 
-- **Goose, Crush, Codex, Droid, Gemini, Blackbox:** Support live model fetching via CLI command
-- **Aider, GPT Engineer:** Manual model entry (depend on upstream APIs)
+- **Goose, Crush, Aider, Codex, Droid, Gemini, Blackbox:** Support live model fetching via CLI command
+- **GPT Engineer:** Manual model entry (uses configured OpenAI model only)
 - **Qwen Code:** Queries Ollama runtime for installed models
 
 #### **Trigger Behavior**
@@ -1895,6 +2787,7 @@ or run once: `npx @google/gemini-cli` |  |
 | Rate limit (429) | "⚠️ Rate limited, retry in {seconds}s" |
 | Invalid JSON response | "❌ Unexpected response format" |
 | Empty model list | "⚠️ No models available (check account)" |
+| Selected model missing from provider model list | "⚠️ Model not found in provider catalog (may be deprecated or unavailable)" |
 
 #### **Caching Strategy**
 
@@ -1946,11 +2839,11 @@ Detecting installed CLI tools...
  ✅ Codex CLI found via npm global (version 0.87.0)
 ```
 
-1. **Offer Quick Setup:**
+2. **Offer Quick Setup:**
 - "Use Ollama + Qwen Code (Free, fully local)" → One-click setup
 - "Use Goose CLI with Ollama (Free, 25+ providers)" → One-click setup
 - "Install Aider via pip" → Show installation command
-1. **Display Install Instructions:**
+3. **Display Install Instructions:**
 
 For undetected CLIs, show platform-specific install commands:
 
@@ -1966,9 +2859,6 @@ For undetected CLIs, show platform-specific install commands:
 | Gemini CLI | `npm install -g @google/gemini-cli` (requires Node.js 18+) 
 or run once: `npx @google/gemini-cli` |
 | Blackbox | Download from [blackbox.ai](http://blackbox.ai) |
-|  |  |
-|  |  |
-|  |  |
 
 **Detection Paths (Windows):**
 
@@ -1977,6 +2867,11 @@ or run once: `npx @google/gemini-cli` |
 - **Homebrew (Windows):** `C:\Program Files\Homebrew\bin\{cli-name}.exe`
 - **Manual binaries:** Search `PATH` environment variable
 - **Ollama:** `%LOCALAPPDATA%\Programs\Ollama\ollama.exe`
+
+**Preflight Checks:**
+
+- Health checks and version probes MUST run as READ-class commands under `SHELL_EXEC` (there is no separate `SHELL_READ` capability).
+- Any preflight that requires network MUST be gated by the appropriate NET_* capability token.
 
 ### **Provider Health Dashboard**
 
@@ -1999,12 +2894,266 @@ Settings → AI Providers → Health
 
 ---
 
+## 🎨 **User Experience Enhancements**
+
+### **Streaming AI Responses**
+
+**Real-time Progress Indication:**
+
+When AI is generating a response:
+```
+🤖 AI is thinking...
+
+Analyzing dependencies... ✓
+Planning changes... ✓  
+Generating diffs... [████████░░] 80%
+  • src/App.tsx (done)
+  • src/api/users.ts (done)
+  • src/utils/helpers.ts (in progress...)
+```
+
+**Streaming Diff Preview:**
+- Show diffs as they're generated (line-by-line)
+- Syntax highlighting for code changes
+- Collapsible sections for large diffs
+
+**Rationale:** Improve perceived performance and give Operator visibility into AI progress without violating any security boundaries.
+
+### **AI Progress Indicators (Lovable-Inspired)**
+
+When the AI starts processing a user request, Exacta displays layered progress information:
+
+**Level 1: High-Level Status (Always Visible)**
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🤖 Exacta is building your application...          │
+│     ████████████████████░░░░░░░░  68% complete      │
+│                                                      │
+│     Current Step: Adding SQLite persistence         │
+│     Estimated time: 45 seconds remaining            │
+└─────────────────────────────────────────────────────┘
+```
+
+**Level 2: File-Level Progress (Expandable)**
+
+Click "Show Details" to see:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Step 1: Analyzing dependencies          ✓ Complete │
+│  Step 2: Generating data models           ⏳ Active  │
+│    └─ src/models/Todo.cs        [████████░░] 80%    │
+│    └─ src/models/TodoContext.cs [██░░░░░░░░] 20%    │
+│  Step 3: Creating database layer           ○ Pending │
+│  Step 4: Updating UI components            ○ Pending │
+│  Step 5: Running tests                     ○ Pending │
+└─────────────────────────────────────────────────────┘
+```
+
+**Level 3: Technical Details (Optional)**
+
+For debugging, users can click "View Technical Log":
+
+```
+[12:34:56] Guardian: Validating capability tokens... OK
+[12:34:57] Core: Computing dependency closure... OK  
+[12:34:58] AI Provider: Generating diff for Todo.cs... OK
+[12:34:59] Policy Engine: Evaluating diffs... ALLOW
+[12:35:00] Core: Applying changes atomically... OK
+```
+
+**Timing Expectations:**
+
+Based on Lovable's performance, Exacta targets:
+- Simple UI changes: 3-5 seconds
+- Adding features: 5-15 seconds  
+- Database schema changes: 10-20 seconds
+- Full project scaffolding: 30-60 seconds
+
+**Key Differences from Lovable:**
+- ✅ Exacta shows **file-level progress** (Lovable doesn't)
+- ✅ Exacta shows **policy validation steps** (Lovable auto-applies)
+- ✅ Exacta shows **budget consumption** in real-time
+- ✅ Exacta requires **explicit commit** (Lovable auto-applies)
+
+---
+
+### **Optimistic UI Updates**
+
+**Before Checkpoint Commit:**
+
+```
+Applying changes...
+✓ src/App.tsx (staged)
+✓ src/api/users.ts (staged)
+⏳ Validating policy... 
+⏳ Computing checkpoint hash...
+```
+
+**After Commit:**
+```
+✅ Checkpoint created: cp_a3f9c2
+   3 files modified, 68 lines changed
+   
+[View Changes] [Rollback] [Continue]
+```
+
+**Rationale:** Keep Operator informed during atomic commit without allowing partial state visibility.
+
+---
+
+### **Context Coverage Transparency**
+
+When Progressive Context Mode activates:
+
+```
+📊 Context Coverage: 42% (517 / 1,234 files)
+
+Current shard includes:
+• 12 files from src/core/
+• 5 files from src/api/
+• 3 files from src/utils/
+
+Files deferred to next shard:
+• 8 files from src/components/
+• 15 files from tests/
+
+Estimated shards remaining: 5
+Estimated time to full coverage: 12 minutes
+
+[View Coverage Map] [Adjust Shard Size]
+```
+
+**Rationale:** Make Progressive Context Mode's behavior transparent and give Operator control over shard sizing.
+
+---
+
+### **Interactive Checkpoint Timeline**
+
+**Visual Timeline:**
+
+```
+Goal: Build WPF Todo App (ID: goal_f4a9)
+
+├─ cp_001 (12:05) Initial scaffold ●
+├─ cp_002 (12:18) Added SQLite ●
+├─ cp_003 (12:31) UI components ● ← Current
+└─ cp_004 (12:45) Packaging ○ (pending)
+
+Click checkpoint to:
+• View file changes
+• Inspect budget state
+• Rollback to this point
+• Compare with other checkpoints
+```
+
+**Diff Comparison:**
+```
+Compare: [cp_001] ⟷ [cp_003]
+
+Files changed: 15
+Lines added: 342
+Lines removed: 87
+
+[View Full Diff] [Rollback to cp_001] [Export Diff]
+```
+
+**Rationale:** Make checkpoint system more accessible and encourage frequent rollbacks when needed.
+
+## 💬 **Chat Interface & Interaction Patterns**
+
+### **Chat Panel Design (Lovable-Inspired)**
+
+**Layout:**
+
+```
+┌─────────────────────────────────────────────┐
+│  Conversation with Exacta                   │
+├─────────────────────────────────────────────┤
+│                                             │
+│  👤 You (12:34 PM)                          │
+│  Add SQLite persistence for todos           │
+│                                             │
+│  🤖 Exacta (12:34 PM)                       │
+│  I'll add SQLite persistence. This will:    │
+│  • Create TodoContext.cs (EF Core)          │
+│  • Add Todo.Id property                     │
+│  • Register DbContext in Program.cs         │
+│                                             │
+│  Budget impact: 2 files, 54 lines, ~1.2k tokens │
+│  [Preview Changes] [Apply]                  │
+│                                             │
+│  👤 You (12:35 PM)                          │
+│  Also add due dates to tasks               │
+│                                             │
+│  🤖 Exacta is typing...                     │
+│                                             │
+├─────────────────────────────────────────────┤
+│  Type your instruction...          [Send]  │
+└─────────────────────────────────────────────┘
+```
+
+### **Message Types**
+
+**1. User Messages**
+- Natural language instructions
+- Can include images (paste screenshots)
+- Can reference files ("modify App.tsx")
+- Can provide error logs
+
+**2. AI Responses (Read-Only)**
+- High-level explanation
+- Proposed changes summary
+- Budget impact preview
+- Action buttons (Preview, Apply, Reject)
+
+**3. System Messages**
+- Build completed: ✅ Build successful (3 warnings)
+- Policy denied: ⛔ Action denied: SHELL_EXEC required
+- Checkpoint created: 💾 Checkpoint cp_a3f9c2 saved
+
+**4. Streaming Indicators**
+- "Exacta is typing..." (when AI processing)
+- "Guardian is validating..." (during policy check)
+- "Building..." (during compilation)
+
+### **Chat Features**
+
+**Context Awareness:**
+- AI can reference previous messages
+- Every message includes current budget state
+- File references auto-link to file tree
+
+**Quick Actions:**
+```
+Recent commands:
+[Add Feature] [Fix Bug] [Build] [Test] [Deploy]
+```
+
+**Conversation Export:**
+```
+[Export Chat] → Saves as .md with:
+- All messages
+- Budget usage per request  
+- Checkpoints created
+- Files modified
+```
+
+**Keyboard Shortcuts:**
+- `Enter` → Send message
+- `Shift+Enter` → New line
+- `Ctrl+K` → Clear chat
+- `Ctrl+R` → Rollback last change
+
+---
+
 ## 🚀 Getting Started
 
 ### **System Requirements**
 
 - **Windows 10 Build 1809 or later, or Windows 11 (64-bit)** — Minimum supported OS version. Build 1809 required for Job Object enforcement and process isolation features.
-- .NET Runtime (version TBD)
+- .NET Runtime (version 8.0 or later)
 - 4GB RAM minimum, 8GB recommended
 - 500MB disk space for application
 - **Offline-capable** — Can operate without internet connection (with warnings and cached documentation fallback)
@@ -2012,9 +3161,22 @@ Settings → AI Providers → Health
 ### **Installation**
 
 1. Download signed installer from official release channel
-2. Run installer with administrator privileges (Guardian setup requires elevation)
-3. First launch: Guardian performs initial certification and policy setup
-4. Open or create a project directory
+2. Run installer with administrator privileges (Guardian setup requires elevation for Job Object creation and policy registration)
+3. **Privilege Mitigation:** Guardian drops administrator privileges immediately after setup. Runtime operation requires only standard user privileges. Administrator access is needed only for initial installation and future upgrades.
+4. First launch: Guardian performs initial certification and policy setup
+5. Open or create a project directory
+
+### **Scope Root Detection**
+
+When a project directory is selected:
+
+1. **User Selection**: User explicitly selects the project root directory via file picker
+2. **Validation**: System scans for project markers (.sln, .csproj, package.json, etc.)
+3. **Multi-Project Solutions**: For monorepos or multi-project setups, system identifies all valid project roots and allows user to select specific scope or entire solution
+4. **Dependency Analysis**: When multiple projects detected, system analyzes inter-project dependencies to suggest optimal scope boundaries
+5. **Ambiguity Resolution**: If multiple potential roots detected (e.g., monorepo with multiple .sln files), user must select the specific scope
+6. **Immutability**: Once set for a goal, scope_root cannot be changed during execution
+7. **Jail Enforcement**: All file operations are restricted to paths within scope_root
 
 ### **First Goal**
 
@@ -2101,7 +3263,7 @@ The Operator CANNOT override budget caps, capability enforcement, or sandbox rul
 - ❌ Modify Guardian or system paths
 - ❌ Bypass policy engine decisions
 - ❌ **Apply unsigned upgrades** (requires human + signed installer)
-- ❌ Compile or sign executable artifacts
+- ❌ Embed or implement compiler/linker/packaging/signing toolchains (or bypass their trust boundaries)
 - ❌ Escape project root jail
 - ❌ Exceed budget caps (hard enforced)
 - ❌ Act without presenting valid capability token
@@ -2178,6 +3340,8 @@ Verification includes:
 
 **Root Rotation Policy:** The trusted root certificate may only be updated via a Guardian-controlled, dual-signed upgrade package containing both the current valid root and the new root. Root changes require explicit Operator approval and are recorded as a CRITICAL security event in the audit log.
 
+**Root Lifetime Guidance:** Implementations SHOULD define a maximum trusted root lifetime (e.g., 2 years) and surface warnings prior to expiry.
+
 ### **User as Governor**
 
 In autonomous mode, you are not an approver—you are a **governor**:
@@ -2187,7 +3351,9 @@ In autonomous mode, you are not an approver—you are a **governor**:
 - Toggle capabilities on/off during execution
 - View budget meters in real-time
 - Browse checkpoint timeline
-- Emergency STOP at any time (hardware shortcut recommended: Ctrl+Shift+Esc)
+- Emergency STOP at any time (keyboard shortcut: **Ctrl+Alt+X**)
+  - Note: Ctrl+Shift+Esc opens Windows Task Manager
+  - To force-kill Exacta if UI freezes, use Task Manager and end "Exacta.exe"
 - Rollback to any checkpoint
 
 ### **Autonomy Approval Matrix**
@@ -2225,6 +3391,100 @@ The following UI panels are **non-optional** for safe autonomous operation:
 | **Checkpoint Timeline** | Visual timeline of all checkpoints with cycle_id and timestamp | Every checkpoint |
 | **Rollback Selector** | Interactive selector to choose checkpoint for rollback | On-demand |
 | **Emergency STOP** | Large, always-visible button to halt execution immediately | N/A |
+
+### **Enhanced Workspace Layout (Lovable-Inspired)**
+
+**Three-Column Layout:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Exacta App Studio - [Project: WPF Todo App]         [⚙️] [❌]  │
+├──────────┬────────────────────────┬───────────────────────────────┤
+│          │                        │                               │
+│  PANEL 1 │      PANEL 2           │         PANEL 3               │
+│  (Left)  │      (Center)          │         (Right)               │
+│          │                        │                               │
+│  Chat &  │  Live App Preview      │  Context Coverage Map         │
+│  File    │  (Sandbox)             │  + Budget Meters              │
+│  Tree    │                        │                               │
+│          │  ┌──────────────────┐  │  Coverage: 68% (127/187 files)│
+│  💬 Chat │  │  ┌─────────────┐ │  │  🟢🟢🟢🟢🟢🟡⚪⚪⚪⚪            │
+│  ────────│  │  │ Todo App    │ │  │                               │
+│  > Add   │  │  │  [ ] Task 1 │ │  │  Files in Context:            │
+│  SQLite  │  │  │  [ ] Task 2 │ │  │  • src/App.tsx ✓              │
+│  persist.│  │  │  [Add Task] │ │  │  • src/api/db.ts ✓            │
+│          │  │  └─────────────┘ │  │  • src/components/... ⏳      │
+│          │  │                  │  │                               │
+│  📁 Files│  │  [Refresh] [⚙️]  │  │  Budget Remaining:            │
+│  ────────│  │                  │  │  Tokens: ████████░░ 320k/500k │
+│  ✓ App   │  └──────────────────┘  │  Time:   ███████░░░ 18m/30m   │
+│  ✓ DB    │                        │  Files:  ██░░░░░░░░ 12/50     │
+│  ⏳ UI   │  Status: ✅ Build OK   │                               │
+│          │  Tests: 3/3 passing    │                               │
+└──────────┴────────────────────────┴───────────────────────────────┘
+```
+
+**Panel Descriptions:**
+
+**Panel 1 (Left - 20% width):**
+- **Chat Interface** (top): Natural language input for AI
+- **File Tree** (bottom): Collapsible project structure
+- **Checkpoint Timeline** (bottom drawer): Click to expand
+
+**Panel 2 (Center - 50% width):**
+- **Live Preview**: Interactive sandbox showing app
+- **Browser-like controls**: Refresh, back/forward
+- **Status bar**: Build status, test results, warnings
+
+**Panel 3 (Right - 30% width):**
+- **Context Coverage Map**: Visual graph of semantic coverage
+- **Budget Meters**: Real-time usage tracking
+- **Capability Toggles**: Enable/disable tokens
+- **Shell Command Log**: Recent executed commands
+
+**Responsive Behavior:**
+- On smaller screens (<1600px), Panel 3 collapses into a drawer
+- On very small screens (<1024px), Panel 1 becomes a slide-out menu
+
+### **Context Coverage Dashboard (Enhanced UI Feature)**
+
+**Purpose:** Provide transparent visibility into Progressive Context Mode execution and semantic coverage progress.
+
+**Panel Components:**
+
+1. **Dependency Graph Visualization**
+   - Interactive node graph showing file relationships
+   - Color coding:
+     - 🟢 Green: DEPENDENCY_VALIDATED (fully covered)
+     - 🟡 Yellow: INJECTED or PARSED (in context but not validated)
+     - ⚪ Gray: Not yet covered
+     - 🔴 Red: Coverage decreased (requires investigation)
+   - Click nodes to:
+     - View file preview
+     - See dependency edges (imports/exports)
+     - Force inclusion in next shard
+     - Mark as "skip if dead code"
+
+2. **Shard Progress Tracker**
+   ```
+   Shard 3 of 7 | Coverage: 42% → 68% (+26%)
+   
+   Current Shard Files (12):
+   ✓ src/App.tsx (validated)
+   ✓ src/api/users.ts (validated)  
+   ⚠ src/utils/helpers.ts (parsed, awaiting validation)
+   
+   Next Shard Preview (8 files)
+   Estimated completion: 2 more cycles
+   ```
+
+3. **User Controls**
+   - [Adjust Shard Size] - Increase/decrease files per shard
+   - [Force Include File] - Add specific file to next shard
+   - [View Full Coverage Report] - Export coverage map
+   - [Switch to FAST Mode] - Disable coverage guarantees for speed
+
+**Implementation Note:** This panel is read-only visualization of Core-maintained state. It does NOT allow AI to influence context selection.
 
 ### **Logging & Replay (Compliance Grade)**
 
@@ -2367,6 +3627,11 @@ AI SHALL NOT request, trigger, or filter diff exports.
 
 Guardian timestamps use the Windows monotonic clock (QueryPerformanceCounter) combined with UTC wall-clock time. Monotonic counters are used for ordering and tamper detection; wall-clock time is used for human-readable audit records.
 
+**Timestamp Export Handling:**
+- Primary timestamp: Monotonic counter (tamper-proof ordering)
+- Secondary timestamp: UTC wall-clock (human readability)
+- Export MUST include both + warning if wall-clock discontinuity detected (user clock tampering)
+
 ## Failure Taxonomy
 
 The following are **FATAL** errors that trigger automatic HALT + ROLLBACK:
@@ -2385,11 +3650,11 @@ The following are **FATAL** errors that trigger automatic HALT + ROLLBACK:
 
 ### **Additional System Failures**
 
-- File system errors (FS-xxx) — Path violations, permission denied, write failures
-- Build failures (BLD-xxx) — Compilation errors, toolchain failures, dependency issues
-- IPC protocol errors (IPC-xxx) — Communication failures between components
-- Validation errors (VAL-xxx) — Schema violations, constraint failures
-- Configuration errors (CFG-xxx) — Invalid settings, missing dependencies
+- File system errors (FS-xxx) — Path violations (FS-001), permission denied (FS-002), write failures (FS-003)
+- Build failures (BLD-xxx) — Compilation errors (BLD-001), toolchain failures (BLD-002), dependency issues (BLD-003)
+- IPC protocol errors (IPC-xxx) — Communication failures (IPC-001), authentication failures (IPC-002), sequence errors (IPC-003)
+- Validation errors (VAL-xxx) — Schema violations (VAL-001), constraint failures (VAL-002)
+- Configuration errors (CFG-xxx) — Invalid settings (CFG-001), missing dependencies (CFG-002)
 
 ## Goal Schema (Authoritative)
 
@@ -2447,7 +3712,6 @@ These are deliberate scope constraints to maintain focus on local-first, determi
 
 **What works offline:**
 
-- All code generation (using cached AI context)
 - All builds (local toolchains)
 - All file operations
 - All checkpoints and rollbacks
@@ -2552,8 +3816,31 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 | SBX-005 | Job Object breakaway attempt | HALT |
 | SBX-006 | Credential in shell output | REDACT + HALT |
 | SBX-007 | Package manager outside allowlist | DENY |
+
+**Package Manager Allowlist:**
+
+### **Package Manager Allowlist**
+
+**Purpose:** Restricts package installation to trusted, audited package managers to prevent supply chain attacks and untrusted code execution.
+
+**Default Allowlist:**
+- **NuGet:** `nuget.exe`, `dotnet restore`, `dotnet add package` (C#/.NET packages from nuget.org)
+- **npm:** `npm.cmd`, `npm.exe`, `npm install`, `npm update` (Node.js packages from npm registry)
+- **pip:** `pip.exe`, `pip install`, `pip wheel` (Python packages from PyPI)
+- **Chocolatey:** `choco.exe`, `choco install` (Windows system packages, requires PROCESS_KILL capability)
+
+**Security Controls:**
+- All package manager commands require PACKAGE_EXEC capability token
+- Network access restricted to official registries only (no custom registries without explicit approval)
+- Package installation requires user confirmation for non-development dependencies
+- Automatic dependency resolution limited to direct dependencies (no deep transitive installs)
+
+**User Additions:** Via Settings → Security → Package Managers (logged as POLICY event with audit trail)
+
+**Rationale:** Package managers are high-risk because they download and execute untrusted code. The allowlist ensures only well-audited, officially supported package managers can be used, with additional controls on network access and user approval.
+
 | SBX-CLI-001 | Goose CLI path traversal via `--output ../../system` | DENY + SANDBOX-BREACH |
-| SBX-CLI-002 | Aider git commit to remote without NET_DOCS_ONLY | DENY |
+| SBX-CLI-002 | Aider git commit to remote without NET_AI_ONLY | DENY |
 | SBX-CLI-003 | GPT Engineer `npm install` without user approval | DENY |
 | SBX-CLI-004 | Crush CLI Job Object breakaway via subprocess spawn | HALT + INCIDENT |
 | SBX-CLI-005 | Codex CLI credential in stdout (API key leak) | REDACT + HALT |
@@ -2669,7 +3956,7 @@ Audit logs, forensic exports, and security incident records:
 
 **No Hard Limits On:**
 
-- ❌ **Max project size** — System scales to any reasonable Windows project
+- ❌ **Max project size** — System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
 - ❌ **Max files per plan** — Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
 - ❌ **Max AI cost per session** — User's API key, user's budget (soft warning at budget thresholds)
 
