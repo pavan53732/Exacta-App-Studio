@@ -210,7 +210,37 @@ The AI agent SHALL NOT receive the full project repository.
 - Redacted Goal State summary
 - Last N execution outcomes (N ≤ 5)
 
-**INV-CTX-1:** Only the **minimum dependency-closed file set** required for the current action MAY be injected into the AI context window.
+**INV-CTX-1: Dependency-First Context Assembly**
+
+Only the **minimum dependency-closed file set** required for the current action MAY be injected into the AI context window.
+
+If the dependency-closed set exceeds the provider’s context capacity, the system SHALL NOT drop dependency-critical files to fit a single request.
+
+**INV-CTX-2: Progressive Context Mode (Mandatory)**
+
+When the dependency-closed file set exceeds the active provider’s context capacity, Exacta App Studio SHALL enter **Progressive Context Mode** instead of halting execution.
+
+In this mode:
+
+- The action is decomposed into **multiple autonomous cycles**
+- Each cycle operates on a **dependency-safe subset** of the full closure
+- Checkpoints are created between every cycle
+- The **full semantic closure MUST be covered across cycles**
+- Dependency edges MAY NOT be violated between cycles
+
+The system SHALL surface a visible banner:
+> “Progressive Context Mode Active — semantic coverage in progress”
+
+**MAY-CTX-FAST: Throughput Mode (Operator-Controlled)**
+
+The Operator MAY enable Throughput Mode, allowing relevance-ranked context selection instead of strict dependency closure.
+
+When enabled:
+- Semantic coverage guarantees are DISABLED
+- Determinism guarantees are SUSPENDED
+- Audit logs SHALL record `context_mode=FAST`
+- UI SHALL display:
+  > “FAST MODE — semantic safety reduced”
 
 ### Memory Injection Firewall
 
@@ -261,6 +291,20 @@ OutcomeSummary {
 * Hashes or IDs from forensic systems
 
 ### **Core Autonomous Components**
+
+- **Context Planner (Non-AI, Core-Owned)**
+
+A deterministic system component responsible for:
+
+- Computing dependency-closed file sets from the Project Index
+- Estimating provider context capacity (model metadata + configured max_tokens)
+- Partitioning large dependency graphs into **cycle-safe semantic shards**
+- Scheduling shard execution order
+- Enforcing cross-cycle dependency integrity
+- Marking semantic coverage progress in checkpoint metadata
+
+The Context Planner SHALL NOT use embeddings, vector databases, or AI ranking.
+All decisions are graph-based and deterministic.
 
 ## Formal Definitions — Memory vs State vs Context
 
@@ -392,6 +436,8 @@ Each checkpoint MUST include:
 - `checkpoint_hash` = SHA256(all staged files + index snapshot + goal state + budget state)
 - `previous_checkpoint_hash`
 - `guardian_signature` = HMAC(Guardian_Secret, checkpoint_hash + previous_hash)
+- `semantic_coverage_map` = Set<file_path_hash>   // Files covered by AI context across cycles
+- `context_mode` = 'NORMAL' | 'PROGRESSIVE'
 
 This forms a cryptographic hash chain.
 
@@ -670,6 +716,9 @@ System automatically halts if:
 - Recursive loop pattern detected
 - **Repeated identical shell commands** (same command 3x in 5 cycles)
 - Budget drops below 10% (warning only)
+- Progressive Context Mode is active AND semantic coverage is incomplete AND user attempts to finalize goal
+
+**Rule:** A goal SHALL NOT be marked COMPLETED while any dependency-critical file remains uncovered in the semantic_coverage_map.
 
 ### **Unified Diff Contract**
 
@@ -1209,7 +1258,7 @@ All CLI-based agents SHALL run with:
 - Home/config directories redirected to a sandbox path under `.exacta/cli-sandbox/`
 
 **Invariant:**  
-**INV-MEM-16: No External Agent Memory** — CLI agents SHALL NOT maintain persistent memory, embeddings, session state, or project summaries outside Exacta-controlled storage.
+**INV-MEM-16: No External Agent Memory** — CLI agents SHALL NOT maintain persistent memory, embeddings, session state, or project summaries outside Exacta-controlled storage. This includes prohibition of provider-side “project memory,” “long-term chat memory,” or “workspace recall” features.
 
 ### **Settings UI (AI Provider Configuration)**
 
@@ -2110,6 +2159,7 @@ The following UI panels are **non-optional** for safe autonomous operation:
 | **Budget Meters** | Visual progress bars for all budget caps with remaining/total | Real-time |
 | **Capability Toggles** | Enable/disable tokens (FS_WRITE, SHELL_EXEC, etc.) during execution | User-triggered |
 | **Shell Command Log** | Chronological list of all executed shell commands with classification | Every command |
+| **Context Coverage Map** | Visual graph showing which files/modules have been semantically covered across cycles | Every cycle |
 | **Checkpoint Timeline** | Visual timeline of all checkpoints with cycle_id and timestamp | Every checkpoint |
 | **Rollback Selector** | Interactive selector to choose checkpoint for rollback | On-demand |
 | **Emergency STOP** | Large, always-visible button to halt execution immediately | N/A |
@@ -2128,6 +2178,9 @@ CausalRecord {
   decision_hash: SHA256        // Hash of parsed Decision object
   policy_result: 'ALLOW' | 'ALLOW_WITH_LIMITS' | 'DENY'
   capability_used: CapabilityToken[]
+  context_mode: 'NORMAL' | 'PROGRESSIVE' | 'FAST'
+  files_in_context: number
+  semantic_coverage_delta: number
   command_or_diff: string      // Executed shell command or unified diff
   result: 'SUCCESS' | 'FAILURE' | 'HALTED'
   timestamp: ISO8601
