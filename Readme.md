@@ -80,7 +80,7 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 
 **Deterministic by Design** — Every execution follows the autonomous loop: Goal → Perceive → Decide → Act → Observe → Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
 
-**Determinism Scope:** Determinism guarantees apply only under identical OS version, toolchain versions, filesystem state, and environment variables as recorded in the checkpoint metadata.
+**Determinism Scope:** Determinism guarantees apply only under identical OS version, toolchain versions, filesystem state, environment variables, policy_version, and memory schema_version as recorded in the checkpoint metadata.
 
 **Determinism Exclusions (Hard Limits):**
 
@@ -202,6 +202,18 @@ The AI agent SHALL NOT receive the full project repository.
 
 **INV-CTX-1:** Only the **minimum dependency-closed file set** required for the current action MAY be injected into the AI context window.
 
+### Memory Injection Firewall
+
+Before any data is injected into an AI context window, Core SHALL apply a memory firewall that:
+
+- Strips all policy decisions, audit metadata, capability tokens, and Guardian state
+- Removes timestamps, operator identifiers, and execution hashes
+- Redacts file paths outside dependency-closed scope
+- Normalizes content ordering to prevent inference of execution history
+
+**Invariant:**  
+**INV-MEM-CTX-1: Forensic Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
+
 ### **Core Autonomous Components**
 
 ## Formal Definitions — Memory vs State vs Context
@@ -216,7 +228,7 @@ Ephemeral subset of project data injected into an AI request. Lost after the res
 Structured retrieval system (AST graph, dependency graph, symbol map) used to select files and enforce refactoring safety.
 
 **Execution Memory**  
-System-owned logs, checkpoints, and decision traces used for orchestration and forensics. Not visible to the AI.
+System-owned, append-only forensic record consisting of execution logs, checkpoints, causal traces, and policy decisions. Execution Memory is write-once, tamper-evident, and Guardian-verifiable. AI SHALL NOT read, write, reference, summarize, or infer from this layer.
 
 **Invariant:**  
 Exacta provides **Persistent State, Structured Semantic Indexing, and Execution Memory**.  
@@ -293,6 +305,19 @@ Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/c
 
 Every loop creates restore point with file snapshots, index snapshot, goal state, budget counters, execution trace pointer. **Rollback is atomic and global, enforced through the Transactional State Commit Protocol (INV-MEM-1).**
 
+### Checkpoint Integrity Proof
+
+Each checkpoint MUST include:
+
+- `checkpoint_hash` = SHA256(all staged files + index snapshot + goal state + budget state)
+- `previous_checkpoint_hash`
+- `guardian_signature` = HMAC(Guardian_Secret, checkpoint_hash + previous_hash)
+
+This forms a cryptographic hash chain.
+
+**Invariant:**  
+**INV-MEM-6: Hash-Chained Checkpoints** — Any break in the checkpoint hash chain SHALL trigger Evidence Preservation Mode and HALT execution.
+
 ### **Transactional State Commit Protocol (Mandatory)**
 
 All **persistent state layers** SHALL be modified only through a **two-phase atomic commit protocol**.
@@ -327,6 +352,19 @@ PHASE 2 — COMMIT
 **Crash Recovery Rule:**
 
 * On startup, any checkpoint with `status=PENDING` SHALL trigger **automatic rollback** to the last `COMMITTED` checkpoint before any execution resumes.
+
+### Memory Corruption Rule
+
+If any persistent memory object fails validation, signature check, or hash-chain verification:
+
+System SHALL:
+1. Enter Safe Mode
+2. Freeze autonomous execution
+3. Preserve all memory artifacts
+4. Require Operator forensic review
+
+**Invariant:**  
+**INV-MEM-7: Corruption Fails Closed** — System SHALL NEVER attempt auto-repair or regeneration of corrupted memory.
 
 **Invariant:**
 
@@ -387,6 +425,17 @@ MemoryHeader {
 
 **INV-MEM-2: Schema Mismatch HALT** — If any memory object’s `schema_version` or `producer_version` is incompatible with the running system, execution MUST HALT and require Operator review.
 
+### Memory Migration Rule
+
+Memory schema upgrades SHALL only occur via signed system upgrade packages.
+
+AI SHALL NOT generate, modify, or apply memory migration logic.
+
+All migrations MUST:
+- Preserve prior versions in read-only form
+- Be reversible
+- Be logged as CRITICAL audit events
+
 **World Model Containment:**
 
 The World Model is explicitly excluded from execution, policy evaluation, capability decisions, and audit authority. It is treated as volatile advisory state only and is discarded on system restart.
@@ -408,8 +457,21 @@ Only Core-generated state may influence policy evaluation.
 | Checkpoints    | ❌ None          | ⚠️ Restore only  | ✅ Full    |
 | Secrets / Keys | ❌ None          | ❌ None           | ✅ Full    |
 
-**Invariant:**
+### Memory Write Authority Matrix
 
+| Memory Layer   | AI Agent | Core Runtime | Guardian |
+|---------------|----------|--------------|----------|
+| Project Index | ❌ None  | ✅ Full       | ⚠️ Verify |
+| Goal Memory   | ❌ None  | ✅ Full       | ✅ Full |
+| Plan Trace    | ❌ None  | ✅ Full       | ✅ Full |
+| Execution Log | ❌ None  | ❌ None      | ✅ Full |
+| Checkpoints   | ❌ None  | ❌ None      | ✅ Full |
+| Secrets/Keys  | ❌ None  | ❌ None      | ✅ Full |
+
+**Invariant:**  
+**INV-MEM-3B: No AI Write Authority** — AI SHALL NOT write to any persistent or forensic memory layer under any condition.
+
+**Invariant:**
 **INV-MEM-3: No Forensic Leakage to AI** — AI SHALL NOT read audit logs, checkpoints, secrets, or Guardian-owned memory layers under any condition.
 
 ### **World Model Hard Containment Rule**
@@ -424,6 +486,14 @@ The World Model SHALL be isolated from all policy, execution, and audit function
 **Invariant:**
 
 **INV-MEM-4: World Model Isolation** — Any attempt to use World Model data for policy or execution SHALL trigger immediate Guardian intervention and system halt.
+
+The AI Agent SHALL NOT:
+- Maintain long-term memory across sessions
+- Store embeddings, summaries, or learned representations of user projects
+- Cache prior goals, policies, or execution history
+- Perform cross-goal recall
+
+Violation of this rule SHALL be treated as a SANDBOX-BREACH event.
 
 ## ✨ Features
 
@@ -495,6 +565,8 @@ System automatically halts if:
 ## Security Model
 
 ### **Hard Invariants**
+
+**INV-MEM-0: System-Owned Memory Authority** — All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
 
 **INV-A1: System Authority Supremacy** — Only Guardian and Core Runtime have execution authority. AI is untrusted decision proposer.
 
@@ -1963,6 +2035,8 @@ All forensic exports MUST be:
 - Hash-linked to the audit log anchor
 - Verifiable offline using the vendor public root certificate
 - Include export manifest with: export_id, timestamp, scope (date range, goal_id, incident_id), file count, total hash
+
+**INV-MEM-8: Export Authority Boundary** — Only Guardian may generate, sign, or authorize forensic memory exports. Core and AI SHALL NOT initiate, modify, or filter export content.
 
 **Export Format:**
 
