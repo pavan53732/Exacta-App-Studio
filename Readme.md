@@ -1,7 +1,14 @@
 **Exacta App Studio** is a **sandboxed, policy-governed, state-reproducible autonomous AI system** for Windows application development with an **immutable core**. 
 
-**Determinism Scope:** Exacta guarantees **deterministic policy evaluation, capability enforcement, execution ordering, checkpoint creation, and rollback behavior** for a given `(goal, policy_version, environment snapshot)`.  
+**Determinism Scope:** Exacta guarantees **deterministic policy evaluation, capability enforcement, execution ordering, checkpoint creation, and rollback behavior** for a given `(goal, policy_version, environment_snapshot)`.  
 Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
+
+**Determinism Boundary Clarification**
+
+Execution ordering is deterministic **within a single cycle** given identical:
+(goal, policy_version, environment_snapshot, context_shard, provider_id).
+
+Cross-cycle ordering in Progressive Context Mode is **convergent, not strictly deterministic**, and is governed by semantic coverage completion rather than fixed step ordering.
 
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
 
@@ -242,6 +249,13 @@ When enabled:
 - UI SHALL display:
   > “FAST MODE — semantic safety reduced”
 
+**INV-CTX-FAST-1: Risk Escalation**
+
+When FAST mode is enabled:
+- Goal risk_class SHALL be automatically elevated to HIGH
+- SYSTEM-class shell commands SHALL be forcibly disabled
+- Package installation SHALL require explicit user confirmation
+
 ### Memory Injection Firewall
 
 Before any data is injected into an AI context window, Core SHALL apply a memory firewall that:
@@ -249,7 +263,7 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 - Strips all policy decisions, audit metadata, capability tokens, and Guardian state
 - Removes timestamps, operator identifiers, and execution hashes
 - Redacts file paths outside dependency-closed scope
-- Normalizes content ordering to prevent inference of execution history
+- Normalizes injected context ordering to reduce inference of execution history. This does NOT prevent historical inference from file contents themselves.
 
 **Invariant:**  
 **INV-MEM-CTX-1: Forensic Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
@@ -298,10 +312,12 @@ A deterministic system component responsible for:
 
 - Computing dependency-closed file sets from the Project Index
 - Estimating provider context capacity (model metadata + configured max_tokens)
-- Partitioning large dependency graphs into **cycle-safe semantic shards**
+- Partitioning large dependency graphs into **cycle-safe dependency shards**
 - Scheduling shard execution order
 - Enforcing cross-cycle dependency integrity
 - Marking semantic coverage progress in checkpoint metadata
+
+**Note:** Semantic understanding is provided by the AI agent. The Context Planner operates purely on structural dependency graphs and symbol relationships.
 
 The Context Planner SHALL NOT use embeddings, vector databases, or AI ranking.
 All decisions are graph-based and deterministic.
@@ -353,6 +369,15 @@ Structured retrieval system (AST graph, dependency graph, symbol map) used to se
 
 **Execution Memory**  
 System-owned, append-only forensic record consisting of execution logs, checkpoints, causal traces, and policy decisions. Execution Memory is write-once, tamper-evident, and Guardian-verifiable. AI SHALL NOT read, write, reference, summarize, or infer from this layer.
+
+**AI Output Archive (Forensic Only)**
+
+Raw AI outputs MAY be stored in Execution Memory strictly as immutable forensic artifacts.
+
+They:
+- SHALL NOT be reinjected into AI context
+- SHALL NOT be summarized or transformed into system memory
+- SHALL be readable only by Guardian during replay or audit
 
 **Invariant:**  
 Exacta provides **Persistent State, Structured Semantic Indexing, and Execution Memory**.  
@@ -436,8 +461,27 @@ Each checkpoint MUST include:
 - `checkpoint_hash` = SHA256(all staged files + index snapshot + goal state + budget state)
 - `previous_checkpoint_hash`
 - `guardian_signature` = HMAC(Guardian_Secret, checkpoint_hash + previous_hash)
-- `semantic_coverage_map` = Set<file_path_hash>   // Files covered by AI context across cycles
+- `semantic_coverage_map` = Map<file_path_hash, CoverageRecord>
 - `context_mode` = 'NORMAL' | 'PROGRESSIVE'
+
+Where `file_path_hash` = HMAC-SHA256(Guardian_Secret, relative_path).
+
+**Coverage Record Schema:**
+
+```tsx
+CoverageRecord {
+  coverage_level: 'INJECTED' | 'PARSED' | 'DEPENDENCY_VALIDATED'
+  cycle_id: UUID
+  index_snapshot_hash: SHA256
+}
+```
+
+**INV-CTX-3: Coverage Integrity**
+
+A file SHALL NOT be marked DEPENDENCY_VALIDATED unless:
+- It was included in AI context
+- Its dependency edges were validated against the current Project Index
+- At least one outbound or inbound dependency was exercised in a patch or validation step
 
 This forms a cryptographic hash chain.
 
@@ -720,6 +764,13 @@ System automatically halts if:
 
 **Rule:** A goal SHALL NOT be marked COMPLETED while any dependency-critical file remains uncovered in the semantic_coverage_map.
 
+**Dependency-Critical File**
+
+A file is dependency-critical if it:
+- Is in the transitive closure of any modified file
+- Declares or implements a symbol referenced by a modified file
+- Is part of a build, packaging, or runtime entry path
+
 ### **Unified Diff Contract**
 
 - **POSIX unified diff format** (RFC 3629 UTF-8 encoding)
@@ -815,6 +866,11 @@ External AI providers and local model runtimes are treated as **untrusted data s
 
 Exacta App Studio DOES NOT control or guarantee memory behavior of external AI providers.
 Providers may retain, log, or train on submitted prompts according to their own policies.
+
+**Non-Mitigable Risk Notice**
+
+Exacta App Studio CANNOT technically prevent AI providers from retaining or training on submitted data.
+Use of cloud AI providers SHALL be treated as a data disclosure event governed by the provider’s terms.
 
 **Invariant:**  
 **INV-MEM-14: Provider Memory Boundary** — System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
@@ -1259,6 +1315,12 @@ All CLI-based agents SHALL run with:
 
 **Invariant:**  
 **INV-MEM-16: No External Agent Memory** — CLI agents SHALL NOT maintain persistent memory, embeddings, session state, or project summaries outside Exacta-controlled storage. This includes prohibition of provider-side “project memory,” “long-term chat memory,” or “workspace recall” features.
+
+**INV-INDEX-CLI-1: Post-CLI Reindex Barrier**
+
+After any CLI agent execution, the Project Index SHALL be invalidated and fully rebuilt from filesystem ground truth before:
+- Any AI context is injected
+- Any further autonomous actions are executed
 
 ### **Settings UI (AI Provider Configuration)**
 
