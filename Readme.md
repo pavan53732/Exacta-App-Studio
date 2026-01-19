@@ -581,13 +581,16 @@ It SHALL NOT be used for:
 
 **INV-MEM-4: World Model Isolation** — Any attempt to use World Model data for policy or execution SHALL trigger immediate Guardian intervention and system halt.
 
-The AI Agent SHALL NOT:
-- Maintain long-term memory across sessions
-- Store embeddings, summaries, or learned representations of user projects
-- Cache prior goals, policies, or execution history
-- Perform cross-goal recall
+### AI Memory Prohibition Rule (Hard)
 
-Violation of this rule SHALL be treated as a SANDBOX-BREACH event.
+The AI Agent SHALL NOT:
+
+- Persist embeddings, summaries, vector indexes, or compressed representations of project data
+- Maintain cross-session recall
+- Store prior goal context in any external system
+- Use provider-side “memory” or “conversation history” features
+
+Any detection of persistent AI memory behavior SHALL be classified as a **SANDBOX-BREACH** event.
 
 ## ✨ Features
 
