@@ -247,6 +247,20 @@ OutcomeSummary {
 
 ## Formal Definitions — Memory vs State vs Context
 
+### Global Memory Invariants (Non-Overridable)
+
+**INV-MEM-G1: System-Owned Memory**
+All persistent memory layers SHALL be owned and written only by Core or Guardian.
+
+**INV-MEM-G2: AI Ephemerality**
+AI context and reasoning state SHALL be ephemeral and SHALL NOT persist across cycles or restarts.
+
+**INV-MEM-G3: No Cross-Goal Recall**
+Memory artifacts from one Goal SHALL NOT be visible, injectable, or inferable in another Goal.
+
+**INV-MEM-G4: Guardian Final Authority**
+In any memory conflict, corruption, or ambiguity, Guardian’s state SHALL be treated as ground truth.
+
 **Persistent State**  
 Durable, system-owned data (filesystem, project index, goal state, checkpoints, execution logs). Survives restarts and drives rollback and audit.
 
