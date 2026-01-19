@@ -112,6 +112,16 @@ Determinism guarantees apply only to:
 
 **User as Governor** — You set goals, budgets, and capabilities. System supervises execution. Emergency stop always available.
 
+## Memory Authority Model (Canonical)
+
+Exacta App Studio distinguishes between **State**, **Memory**, and **Context** as separate trust domains.
+
+- **Persistent State** — System-owned, durable, authoritative
+- **Execution Memory** — Forensic, append-only, Guardian-owned
+- **Context Window** — Ephemeral, AI-visible, non-authoritative
+
+**AI SHALL NOT be a memory authority under any condition.**
+
 ## 🏗️ Architecture Overview
 
 ### **Autonomous Execution Model**
