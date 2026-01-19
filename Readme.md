@@ -2238,6 +2238,16 @@ forensic-export-{UUID}.zip
 └── signature.sig (Guardian signature)
 ```
 
+### Memory Diff Export Rule
+
+Operator MAY export:
+
+- Checkpoint-to-checkpoint file diffs
+- Budget state diffs
+- Policy snapshot diffs
+
+AI SHALL NOT request, trigger, or filter diff exports.
+
 **Time Source:**
 
 Guardian timestamps use the Windows monotonic clock (QueryPerformanceCounter) combined with UTC wall-clock time. Monotonic counters are used for ordering and tamper detection; wall-clock time is used for human-readable audit records.
