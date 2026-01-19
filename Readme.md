@@ -1,4 +1,7 @@
-**Exacta App Studio** is a **deterministic, sandboxed, autonomous AI agent** for Windows application development with an **immutable core**. 
+**Exacta App Studio** is a **sandboxed, policy-governed, state-reproducible autonomous AI system** for Windows application development with an **immutable core**. 
+
+**Determinism Scope:** Exacta guarantees **deterministic policy evaluation, capability enforcement, execution ordering, checkpoint creation, and rollback behavior** for a given `(goal, policy_version, environment snapshot)`.  
+Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
 
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
 
@@ -8,6 +11,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 - Uses **your AI providers** via API keys or local CLIs (OpenAI-compatible APIs, OpenRouter, Gemini CLI, local models, or any future provider)
 - **Autonomous execution model:** You set a goal, the system runs continuous loops until the goal is satisfied or budget is exhausted
 - **Immutable core:** The agent can modify project files but cannot alter its own runtime, policy engine, or safety mechanisms
+- **Structured semantic indexing:** Context selection and refactoring safety are driven by AST + dependency graph indexing, not embedding-based memory
 
 **Autonomous workflow:**
 
@@ -25,7 +29,8 @@ Continuous autonomous loop until goal satisfied:
 
 **Authority model:** User governs (sets goals and boundaries) → Guardian enforces (issues capability tokens, validates policy) → Core executes (orchestrates builds, manages files) → AI proposes (generates plans and code, zero execution authority)
 
-**Deterministic + Sandbox Executor Model:** Every action is reproducible, auditable, and confined. The system guarantees that AI cannot escape the sandbox, escalate privileges, or produce non-deterministic side effects.
+**Governed + Sandbox Executor Model:** Every action is **auditable, bounded, and reversible**. The system guarantees that AI cannot escape the sandbox, escalate privileges, or bypass policy enforcement.  
+Execution behavior is **state-reproducible**, not AI-output deterministic.
 
 Designed for developers who demand full control, complete auditability, and reversible execution.
 
@@ -97,7 +102,7 @@ Determinism guarantees apply only to:
 
 **Sandboxed Execution** — All operations run in a hardened sandbox: project root jail (no path traversal), capability token enforcement (no raw system access), shell command classification (parsed before execution), subprocess isolation, Guardian-enforced boundaries.
 
-**Local-First Architecture** — All project data, plans, execution, and memory happens on your machine. No cloud dependencies for core functionality.
+**Local-First Architecture** — All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
 
 **Fail-Closed Security** — When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
 
@@ -185,7 +190,37 @@ Guardian does NOT maintain persistent administrator privileges. **Cannot be modi
 
 **AI Agent (Lowest Authority, Untrusted)** — Decision proposer only. Generates goals, plans, diffs, and decisions. **Cannot execute, modify files, access system resources, self-authorize, or alter its own binary.**
 
+### Context Selection Rule (Mandatory)
+
+The AI agent SHALL NOT receive the full project repository.
+
+**Context is assembled by Core as:**
+- User request
+- Relevant Project Index nodes (dependency-closed file set only)
+- Redacted Goal State summary
+- Last N execution outcomes (N ≤ 5)
+
+**INV-CTX-1:** Only the **minimum dependency-closed file set** required for the current action MAY be injected into the AI context window.
+
 ### **Core Autonomous Components**
+
+## Formal Definitions — Memory vs State vs Context
+
+**Persistent State**  
+Durable, system-owned data (filesystem, project index, goal state, checkpoints, execution logs). Survives restarts and drives rollback and audit.
+
+**Context Window**  
+Ephemeral subset of project data injected into an AI request. Lost after the response. NOT a memory system.
+
+**Semantic Index**  
+Structured retrieval system (AST graph, dependency graph, symbol map) used to select files and enforce refactoring safety.
+
+**Execution Memory**  
+System-owned logs, checkpoints, and decision traces used for orchestration and forensics. Not visible to the AI.
+
+**Invariant:**  
+Exacta provides **Persistent State, Structured Semantic Indexing, and Execution Memory**.  
+The AI agent receives only **Context Windows and redacted Project Index views**.
 
 - **Goal Manager**
 
@@ -256,11 +291,11 @@ Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/c
 
 - **Checkpoint & Rollback Service**
 
-Every loop creates restore point with file snapshots, index snapshot, goal state, budget counters, execution trace pointer. **Rollback is atomic and global, enforced through the Transactional Memory Commit Protocol (INV-MEM-1).**
+Every loop creates restore point with file snapshots, index snapshot, goal state, budget counters, execution trace pointer. **Rollback is atomic and global, enforced through the Transactional State Commit Protocol (INV-MEM-1).**
 
-### **Transactional Memory Commit Protocol (Mandatory)**
+### **Transactional State Commit Protocol (Mandatory)**
 
-All persistent memory layers SHALL be modified only through a **two-phase atomic commit protocol**.
+All **persistent state layers** SHALL be modified only through a **two-phase atomic commit protocol**.
 
 **Persistent Layers Covered:**
 
@@ -295,7 +330,7 @@ PHASE 2 — COMMIT
 
 **Invariant:**
 
-**INV-MEM-1: Atomic Memory Commit** — Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
+**INV-MEM-1: Atomic State Commit** — Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
 
 **Checkpoint Retention Policy:**
 
@@ -320,14 +355,14 @@ PHASE 2 — COMMIT
 
 Watchdog monitoring action velocity, repeated failures, loop patterns, scope expansion. Can forcibly freeze agent, revoke capabilities, roll back system
 
-- **5-Layer Memory Architecture**
-- **Project Index** (Code structure, System authority)
-- **Goal Memory** (Objectives, System authority)
-- **Plan Trace** (Attempts, System authority)
-- **Execution Log** (What happened, System authority)
-- **World Model** (AI assumptions, Non-authoritative)
+- **5-Layer Persistent State & Execution Memory Architecture**
+- **Project Index (Structured State Cache)** — Dependency graph, symbol map, file fingerprints. Cache only; filesystem is ground truth.
+- **Goal State (Persistent State)** — Objectives, constraints, budgets, and policy bindings.
+- **Plan Trace (Execution State)** — Proposed actions, approvals, and decision lineage.
+- **Execution Log (Forensic State)** — What actually ran, timestamps, exit codes, capability grants.
+- **World Model (Volatile Advisory State)** — AI assumptions; non-authoritative; never persisted.
 
-### **Memory Object Schema Authority**
+### **Persistent State Object Schema Authority**
 
 All persistent memory objects MUST include the following fields:
 
@@ -355,6 +390,8 @@ MemoryHeader {
 **World Model Containment:**
 
 The World Model is explicitly excluded from execution, policy evaluation, capability decisions, and audit authority. It is treated as volatile advisory state only and is discarded on system restart.
+
+The World Model SHALL NOT be checkpointed, versioned, exported, or referenced by any persistent state layer.
 
 Guardian SHALL NOT accept any policy-relevant fields originating from the World Model.
 
@@ -1280,10 +1317,10 @@ For providers requiring OAuth (Google, Microsoft, etc.):
 - **Presence penalty:** -2.0 - 2.0 (default: 0)
 - **Stop sequences:** Custom stop tokens
 
-**Deterministic Mode (for Replay):**
+**Constrained Replay Mode (for Audit Reproduction):**
 
 - Force temperature=0, seed={fixed}, top_p=1.0
-- Enabled automatically when replaying execution from audit log
+- Enabled automatically when replaying execution from audit log to **approximate prior AI behavior; output equivalence is NOT guaranteed**
 - User can manually enable for reproducible output
 
 ### **Model Discovery Protocol**
