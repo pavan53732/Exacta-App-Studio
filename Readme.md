@@ -271,6 +271,26 @@ Memory artifacts from one Goal SHALL NOT be visible, injectable, or inferable in
 **INV-MEM-G4: Guardian Final Authority**
 In any memory conflict, corruption, or ambiguity, Guardian’s state SHALL be treated as ground truth.
 
+## Memory Lifecycle State Machine
+
+Persistent memory objects SHALL follow this lifecycle:
+
+CREATED → VERIFIED → ACTIVE → [ARCHIVED | EVIDENCE]
+↓
+CORRUPT
+
+### Rules
+
+- **CREATED** — Written during PHASE 1 (PREPARE)
+- **VERIFIED** — Hash + schema + Guardian signature validated
+- **ACTIVE** — Eligible for rollback, replay, and audit reference
+- **ARCHIVED** — Retained but excluded from active rollback window
+- **EVIDENCE** — Legal Hold or incident-linked, immutable, non-prunable
+- **CORRUPT** — Validation failure → Safe Mode enforced
+
+**INV-MEM-L1:** Only Guardian may transition objects into or out of EVIDENCE  
+**INV-MEM-L2:** CORRUPT state SHALL be terminal until Operator intervention
+
 **Persistent State**  
 Durable, system-owned data (filesystem, project index, goal state, checkpoints, execution logs). Survives restarts and drives rollback and audit.
 
