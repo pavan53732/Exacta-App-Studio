@@ -513,14 +513,14 @@ Only Core-generated state may influence policy evaluation.
 
 ### **Memory Visibility Rules (Read Authority Matrix)**
 
-| Memory Layer   | AI Agent        | Core Runtime     | Guardian  |
-| -------------- | --------------- | ---------------- | --------- |
-| Project Index  | ✅ Read-only     | ✅ Full           | ⚠️ Verify |
-| Goal Memory    | ⚠️ Redacted     | ✅ Full           | ✅ Full    |
-| Plan Trace     | ⚠️ Summary only | ✅ Full           | ✅ Full    |
-| Execution Log  | ❌ None          | ⚠️ Metadata only | ✅ Full    |
-| Checkpoints    | ❌ None          | ⚠️ Restore only  | ✅ Full    |
-| Secrets / Keys | ❌ None          | ❌ None           | ✅ Full    |
+| Memory Layer   | AI Agent | Core Runtime | Guardian |
+|---------------|----------|--------------|----------|
+| Project Index | ✅ Read-only | ✅ Full | ⚠️ Verify |
+| Goal Memory   | ⚠️ Redacted | ✅ Full | ✅ Full |
+| Plan Trace   | ⚠️ Summary only | ✅ Full | ✅ Full |
+| Execution Log| ❌ None | ❌ None | ✅ Full |
+| Checkpoints  | ❌ None | ⚠️ Restore only | ✅ Full |
+| Secrets/Keys | ❌ None | ❌ None | ✅ Full |
 
 ### Memory Write Authority Matrix
 
