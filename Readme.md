@@ -216,6 +216,8 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 
 **INV-MEM-9: No Forensic Perception** — AI SHALL NOT perceive, infer from, or receive execution logs, checkpoints, policy decisions, or causal traces. Only redacted outcome summaries produced by Core MAY be provided.
 
+**INV-MEM-15: No Execution Trace in Context** — Execution traces, causal records, and audit logs SHALL NOT be exposed to the AI Agent during PERCEIVE under any condition.
+
 ### Redacted Outcome Schema (AI-Visible)
 
 Each outcome summary injected into context MUST conform to:
@@ -344,6 +346,28 @@ This forms a cryptographic hash chain.
 
 **Invariant:**  
 **INV-MEM-6: Hash-Chained Checkpoints** — Any break in the checkpoint hash chain SHALL trigger Evidence Preservation Mode and HALT execution.
+
+### Environment Snapshot Schema (Determinism Anchor)
+
+EnvironmentSnapshot {
+  os_version: string
+  exacta_version: string
+  toolchain_versions: {
+    dotnet?: string
+    msbuild?: string
+    cl?: string
+    linker?: string
+    wix?: string
+    nsis?: string
+  }
+  environment_variables_hash: SHA256
+  installed_cli_fingerprints: Map<string, SHA256> // path + binary hash
+  locale: string
+  timezone: string
+}
+
+**Invariant:**  
+**INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered deterministic unless a valid EnvironmentSnapshot is present and hash-anchored.
 
 ### **Transactional State Commit Protocol (Mandatory)**
 
@@ -910,6 +934,16 @@ Before each cycle:
 **Invariant:**  
 **INV-MEM-11: No Unverified Index Exposure** — AI SHALL NOT receive Project Index data that has not passed Guardian verification in the current cycle.
 
+### Index Root Attestation
+
+Each committed Project Index snapshot MUST include:
+
+- index_hash = SHA256(all indexed file contents + dependency graph)
+- guardian_signature = HMAC(Guardian_Secret, index_hash)
+
+**Invariant:**  
+**INV-MEM-17: Signed Index Root** — AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
+
 ### **Index Rebuild Failure Mode**
 
 If index rebuild fails due to corruption or inconsistency:
@@ -930,7 +964,7 @@ The system follows this continuous cycle:
 ```
 GOAL (User-defined with success criteria)
   ↓
-PERCEIVE (Index + Environment + Execution Trace)
+PERCEIVE (Verified Project Index + Goal State Summary + Redacted Outcome Summaries)
   ↓
 DECIDE (Policy Engine + Budget Check → AI proposes Decision)
   ↓
@@ -1111,6 +1145,17 @@ Exacta App Studio supports terminal-native AI coding assistants that run as CLI 
 - Enforce 5-minute timeout per command
 - Support budget limits and rollback
 - Log all executions to the audit trail
+
+### CLI Memory Containment Rule
+
+All CLI-based agents SHALL run with:
+
+- Session persistence DISABLED by default
+- Working directory forced to scope_root
+- Home/config directories redirected to a sandbox path under `.exacta/cli-sandbox/`
+
+**Invariant:**  
+**INV-MEM-16: No External Agent Memory** — CLI agents SHALL NOT maintain persistent memory, embeddings, session state, or project summaries outside Exacta-controlled storage.
 
 ### **Settings UI (AI Provider Configuration)**
 
@@ -2055,6 +2100,18 @@ Core and AI SHALL NOT request or trigger replay modes.
 
 **Invariant:**  
 **INV-MEM-12: Replay is Human-Authorized** — Replay functions are forensic tools, not operational capabilities.
+
+### Determinism Proof Mode (Optional)
+
+When enabled, the system SHALL:
+- Freeze toolchain versions
+- Disable provider fallback
+- Force fixed model + seed + temperature=0
+- Block all non-essential network access
+
+Produces a "Det-Run Certificate" attached to checkpoint metadata.
+
+Use case: regulatory or legal reproducibility claims.
 
 ### **Sandbox Incident Forensics**
 
