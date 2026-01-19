@@ -75,11 +75,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 | **World Model** | AI's understanding of project state | Context Model |
 | **Blast Radius** | Potential scope of change impact across codebase | Impact Scope |
 | **Safe Mode** | Restricted execution mode with network disabled | Restricted Mode, Offline Mode |
-| **Evidence Preservation** | Automatic retention of forensic data during incidents | Forensic Mode |
-| **Legal Hold** | Operator-initiated evidence lockdown for compliance | Evidence Lockdown |
 | **Shard** | Subset of dependency graph processed in one cycle | Context Partition |
-| **Coverage Map** | Record of which files have been semantically validated | Semantic Coverage Tracker |
-| **Diff Staging** | UI area for reviewing changes before commit | Change Preview |
 | **Progress Digest** | Core-generated summary of goal execution status | Execution Summary |
 
 **What makes it unique:**
