@@ -1,19 +1,60 @@
-**Exacta App Studio** is a **sandboxed, policy-governed, state-reproducible autonomous AI system** for Windows application development with an **immutable core**. 
+Exacta App Studio is a **local, autonomous, flow-first application builder** for Windows desktop apps.
 
-**Determinism Scope:** Exacta guarantees **deterministic policy evaluation, capability enforcement, execution ordering, checkpoint creation, and rollback behavior** for a given `(goal, policy_version, environment_snapshot)`.  
+It is designed to feel invisible: you describe what you want, and the system continuously changes the project until it works.
+
+There are no visible context windows, no dependency controls, no diff staging, and no undo buttons — only goals, progress, and results.
+
+**Behavioral focus:** Exacta prioritizes fast, intent-driven editing loops that apply changes to the workspace as they are produced (auto-apply by default). Responsibility for long-term recovery and full auditability is shifted toward background snapshots and external VCS (recommended), not per-action review UIs. 
+
+**Determinism & Guarantees:** Exacta operates in a *best-effort, iterative* mode. The system does **not** guarantee deterministic execution ordering, strict checkpoint determinism, or replay equivalence of AI outputs. Execution focuses on fast iteration: changes are applied immediately and the system attempts to self-correct over subsequent cycles rather than block for strict, pre-apply verification.  
 Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
 
-**Determinism Boundary Clarification**
+> **⚠️ Flow vs. Formal Guarantees Tradeoff**
+> 
+> Exacta prioritizes **developer flow** and **immediate productivity** over formal auditability and deterministic guarantees. This design choice means:
+> 
+> - **Fast iteration** with auto-apply changes instead of per-step approvals
+> - **Hidden recovery mechanisms** instead of visible rollback UIs  
+> - **Best-effort execution** instead of guaranteed deterministic outcomes
+> - **Background snapshots** instead of explicit checkpoint management
+> 
+> **For applications requiring strict auditability, deterministic execution, or formal compliance guarantees, consider traditional development workflows with manual code review and explicit version control practices.**
 
-Execution ordering is deterministic **within a single cycle** given identical:
-(goal, policy_version, environment_snapshot, context_shard, provider_id).
+## Product Operating Mode (Default)
 
-Cross-cycle ordering in Progressive Context Mode is **convergent, not strictly deterministic**, and is governed by semantic coverage completion rather than fixed step ordering.
+Exacta App Studio operates as a **flow-first, autonomous builder**.
 
-**Formal Convergence Definition:**
-- Convergence means: semantic_coverage_map reaches 100% within N cycles (configurable in Advanced Settings, default N=5)
-- Failure condition: If coverage < 100% after max_cycles, require Operator review and manual context expansion
-- Divergence handling: If coverage decreases between cycles, trigger context reset with expanded shard size
+There are no user-selectable system profiles in the standard product experience.
+
+All features, UI behavior, and guarantees in this document describe the **default autonomous mode**, which prioritizes:
+
+- Immediate change application
+- Minimal UI surface
+- Hidden system internals
+- Forward progress over formal rollback
+- Conversational recovery instead of transactional control
+
+**Context Handling (Implicit & Non-Visible)**
+
+Exacta manages AI context automatically and invisibly.
+
+The user interface does NOT expose:
+- Token counts
+- File inclusion lists
+- Dependency graphs
+- Coverage maps
+- Context size or limits
+
+**Execution Model (Best-Effort Convergence)**
+
+Exacta does not guarantee formal convergence, semantic coverage, or dependency completeness.
+
+The system iterates forward until:
+- The goal is satisfied
+- The budget is exhausted
+- The operator halts execution
+
+Validation occurs through build success, runtime behavior, and observed outcomes — not through formal file coverage or dependency proofs.
 
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
 
@@ -46,27 +87,22 @@ It is a Windows desktop application that builds complete desktop applications (o
 - Runs entirely locally on your PC (no Docker, no hosted backend, no cloud dependencies)
 - Uses **your AI providers** via API keys or local CLIs (OpenAI-compatible APIs, OpenRouter, Gemini CLI, local models, or any future provider)
 - **Autonomous execution model:** You set a goal, the system runs continuous loops until the goal is satisfied or budget is exhausted
-- **Immutable core:** The agent can modify project files but cannot alter its own runtime, policy engine, or safety mechanisms
+- **Runtime scope:** The runtime is designed to resist casual modification, but the product prioritizes iterative workspace edits. The system does not surface mechanisms to edit the runtime during normal use. Note: core hardening remains an engineering goal, but auto-apply behavior means operator-visible immutability claims are reduced compared to a policy-first system.
 - **Structured semantic indexing:** Context selection and refactoring safety are driven by AST + dependency graph indexing, not embedding-based memory
 
-**Autonomous workflow:**
+**Autonomous Workflow (Lovable-Style)**
 
-```
-Goal (user-defined with success criteria)
+Goal (user intent)
   ↓
-Continuous autonomous loop until goal satisfied:
-  → Perceive (analyze project state + redacted outcome summaries only)
-  → Decide (AI proposes next actions)
-  → Act (Guardian validates → Core executes with capability tokens)
-  → Observe (check results + drift detection)
-  → Checkpoint (create restore point)
-  → Loop or Halt
-```
-
-**Authority model:** User governs (sets goals and boundaries) → Guardian enforces (issues capability tokens, validates policy) → Core executes (orchestrates builds, manages files) → AI proposes (generates plans and code, zero execution authority)
-
-**Governed + Sandbox Executor Model:** Every action is **auditable, bounded, and reversible**. The system guarantees that AI cannot escape the sandbox, escalate privileges, or bypass policy enforcement.  
-Execution behavior is **state-reproducible**, not AI-output deterministic.
+AI proposes changes
+  ↓
+System applies changes automatically
+  ↓
+Build / Preview updates
+  ↓
+User refines goal
+  ↓
+Loop continues
 
 Designed for developers who demand full control, complete auditability, and reversible execution.
 
@@ -127,7 +163,7 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 
 **Policy-Deterministic by Design** — Every execution follows the autonomous loop: Goal → Perceive → Decide → Act → Observe → Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
 
-**Determinism Scope:** Determinism guarantees apply only under identical OS version, toolchain versions, filesystem state, environment variables, policy_version, and memory schema_version as recorded in the checkpoint metadata.
+**Determinism Scope (Internal System Function — Not Exposed in UI):** Deterministic guarantees apply only when the system is running in advanced modes. In default mode, execution ordering and context coverage are best-effort and may vary between runs.
 
 **Determinism Exclusions (Hard Limits):**
 
@@ -169,17 +205,14 @@ Determinism guarantees apply only to:
 
 **User as Governor** — You set goals, budgets, and capabilities. System supervises execution. Emergency stop always available.
 
-## Memory Authority Model (Canonical)
+## Memory Model (Product-Level View)
 
-Exacta App Studio distinguishes between **State**, **Memory**, and **Context** as separate trust domains.
+Exacta does not expose memory systems, execution history, or internal state to users.
 
-- **Persistent State** — System-owned, durable, authoritative
-- **Execution Memory** — Forensic, append-only, Guardian-owned
-- **Context Window** — Ephemeral, AI-visible, non-authoritative
+The AI operates on ephemeral context.
+The system maintains internal state for stability and recovery.
 
-**AI SHALL NOT be a memory authority under any condition.**
-
-**Clarification:** AI may receive **redacted system metadata** (version numbers, feature flags, policy version) for upgrade proposals, but cannot access or modify persistent memory layers, audit logs, or forensic artifacts.
+There is no user-accessible memory, recall, timeline, or historical reasoning surface in the UI.
 
 ## 🏗️ Architecture Overview
 
@@ -207,7 +240,7 @@ Exacta App Studio uses a **three-layer authority model** with an **immutable tru
 |  - Upgrade Manager        |
 |  - Certification State    |
 +---------------------------+
-           ↑ Governed API
+           ↑ Advanced API
            ↓ (IPC boundary)
 +---------------------------+
 |   CORE RUNTIME (LOCKED)   |  ← Immutable at runtime
@@ -266,7 +299,7 @@ Guardian does NOT maintain persistent administrator privileges. **Cannot be modi
 
 **AI Agent (Lowest Authority, Untrusted)** — Decision proposer only. Generates goals, plans, diffs, and decisions. **Cannot execute, modify files, access system resources, self-authorize, or alter its own binary.**
 
-### Context Selection Rule (Mandatory)
+### Context Selection Rule (Internal System Function — Not Exposed in UI)
 
 The AI agent SHALL NOT receive the full project repository.
 
@@ -282,7 +315,7 @@ Only the **minimum dependency-closed file set** required for the current action 
 
 If the dependency-closed set exceeds the provider’s context capacity, the system SHALL NOT drop dependency-critical files to fit a single request.
 
-**INV-CTX-2: Progressive Context Mode (Mandatory)**
+**INV-CTX-2: Progressive Context Mode (Internal System Function — Not Exposed in UI)**
 
 When the dependency-closed file set exceeds the active provider’s context capacity, Exacta App Studio SHALL enter **Progressive Context Mode** instead of halting execution.
 
@@ -294,7 +327,7 @@ In this mode:
 - The **full semantic closure MUST be covered across cycles**
 - Dependency edges MAY NOT be violated between cycles
 
-The system SHALL surface a visible banner:
+In **DEBUG mode only**, the system MAY surface a banner:
 > “Progressive Context Mode Active — semantic coverage in progress”
 
 **MAY-CTX-FAST: Throughput Mode (Operator-Controlled)**
@@ -370,44 +403,26 @@ OutcomeSummary {
 * Stack traces
 * Hashes or IDs from forensic systems
 
-### **Goal Progress Digest (Core-Generated Summary)**
+### **Goal Progress Digest (LOVABLE Default)**
 
-To improve AI context quality without violating forensic isolation, Core generates a **deterministic, redacted summary** every 5 cycles.
-
-**Digest Schema:**
+In LOVABLE mode, the digest is simplified and non-forensic:
 
 ```tsx
 GoalProgressDigest {
   cycles_completed: number
-  files_modified_total: number
-  successful_builds: number
-  failed_builds: number
-  coverage_progress: string      // "78% → 92%"
-  budget_status: {
-    tokens: string,              // "320k / 500k remaining"
-    time: string,                // "18min / 30min remaining"
-    files: string,               // "127 / 500 modified"
-    builds: string               // "3 / 5 runs used"
-  }
-  last_5_outcomes: OutcomeSummary[]  // Standard redacted outcomes
+  status: 'BUILDING' | 'ERROR' | 'FIXING' | 'DONE'
+  last_outcome: string
+  health: 'HEALTHY' | 'WARNING' | 'CRITICAL'
 }
 ```
 
-**Generation Rules:**
-- Produced by Core every 5 cycles (deterministic interval)
-- Replaces individual outcome summaries in AI context
-- Contains only aggregate statistics (no forensic details)
-- Injected into AI context alongside current cycle's state
+**Advanced Fields (Internal System Function — Not Exposed in UI):**
 
-**Invariant:**  
-**INV-MEM-DIGEST-1: Digest Authority** — Only Core may generate progress digests. AI SHALL NOT summarize, compress, or transform execution history. Digests are computed from persistent state, not from AI reasoning.
-
-**Why This is Safe:**
-- Core-generated (not AI hallucination)
-- Deterministic (same state = same digest)
-- Redacted (no timestamps, hashes, or forensic IDs)
-- Goal-scoped (no cross-goal data leakage)
-- Read-only (AI cannot modify digest)
+* coverage_progress
+* token counts
+* file counts
+* budget breakdowns
+* semantic closure metrics
 
 ### **Core Autonomous Components**
 
@@ -555,43 +570,23 @@ Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC
 
 Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/cycle (2000), build runs/goal (5), tokens/goal (500k), time/goal (30 min), network calls/goal (200)
 
-- **Checkpoint & Rollback Service**
+## Background Recovery (Hidden)
 
-Every loop creates restore point with file snapshots, index snapshot, goal state, budget counters, execution trace pointer. **Rollback is atomic and global, enforced through the Transactional State Commit Protocol (INV-MEM-1).**
+Exacta maintains internal background snapshots strictly for:
+- Crash recovery
+- Data corruption protection
+- Forensic export (advanced use only)
 
-### Checkpoint Integrity Proof
+The standard UI does NOT expose:
+- Undo buttons
+- Rollback timelines
+- Restore point selectors
+- File history panels
 
-Each checkpoint MUST include:
+Recovery is system-driven, not user-operated.
+Operators are expected to use external version control (Git) for manual history and rollback.
 
-- `checkpoint_hash` = SHA256(all staged files + index snapshot + goal state + budget state)
-- `previous_checkpoint_hash`
-- `guardian_signature` = HMAC(Guardian_Secret, checkpoint_hash + previous_hash)
-- `semantic_coverage_map` = Map<file_path_hash, CoverageRecord>
-- `context_mode` = 'NORMAL' | 'PROGRESSIVE'
 
-Where `file_path_hash` = HMAC-SHA256(Guardian_Secret, relative_path).
-
-**Coverage Record Schema:**
-
-```tsx
-CoverageRecord {
-  coverage_level: 'INJECTED' | 'PARSED' | 'DEPENDENCY_VALIDATED'
-  cycle_id: UUID
-  index_snapshot_hash: SHA256
-}
-```
-
-**INV-CTX-3: Coverage Integrity**
-
-A file SHALL NOT be marked DEPENDENCY_VALIDATED unless:
-- It was included in AI context
-- Its dependency edges were validated against the current Project Index
-- At least one outbound or inbound dependency was exercised in a patch or validation step
-
-This forms a cryptographic hash chain.
-
-**Invariant:**  
-**INV-MEM-6: Hash-Chained Checkpoints** — Any break in the checkpoint hash chain SHALL trigger Evidence Preservation Mode and HALT execution.
 
 ### Environment Snapshot Schema (Determinism Anchor)
 
@@ -615,7 +610,7 @@ EnvironmentSnapshot {
 **Invariant:**  
 **INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered deterministic unless a valid EnvironmentSnapshot is present and hash-anchored.
 
-### **Transactional State Commit Protocol (Mandatory)**
+### **Transactional State Commit Protocol (Internal System Function — Not Exposed in UI)**
 
 All **persistent state layers** SHALL be modified only through a **two-phase atomic commit protocol**.
 
@@ -892,146 +887,36 @@ Goals are evaluated for success/failure at the end of each cycle using a combina
 
 Exceeding any budget triggers automatic HALT with rollback option.
 
-### **Budget Meter UI Design**
+**Budget Enforcement (Non-Visual)**
 
-**Visual Representation:**
+Budgets are enforced silently by the system.
 
-```
-Tokens Used:  ████████████░░░░░░░░  320k / 500k  (64%)
-Time Elapsed: ███████████████░░░░░   18min / 30min (60%)
-Files Modified: ██████░░░░░░░░░░░░░  127 / 500 (25%)
-Builds Run:   ███░░░░░░░░░░░░░░░░░    3 / 5 (60%)
+The UI does NOT display:
+- Token usage
+- File limits
+- Time meters
+- Network counters
+- Forecasts or projections
 
-Network Calls: ███████████████████░  187 / 200 (93%) ⚠️ Warning
+When a budget is exceeded, execution halts and the user is notified conversationally with a high-level reason.
 
-Status: 🟢 Healthy | ⚠️ Approaching limits on: Network Calls
-```
+### **Change Application Model**
 
-**Color Coding:**
-- 🟢 Green (0-70%): Healthy
-- 🟡 Yellow (70-90%): Warning
-- 🔴 Red (90-100%): Critical
-- ⚫ Black (100%): Exhausted → HALT
+Exacta applies changes automatically as they are produced.
 
-**Live Updates:**
-- Budget meters update in real-time as actions execute
-- Warning toast when any budget exceeds 90%
-- Countdown timer shows time remaining
-- Projected completion estimate based on current velocity
+There is no staging area, diff review panel, or per-file approval workflow.
 
-**Historical Trend:**
-```
-Last 5 cycles average:
-• Tokens/cycle: 15k → Estimated 6 more cycles before exhaustion
-• Files/cycle: 12 → Well within limits
-```
+The system optimizes for:
+- Speed of iteration
+- Continuous forward progress
+- Live build and preview feedback
 
-### **Live Budget Visualization (Lovable-Inspired Speed)**
+### **Immediate Change Application (Lovable-Style)**
 
-**Meter Panel (Always Visible in Right Sidebar):**
+**Lovable Pattern:** Single "Apply Changes" button → instant application
+**Exacta Enhancement:** Background recovery mechanisms (invisible to user)
 
-```
-┌─────────────────────────────────────────────┐
-│  BUDGET STATUS                              │
-├─────────────────────────────────────────────┤
-│  Tokens:  ████████████░░░░░░░░  64%         │
-│           320,000 / 500,000 used            │
-│           Estimated: 6 cycles remaining     │
-│                                             │
-│  Time:    ███████████████░░░░░  60%         │
-│           18:00 / 30:00 elapsed             │
-│           Average: 2min/cycle               │
-│                                             │
-│  Files:   ██████░░░░░░░░░░░░░░  25%         │
-│           127 / 500 modified                │
-│                                             │
-│  Builds:  ███░░░░░░░░░░░░░░░░░  60%         │
-│           3 / 5 builds used                 │
-│                                             │
-│  Network: ███████████████████░  93% ⚠️      │
-│           187 / 200 calls used              │
-│           WARNING: Approaching limit        │
-├─────────────────────────────────────────────┤
-│  Status: 🟢 Healthy                         │
-│  Last update: 2 seconds ago                 │
-└─────────────────────────────────────────────┘
-```
-
-**Color Coding (Same as Lovable):**
-- 🟢 Green (0-70%): Healthy
-- 🟡 Yellow (70-90%): Warning - shown in meter
-- 🔴 Red (90-100%): Critical - flashing indicator
-- ⚫ Black (100%): Exhausted → Automatic HALT
-
-**Velocity Tracking:**
-
-Shows historical trend for prediction:
-
-```
-Last 5 cycles:
-• Tokens/cycle: 12k → 15k → 14k → 16k → 13k (avg: 14k)
-• Files/cycle: 8 → 12 → 10 → 15 → 9 (avg: 11)
-  
-Projection:
-• Token budget will last ~6 more cycles
-• File budget has 38 cycles remaining
-• Time budget has 12 minutes remaining
-
-⚠️ Limiting factor: TIME (will exhaust first)
-```
-
-**Budget Violation Priority (first match halts):**
-1. Files modified (immediate halt - filesystem safety)
-2. Lines changed (immediate halt - code safety)  
-3. Time elapsed (immediate halt - runaway prevention)
-4. Tokens used (immediate halt - cost control)
-5. Network calls (warning first, then halt)
-6. Shell commands (warning first, then halt)
-7. Build runs (warning first, then halt)
-
-*Rationale: Files > Lines because file count indicates scope of change; line count can be high in single files but fewer files means more contained impact.*
-
-### **Runaway Detection**
-
-System automatically halts if:
-
-- Same file modified 3x in 5 loops
-- Build fails 3x consecutively
-- No goal progress detected in 5 cycles (N=5)
-- Action velocity exceeds safety threshold (10 actions/minute)
-- Recursive loop pattern detected
-- **Repeated identical shell commands** (same command 3x in 5 cycles)
-- Budget drops below 10% (warning only)
-- Progressive Context Mode is active AND semantic coverage is incomplete AND user attempts to finalize goal
-
-**Runaway Detection Rationale:**
-- "3x in 5 loops" balances sensitivity (catches issues early) vs. false positives (allows iterative refinement)
-- Configurable in Advanced Settings → Safety → Runaway Detection: detection_sensitivity = 'conservative' | 'balanced' | 'permissive'
-- Conservative: 2x in 3 loops; Permissive: 5x in 10 loops
-
-**Rule:** A goal SHALL NOT be marked COMPLETED while any dependency-critical file remains uncovered in the semantic_coverage_map.
-
-**Dependency-Critical File**
-
-A file is dependency-critical if it:
-- Is in the transitive closure of any modified file
-- Declares or implements a symbol referenced by a modified file
-- Is part of a build, packaging, or runtime entry path
-
-### **Unified Diff Contract**
-
-- **POSIX unified diff format** (RFC 3629 UTF-8 encoding)
-- **Atomic application** — All hunks apply or none do
-- **Automatic rollback** on partial failure
-- **Drift detection** before every apply
-- **NO_CHANGES_REQUIRED sentinel** for no-op responses
-
-### **Diff Staging Area (Lovable + Git Hybrid)**
-
-**Lovable Pattern:** Shows SQL/code with single "Apply Changes" button
-**Exacta Enhancement:** Multi-step review with granular control
-
-**Stage 1: AI Proposes Changes**
+**Single-Step Flow:**
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -1041,78 +926,29 @@ A file is dependency-critical if it:
 │                                                      │
 │  📄 src/models/TodoContext.cs (NEW FILE)            │
 │     +45 lines | Creating EF Core context            │
-│     [Preview Diff] [Stage]                          │
 │                                                      │
 │  📄 src/models/Todo.cs (MODIFIED)                   │
 │     +12 lines, -3 lines | Adding Id property        │
-│     [Preview Diff] [Stage]                          │
 │                                                      │
 │  📄 Program.cs (MODIFIED)                           │
 │     +8 lines | Registering DbContext                │
-│     [Preview Diff] [Stage]                          │
 │                                                      │
-│  [Stage All] [Reject All] [Ask AI to Revise]       │
+│  [Apply Changes]                                    │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Stage 2: Preview Individual Diff**
+**Key Behavior:**
+- **One Button Only:** "Apply Changes" immediately executes all proposed modifications
+- **No Staging UI:** Changes apply directly without intermediate review steps
+- **Background Recovery:** Automatic snapshots created silently before each application
+- **Seamless Flow:** User continues working while changes are applied in background
 
-Click "Preview Diff" to see unified diff with syntax highlighting:
+**Recovery (Hidden from UI):**
+- Automatic pre-apply snapshots (not visible to user)
+- Background rollback capability for critical failures
+- Recovery only triggered by system-detected issues, never user-initiated
 
-```diff
---- a/src/models/Todo.cs
-+++ b/src/models/Todo.cs
-@@ -1,5 +1,8 @@
- namespace TodoApp.Models {
-   public class Todo {
-+    [Key]
-+    public int Id { get; set; }
-+    
-     public string Title { get; set; }
-     public bool IsCompleted { get; set; }
-   }
- }
-```
-
-**Stage 3: Commit Staged Changes**
-
-After staging desired files:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  Staged Changes (2 files)                           │
-│                                                      │
-│  ✓ src/models/TodoContext.cs (+45 lines)            │
-│  ✓ src/models/Todo.cs (+12, -3 lines)               │
-│                                                      │
-│  Budget Impact:                                      │
-│  • Files: 2/50 remaining                            │
-│  • Lines: 54/2000 remaining                         │
-│  • Tokens: ~1,200 consumed                          │
-│                                                      │
-│  [Commit Changes] [Unstage All]                     │
-│                                                      │
-│  ⚠️ This will create checkpoint cp_a3f9c2           │
-└─────────────────────────────────────────────────────┘
-```
-
-**Key Difference from Lovable:**
-- **Lovable**: Single "Apply Changes" → instant application
-- **Exacta**: Stage → Review → Commit → Checkpoint (full auditability)
-
-**Features:**
-- **Live Preview:** Show diff as AI generates (streaming)
-- **Selective Staging:** Unstage individual files
-- **Manual Edit:** Open file in external editor before commit
-- **Risk Indicators:** Flag high-risk changes (config files, system paths)
-- **Rollback Integration:** "Reject All" discards without creating checkpoint
-
-**Invariant Compliance:**
-- Does NOT violate immutability (Core still enforces atomic commit)
-- Does NOT allow AI to bypass policy (Guardian validates before commit)
-- Does NOT break checkpoint integrity (only committed diffs are checkpointed)
-
-**Implementation:** This is purely a UI staging layer. All diffs are validated by Policy Engine before commit, regardless of user selection.
+**Implementation:** Changes are applied immediately with background validation. Recovery mechanisms operate transparently without user awareness or control.
 
 ### **Background Execution Model**
 
@@ -1138,9 +974,9 @@ After staging desired files:
 
 **INV-A3: Budget-Bounded Execution** — Hard caps enforced on files, lines, builds, tokens, time, network. Budget exhaustion triggers HALT.
 
-**INV-A4: Checkpoint Before Action** — Every loop creates restore point before execution. Rollback is atomic and global.
+**INV-A4: Checkpoint Before Action (Internal System Function — Not Exposed in UI)** — Advanced modes create restore points before execution. Default mode uses lightweight state snapshots for system recovery.
 
-**INV-A5: Reversible by Default** — All operations backed by checkpoint. User can rollback to any cycle.
+**INV-A5: System Recovery (Internal System Function — Not Exposed in UI)** — Advanced modes provide checkpoint-backed rollback. Default mode focuses on forward progress with system recovery on critical failures.
 
 **INV-A6: Local-Only Execution** — All processing occurs on the user's machine. External network communication is restricted to user-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
 
@@ -1491,7 +1327,7 @@ ACT (Capability-Scoped Execution with token validation)
   ↓
 OBSERVE (Result + Drift + Side Effects)
   ↓
-CHECKPOINT (Snapshot + Budget Update)
+CHECKPOINT (Advanced: Snapshot + Budget Update | Default: Lightweight State)
   ↓
 LOOP or HALT
 ```
@@ -3003,7 +2839,7 @@ Applying changes...
 
 ---
 
-### **Context Coverage Transparency**
+### **Context Coverage Transparency (Internal System Function — Not Exposed in UI)**
 
 When Progressive Context Mode activates:
 
@@ -3123,7 +2959,7 @@ Lines removed: 87
 **Context Awareness:**
 - AI can reference previous messages
 - Every message includes current budget state
-- File references auto-link to file tree
+- File references auto-link to file tree (Internal System Function — Not Exposed in UI)
 
 **Quick Actions:**
 ```
@@ -3136,7 +2972,7 @@ Recent commands:
 [Export Chat] → Saves as .md with:
 - All messages
 - Budget usage per request  
-- Checkpoints created
+- Checkpoints created (Internal System Function — Not Exposed in UI)
 - Files modified
 ```
 
@@ -3144,7 +2980,7 @@ Recent commands:
 - `Enter` → Send message
 - `Shift+Enter` → New line
 - `Ctrl+K` → Clear chat
-- `Ctrl+R` → Rollback last change
+- `Ctrl+R` → Rollback last change (Internal System Function — Not Exposed in UI)
 
 ---
 
@@ -3344,53 +3180,23 @@ Verification includes:
 
 ### **User as Governor**
 
-In autonomous mode, you are not an approver—you are a **governor**:
+In autonomous mode, you set goals and boundaries. The system executes automatically with background safeguards for critical operations.
 
-- Set goals, budgets, and capability boundaries
-- Monitor live action stream
-- Toggle capabilities on/off during execution
-- View budget meters in real-time
-- Browse checkpoint timeline
-- Emergency STOP at any time (keyboard shortcut: **Ctrl+Alt+X**)
-  - Note: Ctrl+Shift+Esc opens Windows Task Manager
-  - To force-kill Exacta if UI freezes, use Task Manager and end "Exacta.exe"
-- Rollback to any checkpoint
+### **Simplified Execution Flow**
 
-### **Autonomy Approval Matrix**
+The system operates with **auto-apply behavior (LOVABLE default)** for routine development tasks. User approval is required only for:
 
-The following table clarifies **when user approval is required** vs. when the system auto-executes:
+- **Goal creation** (explicit user intent)
+- **High-risk operations** (SYSTEM shell commands, policy overrides, upgrades)
 
-| Action Type | Risk Level | Approval Required? | Who Decides |
-| --- | --- | --- | --- |
-| **Goal creation** | N/A | ✅ YES (explicit) | User |
-| **Capability grant** | Varies | ✅ YES (per capability) | User |
-| **File read** | Low | ❌ NO (auto-execute) | Policy Engine |
-| **File write** (1-10 files) | Low | ❌ NO (auto-execute) | Policy Engine |
-| **File write** (11-50 files) | Medium | ⚠️ DEPENDS on profile | Active Profile |
-| **Build execution** | Medium | ❌ NO (auto-execute) | Policy Engine |
-| **Package creation** | High | ⚠️ DEPENDS on profile | Active Profile |
-| **Shell command** (READ class) | Low | ❌ NO (auto-execute) | Policy Engine |
-| **Shell command** (SYSTEM class) | Critical | ✅ YES (always) | User |
-| **System path access** | Critical | ✅ YES (always) | Guardian |
-| **Policy override** | Critical | ✅ YES (dual approval) | User + Guardian |
-| **Upgrade application** | Critical | ✅ YES (explicit) | User + Guardian |
+All other actions execute automatically within configured boundaries.
 
-**Clarification:** "Fully autonomous" means the system runs **goal-driven loops without per-step approval**. User approves the **goal** and **capabilities** upfront, then the system auto-executes steps within those boundaries. High-risk actions (SYSTEM shell commands, policy overrides, upgrades) always require explicit user confirmation.
+### **Supervisor UI (Internal System Function — Not Exposed in UI)**
 
-### **Supervisor UI (Mandatory Panels)**
-
-The following UI panels are **non-optional** for safe autonomous operation:
+The following UI panels are **required for advanced operation**:
 
 | Panel | Purpose | Update Frequency |
 | --- | --- | --- |
-| **Live Action Stream** | Real-time display of AI decisions and system actions | Every cycle |
-| **Budget Meters** | Visual progress bars for all budget caps with remaining/total | Real-time |
-| **Capability Toggles** | Enable/disable tokens (FS_WRITE, SHELL_EXEC, etc.) during execution | User-triggered |
-| **Shell Command Log** | Chronological list of all executed shell commands with classification | Every command |
-| **Context Coverage Map** | Visual graph showing which files/modules have been semantically covered across cycles | Every cycle |
-| **Checkpoint Timeline** | Visual timeline of all checkpoints with cycle_id and timestamp | Every checkpoint |
-| **Rollback Selector** | Interactive selector to choose checkpoint for rollback | On-demand |
-| **Emergency STOP** | Large, always-visible button to halt execution immediately | N/A |
 
 ### **Enhanced Workspace Layout (Lovable-Inspired)**
 
@@ -3404,22 +3210,22 @@ The following UI panels are **non-optional** for safe autonomous operation:
 │  PANEL 1 │      PANEL 2           │         PANEL 3               │
 │  (Left)  │      (Center)          │         (Right)               │
 │          │                        │                               │
-│  Chat &  │  Live App Preview      │  Context Coverage Map         │
-│  File    │  (Sandbox)             │  + Budget Meters              │
-│  Tree    │                        │                               │
-│          │  ┌──────────────────┐  │  Coverage: 68% (127/187 files)│
-│  💬 Chat │  │  ┌─────────────┐ │  │  🟢🟢🟢🟢🟢🟡⚪⚪⚪⚪            │
+│  Chat &  │  Live App Preview      │  Status Summary              │
+│  Active  │  (Sandbox)             │                               │
+│  Files   │                        │                               │
+│          │  ┌──────────────────┐  │                               │
+│  💬 Chat │  │  ┌─────────────┐ │  │                               │
 │  ────────│  │  │ Todo App    │ │  │                               │
-│  > Add   │  │  │  [ ] Task 1 │ │  │  Files in Context:            │
-│  SQLite  │  │  │  [ ] Task 2 │ │  │  • src/App.tsx ✓              │
-│  persist.│  │  │  [Add Task] │ │  │  • src/api/db.ts ✓            │
-│          │  │  └─────────────┘ │  │  • src/components/... ⏳      │
+│  > Add   │  │  │  [ ] Task 1 │ │  │                               │
+│  SQLite  │  │  │  [ ] Task 2 │ │  │                               │
+│  persist.│  │  │  [Add Task] │ │  │                               │
+│          │  │  └─────────────┘ │  │                               │
 │          │  │                  │  │                               │
-│  📁 Files│  │  [Refresh] [⚙️]  │  │  Budget Remaining:            │
-│  ────────│  │                  │  │  Tokens: ████████░░ 320k/500k │
-│  ✓ App   │  └──────────────────┘  │  Time:   ███████░░░ 18m/30m   │
-│  ✓ DB    │                        │  Files:  ██░░░░░░░░ 12/50     │
-│  ⏳ UI   │  Status: ✅ Build OK   │                               │
+│  📁 Active Files│  │  [Refresh] [⚙️]  │  │                               │
+│  ────────│  │                  │  │                               │
+│  ✓ Todo.cs (modified)│  └──────────────────┘  │                               │
+│  ✓ TodoContext.cs (new)│                        │                               │
+│  ⏳ Program.cs (in progress)│  Status: ✅ Build OK   │                               │
 │          │  Tests: 3/3 passing    │                               │
 └──────────┴────────────────────────┴───────────────────────────────┘
 ```
@@ -3428,8 +3234,7 @@ The following UI panels are **non-optional** for safe autonomous operation:
 
 **Panel 1 (Left - 20% width):**
 - **Chat Interface** (top): Natural language input for AI
-- **File Tree** (bottom): Collapsible project structure
-- **Checkpoint Timeline** (bottom drawer): Click to expand
+- **Active Files Overview** (bottom): Shows only files currently being worked on
 
 **Panel 2 (Center - 50% width):**
 - **Live Preview**: Interactive sandbox showing app
@@ -3437,54 +3242,12 @@ The following UI panels are **non-optional** for safe autonomous operation:
 - **Status bar**: Build status, test results, warnings
 
 **Panel 3 (Right - 30% width):**
-- **Context Coverage Map**: Visual graph of semantic coverage
-- **Budget Meters**: Real-time usage tracking
-- **Capability Toggles**: Enable/disable tokens
-- **Shell Command Log**: Recent executed commands
+- **Status Summary**: High-level execution status
 
 **Responsive Behavior:**
 - On smaller screens (<1600px), Panel 3 collapses into a drawer
 - On very small screens (<1024px), Panel 1 becomes a slide-out menu
 
-### **Context Coverage Dashboard (Enhanced UI Feature)**
-
-**Purpose:** Provide transparent visibility into Progressive Context Mode execution and semantic coverage progress.
-
-**Panel Components:**
-
-1. **Dependency Graph Visualization**
-   - Interactive node graph showing file relationships
-   - Color coding:
-     - 🟢 Green: DEPENDENCY_VALIDATED (fully covered)
-     - 🟡 Yellow: INJECTED or PARSED (in context but not validated)
-     - ⚪ Gray: Not yet covered
-     - 🔴 Red: Coverage decreased (requires investigation)
-   - Click nodes to:
-     - View file preview
-     - See dependency edges (imports/exports)
-     - Force inclusion in next shard
-     - Mark as "skip if dead code"
-
-2. **Shard Progress Tracker**
-   ```
-   Shard 3 of 7 | Coverage: 42% → 68% (+26%)
-   
-   Current Shard Files (12):
-   ✓ src/App.tsx (validated)
-   ✓ src/api/users.ts (validated)  
-   ⚠ src/utils/helpers.ts (parsed, awaiting validation)
-   
-   Next Shard Preview (8 files)
-   Estimated completion: 2 more cycles
-   ```
-
-3. **User Controls**
-   - [Adjust Shard Size] - Increase/decrease files per shard
-   - [Force Include File] - Add specific file to next shard
-   - [View Full Coverage Report] - Export coverage map
-   - [Switch to FAST Mode] - Disable coverage guarantees for speed
-
-**Implementation Note:** This panel is read-only visualization of Core-maintained state. It does NOT allow AI to influence context selection.
 
 ### **Logging & Replay (Compliance Grade)**
 
