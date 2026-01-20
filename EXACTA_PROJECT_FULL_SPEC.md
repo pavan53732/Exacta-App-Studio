@@ -31,7 +31,7 @@ Determinism is guaranteed ONLY for:
 2. Capability token validation (the permission system)
 3. Invariant enforcement (security boundaries)
 
-> **⚠️Flow vs. Formal Guarantees Tradeoff**
+> **⚠️ Flow vs. Formal Guarantees Tradeoff**
 > 
 > Exacta prioritizes **developer flow** and **immediate productivity** over formal operational logging and deterministic guarantees. This design choice means:
 > 
@@ -522,7 +522,7 @@ The AI Agent SHALL NOT:
 - Persist embeddings, summaries, vector indexes, or compressed representations of project data
 - Maintain cross-session recall
 - Store prior goal context in any external system
-- Use provider-side “memory” or “conversation history” features
+- Use provider-side "memory" or "conversation history" features
 
 Any detected persistent provider-side memory behavior will be treated as a security concern, flagged in local logs, and submitted for operator review.
 
@@ -1132,9 +1132,9 @@ This section is reserved. No authority or behavior is granted unless explicitly 
 
 **No Hard Limits On:**
 
-- âŒ **Max project size** — System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
-- âŒ **Max files per plan** — Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
-- âŒ **Max AI cost per session** — User's API key, user's budget (soft warning at budget thresholds)
+- ❌ **Max project size** — System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
+- ❌ **Max files per plan** — Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
+- ❌ **Max AI cost per session** — User's API key, user's budget (soft warning at budget thresholds)
 
 **Budget Soft Limits (warnings, not blocks):**
 
