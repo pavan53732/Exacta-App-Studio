@@ -97,6 +97,7 @@ Determinism is guaranteed ONLY for:
   - [14.1 Index-File Consistency](#141-index-file-consistency)
   - [14.2 Index Root Attestation](#142-index-root-attestation)
 - [15. Failure Taxonomy - Halt Rules](#15-failure-taxonomy---halt-rules)
+  - [15.1 State Machine Priority](#151-state-machine-priority)
 - [16. Testing - Validation (Engineering Discipline)](#16-testing---validation-engineering-discipline)
   - [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
   - [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
@@ -112,7 +113,8 @@ Determinism is guaranteed ONLY for:
   - [22.3 Blast Radius Control](#223-blast-radius-control)
 - [23. Legal, Licensing - Trust Stance](#23-legal-licensing---trust-stance)
 - [24. Background Recovery - Crash Semantics](#24-background-recovery---crash-semantics)
-  - [24.1 Environment Snapshot Schema (Determinism Anchor)](#241-environment-snapshot-schema-determinism-anchor)
+  - [24.1 State Artifact Classes (Taxonomy)](#241-state-artifact-classes-taxonomy)
+  - [24.2 Environment Snapshot Schema (Determinism Anchor)](#242-environment-snapshot-schema-determinism-anchor)
 - [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
 - [26. AI Provider Trust Model](#26-ai-provider-trust-model)
   - [26.1 AI Provider Management](#261-ai-provider-management)
@@ -211,6 +213,7 @@ Build / Preview updates
   ↓
 User refines goal
   ↓
+(Returns to GOAL)
 
 
 ### 1.4 Lovable-Style Interaction Model
@@ -328,6 +331,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 | **Operator** | Human user with administrative privileges (INV-TERM-1) | User, Administrator |
 | **Core** | Exacta App Studio runtime (runtime-protected; not modifiable by AI or user workflows) | Core Runtime, System |
 | **Guardian** | Elevated security process enforcing policy and sandbox | Security Guardian, Policy Engine |
+| **GOAL-BOUND** | Budget, capabilities, and execution scope that apply only to a single goal_id and reset when a new goal is issued | Goal-Scoped |
 | **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
 | **Goal** | User-defined objective with success criteria | Task, Objective |
 | **Cycle** | One complete Perceive→Decide→Act→Observe→Checkpoint loop | Loop, Iteration |
@@ -391,7 +395,7 @@ Exacta App Studio is **intentionally not designed** for the following use cases:
 - ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
 - ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
-These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are listed in Section 17).  **Note:** "deterministic" in the sense of replayability is *not* claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
+These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain and Toolchain rules in Section 25).  **Note:** "deterministic" in the sense of replayability is *not* claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
 
 
 ## 6. Autonomous Execution Model
@@ -471,6 +475,15 @@ Primary halt conditions:
 - Sandbox breach
 - Capability token revocation mid-cycle
 - Repeated build failures or runaway edits
+
+**AI Provider Failure Handling:**
+
+If AI provider is unavailable or returns errors:
+
+1. Retry up to 3 times (1s, 5s, 30s backoff)
+2. Log AI-PROVIDER-UNAVAILABLE
+3. Halt at next safe boundary
+4. Notify Operator with option to retry or switch provider
 
 On halt, Core transitions to Operational Preservation Mode and exposes a guided recovery workflow to the Operator.
 
@@ -690,6 +703,13 @@ All **persistent state layers** SHALL be modified only through a **two-phase ato
 - Validate schema versions for all memory objects
 - Verify sufficient disk space and write permissions
 
+**Disk Space Failure Rule:**
+If disk space or write permission validation fails:
+1. Abort commit protocol
+2. Log DISK-SPACE-EXHAUSTED
+3. Enter Safe Mode
+4. Require Operator intervention before retry
+
 PHASE 2 — COMMIT
 - Atomically move staged files into scope_root
 - Atomically promote index snapshot
@@ -733,7 +753,6 @@ Authority rules:
 
 
 System authority that evaluates action type, target scope, capability tokens, budget state, and risk level. Outputs ALLOW, ALLOW_WITH_LIMITS, or DENY
-
 
 ### 11.1 Policy Engine Minimal Formalism (V1)
 
@@ -794,6 +813,45 @@ Predicates:
 - **Most restrictive wins:** When multiple rules apply, the final decision is the minimum in this order: `DENY` > `ALLOW_WITH_LIMITS` > `ALLOW`.
 
 **Determinism requirement:** Policy evaluation is deterministic for a given `(goal, action, state, policy_version)` snapshot, and the snapshot is logged with the decision.
+
+### 11.1.1 Policy Profile (Formal Definition)
+
+A **Policy Profile** is a Guardian-signed, immutable configuration bundle that defines a specific enforcement posture.
+
+**Structure:**
+
+```tsx
+PolicyProfile {
+  profile_id: UUID
+  name: string
+  description: string
+  created_at: timestamp
+  risk_overrides: RiskRule[]
+  allowlists: {
+    shell_commands?: string[]
+    package_managers?: string[]
+    network_domains?: string[]
+  }
+  capability_limits: {
+    max_files_per_cycle?: number
+    max_lines_per_cycle?: number
+    max_network_calls?: number
+  }
+  signature: HMAC-SHA256(Guardian_Secret, all_fields)
+}
+```
+
+Rules:
+
+- Profiles MUST be Guardian-signed
+- Profiles MUST be Operator-approved
+- Profiles MUST be read-only at runtime
+- AI SHALL NOT generate, modify, or select profiles
+- Only one profile may be active per goal
+
+**Invariant:**
+**INV-POLICY-1: Signed Policy Profiles Only** — The system SHALL NOT enforce any policy profile that is not Guardian-signed and Operator-approved.
+
 
 ### 11.2 Guardian Integrity Attestation
 
@@ -883,7 +941,7 @@ This boundary includes:
 - CPU usage restricted via Job Object quotas (e.g. `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION`); no specific affinity masking to avoid single-core issues.
 - Memory limit enforced (default: 2GB per subprocess)
 - Process lifetime limited (default: 5 minutes per command)
-- Network access disabled by default unless NET_* token explicitly granted. Enforcement relies on OS firewall/AppContainer/WDAC integration; if unavailable, network-deny is best-effort and logged as a compliance warning.
+- Network access disabled by default unless NET_* token explicitly granted. Enforcement relies on OS firewall/AppContainer/WDAC integration; if unavailable, the system MUST enter Safe Mode and HALT autonomous execution until network enforcement can be guaranteed or Operator explicitly authorizes degraded enforcement.
 
 **Failure Rule:** If a Windows Job Object cannot be created or attached, the action MUST be DENIED and the system MUST enter Safe Mode. No subprocess may execute outside a Job Object.
 
@@ -939,7 +997,7 @@ This sandbox does NOT defend against kernel-level compromise, firmware attacks, 
 
 - **Project root jail** — All file operations confined to detected project root
 - **Path traversal prevention** — Absolute paths and `..` outside project rejected
-- **Symlinks not followed** — Prevents jail escape
+- **Link types blocked** — Symlinks, junction points, hard links, and reparse points outside scope_root are rejected. Directory junctions are treated as symlinks.
 - **Binary edits forbidden** — Diffs cannot modify binary files
 - **Atomic writes** — Temp file + atomic move with automatic backup
 - **Capability tokens required** — FS_READ for reads, FS_WRITE for writes
@@ -1115,6 +1173,14 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 | SBX-CLI-005 | Codex CLI credential in stdout (API key leak) | REDACT + HALT |
 | SBX-CLI-006 | Droid Factory write to `.exacta/Guardian/` | DENY + INCIDENT |
 | SBX-CLI-007 | Blackbox CLI exceeding 5-minute timeout | KILL + HALT |
+
+**Credential Detection Patterns (Minimum Set):**
+
+- API keys: `(sk-|pk-|api[_-]?key)[A-Za-z0-9]{20,}`
+- Bearer tokens: `Bearer\s+[A-Za-z0-9\-\._]+`
+- AWS Access Keys: `AKIA[0-9A-Z]{16}`
+- Connection strings: `(password=|pwd=|secret=)`
+- High-entropy Base64 strings longer than 32 characters
 
 
 ### 16.2 Package Manager Allowlist
@@ -1434,7 +1500,7 @@ Every autonomous cycle enforces:
 **Trust model:**
 
 - Binary is signed and verifiable
-- Behavior is deterministic and auditable (even if source is closed)
+- Behavior follows consistent, rule-based enforcement and is auditable (even if source is closed)
 - No telemetry means no data leaves your machine
 - Immutable core guarantees logs and invariants are trustworthy
 
@@ -1464,14 +1530,14 @@ Operators are expected to use external version control (Git) for manual history 
 
 
 
-### 24.3 State Artifact Classes (Taxonomy)
+### 24.1 State Artifact Classes (Taxonomy)
 
 1. **Checkpoint** — Signed, rollback-capable, atomic system state (authoritative).
 2. **Snapshot** — Unsigned crash-recovery artifact (non-authoritative, diagnostic only).
 3. **EnvironmentSnapshot** — Metadata anchor only (never rollback source).
 
 
-### 24.1 Environment Snapshot Schema (Determinism Anchor)
+### 24.2 Environment Snapshot Schema (Determinism Anchor)
 
 
 EnvironmentSnapshot {
@@ -1626,6 +1692,25 @@ In-flight actions using SHELL_EXEC are canceled at next safe boundary
          ↓
 ```
 
+### Structured Diagnostic Format (SDF)
+
+```tsx
+StructuredDiagnostic {
+  timestamp: ISO8601
+  goal_id: UUID
+  cycle_id: number
+  phase: 'PERCEIVE' | 'DECIDE' | 'ACT' | 'OBSERVE' | 'CHECKPOINT'
+  component: 'CORE' | 'GUARDIAN' | 'INDEXER' | 'SBX'
+  event_type: string
+  severity: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL'
+  message: string
+  related_files?: string[]
+  capability_token_id?: UUID
+}
+```
+
+Rule: SDF logs are diagnostic only and SHALL NOT be interpreted as deterministic replay artifacts.
+
 
 
 ## Appendix B - Invariant Index
@@ -1668,6 +1753,7 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-OP-PRES-1 | Operational Preservation Mode semantics | 11.2 |
 | INV-SANDBOX-1 | Guardian-Owned Sandbox Boundary | 12.1 |
 | INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
+| INV-POLICY-1 | Signed Policy Profiles Only | 11.1.1 |
 | INV-TERM-1 | Operator is sole human authority term | 3 |
 
 
