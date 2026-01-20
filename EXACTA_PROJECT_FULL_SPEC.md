@@ -1,6 +1,5 @@
 # EXACTA PROJECT FULL SPEC — CANONICAL AUTHORITY
 
-
 This document is the single source of truth for Exacta App Studio.
 
 All AI agents, automation systems, and development tools MUST treat this
@@ -10,9 +9,11 @@ If any prompt, instruction, UI behavior, or external specification
 conflicts with this document, THIS DOCUMENT TAKES PRECEDENCE.
 
 This specification defines:
+
 - User-facing product contract
 - Internal system architecture
 - Security, memory, and policy invariants
+
 
 Exacta App Studio is a **local, autonomous, flow-first application builder** for Windows desktop apps.
 
@@ -46,33 +47,33 @@ Determinism is guaranteed ONLY for:
 
 ## Table of Contents
 
-* [0. Canonical Authority — Scope](#0-canonical-authority-scope)
+* [0. Canonical Authority - Scope](#0-canonical-authority---scope)
   * [0.1 Canonical Authority Statement](#01-canonical-authority-statement)
   * [0.2 Authority Boundary (Product Contract vs System Constitution)](#02-authority-boundary-product-contract-vs-system-constitution)
-  * [0.3 Normative Language — Interpretation Rules](#03-normative-language-interpretation-rules)
+  * [0.3 Normative Language - Interpretation Rules](#03-normative-language---interpretation-rules)
   * [0.4 Section Registry (Canonical Index)](#04-section-registry-canonical-index)
 * [1. Product Overview (User-Facing Contract)](#1-product-overview-user-facing-contract)
   * [1.1 What Exacta App Studio Is](#11-what-exacta-app-studio-is)
   * [1.2 Core Design Philosophy (Flow-First, Autonomous)](#12-core-design-philosophy-flow-first-autonomous)
   * [1.3 What the User Sees (and Does NOT See)](#13-what-the-user-sees-and-does-not-see)
   * [1.4 Lovable-Style Interaction Model](#14-lovable-style-interaction-model)
-  * [1.5 Explicit Tradeoffs (Flow vs Formal Guarantees)](#15-explicit-tradeoffs-flow-vs-formal-guarantees)
+  * [1.5 Execution & Isolation Tradeoffs](#15-execution--isolation-tradeoffs)
 * [2. Product Operating Model (Default Mode)](#2-product-operating-model-default-mode)
-* [3. Terminology — Concept Glossary](#3-terminology-concept-glossary)
+* [3. Terminology - Concept Glossary](#3-terminology---concept-glossary)
 * [4. User Experience Model (Visible Surface)](#4-user-experience-model-visible-surface)
   * [4.1 User Surface vs System Surface](#41-user-surface-vs-system-surface)
   * [4.2 Chat-First Interaction](#42-chat-first-interaction)
-* [5. Non-Goals — Explicit Exclusions](#5-non-goals-explicit-exclusions)
+* [5. Non-Goals - Explicit Exclusions](#5-non-goals---explicit-exclusions)
 * [6. Autonomous Execution Model](#6-autonomous-execution-model)
   * [6.1 Continuous Execution Loop](#61-continuous-execution-loop)
-  * [6.2 Cycle Boundaries — Safe Interruption Points](#62-cycle-boundaries-safe-interruption-points)
-  * [6.3 Failure Detection — Halt Conditions](#63-failure-detection-halt-conditions)
+  * [6.2 Cycle Boundaries - Safe Interruption Points](#62-cycle-boundaries---safe-interruption-points)
+  * [6.3 Failure Detection - Halt Conditions](#63-failure-detection---halt-conditions)
   * [6.4 Concurrency Rules (Single-Goal Model)](#64-concurrency-rules-single-goal-model)
   * [6.5 Determinism Scope](#65-determinism-scope)
-* [7. Context Handling — AI Isolation (Hidden)](#7-context-handling-ai-isolation-hidden)
+* [7. Context Handling - AI Isolation (Hidden)](#7-context-handling---ai-isolation-hidden)
   * [7.1 Implicit Context Assembly](#71-implicit-context-assembly)
   * [7.2 Progressive Context Mode](#72-progressive-context-mode)
-  * [7.3 Context Sharding — Dependency Closure](#73-context-sharding-dependency-closure)
+  * [7.3 Context Sharding - Dependency Closure](#73-context-sharding---dependency-closure)
   * [7.4 Memory Injection Firewall](#74-memory-injection-firewall)
 * [8. Memory Model (Internal System Law)](#8-memory-model-internal-system-law)
   * [8.1 World Model Hard Containment Rule](#81-world-model-hard-containment-rule)
@@ -80,39 +81,39 @@ Determinism is guaranteed ONLY for:
   * [8.3 Memory Visibility Rules (Read Authority Matrix)](#83-memory-visibility-rules-read-authority-matrix)
   * [8.4 Memory Migration Rule](#84-memory-migration-rule)
   * [8.5 Memory Corruption Rule](#85-memory-corruption-rule)
-* [9. Change Application — Recovery Model](#9-change-application-recovery-model)
+* [9. Change Application - Recovery Model](#9-change-application---recovery-model)
   * [9.1 Failure Recovery Guarantees (Explicit)](#91-failure-recovery-guarantees-explicit)
   * [9.2 Cold Start Memory Rule](#92-cold-start-memory-rule)
   * [9.3 Transactional State Commit Protocol](#93-transactional-state-commit-protocol)
 * [10. System Architecture Overview](#10-system-architecture-overview)
-* [11. Guardian — Policy Enforcement (System Constitution)](#11-guardian-policy-enforcement-system-constitution)
+* [11. Guardian - Policy Enforcement (System Constitution)](#11-guardian---policy-enforcement-system-constitution)
   * [11.1 Policy Engine Minimal Formalism (V1)](#111-policy-engine-minimal-formalism-v1)
   * [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
   * [11.3 Capability Authority](#113-capability-authority)
   * [11.4 Budget Enforcer](#114-budget-enforcer)
-* [12. Sandbox — Isolation Model](#12-sandbox-isolation-model)
+* [12. Sandbox - Isolation Model](#12-sandbox---isolation-model)
   * [12.1 Unified Sandbox Boundary (Canonical)](#121-unified-sandbox-boundary-canonical)
-  * [12.2 Filesystem Safety — System Paths Protection](#122-filesystem-safety-system-paths-protection)
-* [13. IPC — Inter-Process Security](#13-ipc-inter-process-security)
-* [14. Indexing — Consistency Model](#14-indexing-consistency-model)
+  * [12.2 Filesystem Safety - System Paths Protection](#122-filesystem-safety---system-paths-protection)
+* [13. IPC - Inter-Process Security](#13-ipc---inter-process-security)
+* [14. Indexing - Consistency Model](#14-indexing---consistency-model)
   * [14.1 Index-File Consistency](#141-index-file-consistency)
   * [14.2 Index Root Attestation](#142-index-root-attestation)
-* [15. Failure Taxonomy — Halt Rules](#15-failure-taxonomy-halt-rules)
-* [16. Testing — Validation (Engineering Discipline)](#16-testing-validation-engineering-discipline)
+* [15. Failure Taxonomy - Halt Rules](#15-failure-taxonomy---halt-rules)
+* [16. Testing - Validation (Engineering Discipline)](#16-testing---validation-engineering-discipline)
   * [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
   * [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
   * [16.3 Release Gating Rule](#163-release-gating-rule)
-* [17. Release — Update — Upgrade Model](#17-release-update-upgrade-model)
-* [18. Offline — Network Behavior](#18-offline-network-behavior)
-* [19. Telemetry — Logging — Diagnostics (Local-Only)](#19-telemetry-logging-diagnostics-local-only)
-* [20. Operator Model — Authority Limits](#20-operator-model-authority-limits)
-* [21. Hard Limits — Circuit Breakers](#21-hard-limits-circuit-breakers)
+* [17. Release - Update - Upgrade Model](#17-release---update---upgrade-model)
+* [18. Offline - Network Behavior](#18-offline---network-behavior)
+* [19. Telemetry - Logging - Diagnostics (Local-Only)](#19-telemetry---logging---diagnostics-local-only)
+* [20. Operator Model - Authority Limits](#20-operator-model---authority-limits)
+* [21. Hard Limits - Circuit Breakers](#21-hard-limits---circuit-breakers)
 * [22. Security Model Summary](#22-security-model-summary)
   * [22.1 Hard Invariants](#221-hard-invariants)
   * [22.2 SHELL_EXEC Security Model](#222-shell_exec-security-model)
   * [22.3 Blast Radius Control](#223-blast-radius-control)
-* [23. Legal, Licensing — Trust Stance](#23-legal-licensing-trust-stance)
-* [24. Background Recovery — Crash Semantics](#24-background-recovery-crash-semantics)
+* [23. Legal, Licensing - Trust Stance](#23-legal-licensing---trust-stance)
+* [24. Background Recovery - Crash Semantics](#24-background-recovery---crash-semantics)
   * [24.1 Environment Snapshot Schema (Determinism Anchor)](#241-environment-snapshot-schema-determinism-anchor)
 * [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
 * [26. AI Provider Trust Model](#26-ai-provider-trust-model)
@@ -120,9 +121,9 @@ Determinism is guaranteed ONLY for:
 * [27. Visibility Model](#27-visibility-model)
 * [28. Getting Started](#28-getting-started)
 * [29. Features](#29-features)
-* [Appendix A — Engineering Schemas](#appendix-a-engineering-schemas)
-* [Appendix B — Invariant Index](#appendix-b-invariant-index)
-* [Appendix C — Change Log](#appendix-c-change-log)
+* [Appendix A - Engineering Schemas](#appendix-a---engineering-schemas)
+* [Appendix B - Invariant Index](#appendix-b---invariant-index)
+* [Appendix C - Change Log](#appendix-c---change-log)
 
 ```
 TOC AUTHORITY RULE:
@@ -130,10 +131,9 @@ All section headers in this document MUST appear in the Table of Contents.
 Any change to headers without updating the TOC is a SPEC VIOLATION.
 ```
 
-
 ---
 
-## 0. Canonical Authority — Scope
+## 0. Canonical Authority - Scope
 
 ### 0.1 Canonical Authority Statement
 
@@ -151,7 +151,7 @@ This document contains two distinct authority layers:
 Unless explicitly marked as USER-FACING, all mechanisms described are internal constitutional laws. They are NOT visible, configurable, or negotiable by the Operator or AI agents. The Product Contract NEVER overrides the System Constitution.
 
 
-### 0.3 Normative Language — Interpretation Rules
+### 0.3 Normative Language - Interpretation Rules
 
 
 The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in RFC 2119.
@@ -224,6 +224,7 @@ User refines goal
 ### 1.4 Lovable-Style Interaction Model
 
 Interaction is chat-first and goal-oriented:
+
 - Operator posts a goal or specification.
 - Core confirms goal, shows estimated budget and risk class.
 - AI proposes plan; Guardian evaluates policy and issues capability tokens.
@@ -231,12 +232,13 @@ Interaction is chat-first and goal-oriented:
 - Operator may refine the goal; system continues cycles.
 
 Notes:
+
 - No file-tree or diff-first UI in default mode.
 - "Revert and edit" UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
 
 
 
-### 1.5 Explicit Tradeoffs (Flow vs Formal Guarantees)
+### 1.5 Execution & Isolation Tradeoffs
 
 This boundary includes:
 
@@ -331,12 +333,12 @@ Validation occurs through build success, runtime behavior, and observed outcomes
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
 
 
-## 3. Terminology — Concept Glossary
+## 3. Terminology - Concept Glossary
 
 
 | Term | Definition | Also Called |
 |------|------------|-------------|
-| **Operator** | Human user with administrative privileges | User, Administrator |
+| **Operator** | Human user with administrative privileges (INV-TERM-1) | User, Administrator |
 | **Core** | Exacta App Studio runtime (runtime-protected; not modifiable by AI or user workflows) | Core Runtime, System |
 | **Guardian** | Elevated security process enforcing policy and sandbox | Security Guardian, Policy Engine |
 | **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
@@ -360,17 +362,22 @@ It is a Windows desktop application that builds complete desktop applications (o
 - **Runtime scope:** The runtime is designed to resist casual modification, but the product prioritizes iterative workspace edits. The system does not surface mechanisms to edit the runtime during normal use. Note: core hardening remains an engineering goal, but auto-apply behavior means operator-visible immutability claims are reduced compared to a policy-first system.
 - **Structured semantic indexing:** Context selection and refactoring safety are driven by AST + dependency graph indexing, not embedding-based memory
 
+**Invariant:**
+**INV-TERM-1: Operator is sole human authority term** — The term "Operator" SHALL be used to refer to the human user in all constitutional contexts to distinguish authority from "User" (product consumer) or "AI" (agent).
+
 
 ## 4. User Experience Model (Visible Surface)
 
 ### 4.1 User Surface vs System Surface
 
 User Surface (visible by default):
+
 - Chat input for goals
 - High-level status badges: BUILDING / ERROR / DONE
 - Live preview frame (rendered app)
 
 System Surface (hidden by default; available only in debug/administrative builds):
+
 - Guardian logs and detailed SBX test reports
 - Checkpoint management (advanced UI)
 - Policy profiles (signed, administrative)
@@ -386,7 +393,7 @@ Capability toggles, budget meters, and execution traces exist as internal contro
 are NOT visible in the default UI.
 
 
-## 5. Non-Goals — Explicit Exclusions
+## 5. Non-Goals - Explicit Exclusions
 
 
 Exacta App Studio is **intentionally not designed** for the following use cases:
@@ -451,8 +458,6 @@ Decision {
 
 System translates this into bounded, validated execution steps with capability token requirements.
 
-
-
 **Risk Mapping Rule:**
 AI-provided risk_level SHALL be mapped by Core to Guardian risk_class as follows:
 low → LOW
@@ -461,18 +466,20 @@ high → HIGH
 CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
 
-### 6.2 Cycle Boundaries — Safe Interruption Points
+### 6.2 Cycle Boundaries - Safe Interruption Points
 
 Safe interruption points are defined as points where no partially-written artifacts remain and atomic commit can be deferred or rolled back:
+
 - After PERCEIVE and prior to ACT (safe to pause and inspect)
 - After any subprocess group reaches its Job Object termination (post-ACT, pre-CHECKPOINT)
 - Immediately on Operator emergency stop (HALT at next safe boundary and preserve artifacts)
 
 Core documents safe-boundary timestamps in the execution log for operator inspection.
 
-### 6.3 Failure Detection — Halt Conditions
+### 6.3 Failure Detection - Halt Conditions
 
 Primary halt conditions:
+
 - Budget exhaustion
 - Sandbox breach
 - Capability token revocation mid-cycle
@@ -491,12 +498,12 @@ No multi-goal concurrency allowed in default mode.
 
 - Policy Determinism — Guaranteed
 - Capability Validation — Guaranteed
-- Logging Structure — Deterministic format, not deterministic replay
+- Logging Structure — Structured Diagnostic Format (not deterministic replay)
 - Execution Order — Best-effort only
 - Outcome Equivalence — Not guaranteed
 
 
-## 7. Context Handling — AI Isolation (Hidden)
+## 7. Context Handling - AI Isolation (Hidden)
 
 
 
@@ -507,6 +514,7 @@ No multi-goal concurrency allowed in default mode.
 Core assembles AI context automatically using signed Project Index shards and sanitized outcome digests. Operators cannot directly alter injected context in default UI.
 
 Context assembly steps:
+
 1. Verify signed index snapshot (INV-MEM-17)
 2. Select shard by dependency closure heuristics
 3. Normalize and redact sensitive fields (Memory Injection Firewall)
@@ -515,7 +523,7 @@ Context assembly steps:
 ### 7.2 Progressive Context Mode
 **Invariant: INV-CTX-FAST-1: Risk Escalation (Fast Mode)** — If the goal requires multi-cycle execution on high-volatility files, the system SHALL escalate to Operator confirmation.
 
-### 7.3 Context Sharding — Dependency Closure
+### 7.3 Context Sharding - Dependency Closure
 
 Context sharding splits large projects into dependency-closed subsets ("shards") to keep per-cycle reasoning tractable. Shard selection favors high-impact files and dependency closure; low-impact files are deferred to subsequent cycles. Shard size parameters are controlled by Guardian policies.
 
@@ -649,7 +657,7 @@ System SHALL:
 **INV-MEM-1: Atomic State Commit** — Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
 
 
-## 9. Change Application — Recovery Model
+## 9. Change Application - Recovery Model
 
 
 
@@ -711,6 +719,7 @@ PHASE 2 — COMMIT
 ## 10. System Architecture Overview
 
 This section summarizes the runtime components and authority boundaries:
+
 - **Operator UI:** chat + preview + high-level controls
 - **Core Runtime:** orchestrates cycles, executes sandboxed actions, maintains checkpoints
 - **Guardian:** policy engine, capability authority, attestation, secret manager
@@ -718,15 +727,17 @@ This section summarizes the runtime components and authority boundaries:
 - **SBX Test Harness:** automated sandbox enforcement tests
 
 Communication flows:
+
 - UI ↔ Core (local IPC)
 - Core ↔ Guardian (authenticated IPC)
 - Core ↔ Indexer (in-process or local IPC)
 - Core ↔ External toolchains (sandboxed subprocesses under Job Objects)
 
 Authority rules:
+
 - Guardian is the ultimate arbiter of capability tokens and policy decisions (see Section 11).
 
-## 11. Guardian — Policy Enforcement (System Constitution)
+## 11. Guardian - Policy Enforcement (System Constitution)
 
 **Guardian Operational Modes:**
 * **Setup / Upgrade Mode:** Elevated privileges. Used only for installation and signed system updates.
@@ -807,6 +818,9 @@ If attestation fails:
 - System enters Safe Mode
 - Operational Preservation Mode is enabled
 
+**Invariant:**
+**INV-OP-PRES-1: Operational Preservation Mode semantics** — If Guardian attestation fails, the system SHALL strictly enforce Operational Preservation Mode (freeze + evidence retain) until Operator recovery.
+
 **Root Rotation Policy:** The trusted root certificate may only be updated via a Guardian-controlled, dual-signed upgrade package containing both the current valid root and the new root. Root changes require explicit Operator approval and are recorded as a CRITICAL security event in the operational log.
 
 **Root Lifetime Guidance:** Implementations SHOULD define a maximum trusted root lifetime (e.g., 2 years) and surface warnings prior to expiry.
@@ -825,6 +839,7 @@ If attestation fails:
 Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC, PACKAGE_EXEC, SIGN_EXEC, NET_AI_ONLY, NET_DOCS_ONLY, SHELL_EXEC (optional, high risk), PROCESS_KILL
 
 **Capability Token Lifecycle (summary)**
+
 - **Default token lifetimes:** per-action tokens: 15 minutes; session tokens: up to 24 hours (configurable via Guardian policy).
 - **Renewal:** tokens may be renewed automatically by Guardian if the renewal policy and budget allow it; renewal increments `renewed_count`.
 - **Expiry mid-action:** if a token expires mid-action, Core will attempt to reach the next safe boundary and then fail the action with `CAPABILITY-ESCALATION`. Guardian logs the event and may issue remediation directives.
@@ -834,7 +849,7 @@ Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC
 
 Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/cycle (2000), build runs/goal (5), tokens/goal (500k), time/goal (30 min), network calls/goal (200)
 
-## 12. Sandbox — Isolation Model
+## 12. Sandbox - Isolation Model
 
 
 **Local-First Architecture** — All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
@@ -857,18 +872,19 @@ Exacta App Studio enforces a **single, unified sandbox boundary** that governs a
 
 This boundary includes:
 
-- **Filesystem access** (project root jail with MAX_PATH=260 chars, symlink rules, atomic writes, system-path denylist, no UNC paths, no device paths)
+- **Filesystem access** (project root jail with MAX_PATH policy (default 260, respects Long Path override if enabled), symlink rules, atomic writes, system-path denylist, no UNC paths, no device paths)
 - **Process execution** (shell containment, **Windows Job Object enforcement** with CPU/memory limits, no breakaway flag, resource limits)
 - **Network access** (token-gated endpoints only, Safe Mode full network kill, **execution disabled by default for arbitrary subprocesses during autonomous execution**)
 
 **AI Provider Connectivity Exception**
+
 - If Operator configures AI provider credentials during setup, Guardian may issue a narrow NET_AI_ONLY token scoped to recognized provider endpoints for Core-to-provider API calls. This token is distinct from general NET_* tokens and is **not** granted for arbitrary subprocesses or package manager calls.
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) run inside a Windows Job Object with:
 
 - No breakaway allowed (JOB_OBJECT_LIMIT_BREAKAWAY_OK disabled)
-- CPU affinity restricted to non-critical cores (cores 1+ on multi-core systems, avoiding core 0)
+- CPU usage restricted via Job Object quotas (e.g. `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION`); no specific affinity masking to avoid single-core issues.
 - Memory limit enforced (default: 2GB per subprocess)
 - Process lifetime limited (default: 5 minutes per command)
 - Network access disabled by default unless NET_* token explicitly granted
@@ -886,17 +902,20 @@ This boundary includes:
 Any detected sandbox violation MUST:
 
 - Immediately HALT autonomous execution
-- Enter **Operational Preservation Mode** (see definition below)
+- Enter **Operational Preservation Mode**
+- **INV-SANDBOX-BREACH**: Sandbox violation triggers halt and operator review
 - Log a `SANDBOX-BREACH` security incident
 - Require Operator intervention before resumption
 
 ### Operational Preservation Mode (definition)
+
 - **What it is:** an evidence-preservation operating state that freezes volatile operations, preserves logs and memory artifacts, prevents further autonomous actions, and exposes a guarded Operator recovery/inspection workflow.
 - **Triggers:** sandbox breach, Guardian attestation failure, or critical corruption (INV-MEM-7).
 - **Operator actions available:** view preserved logs (read-only), request guarded snapshot export, approve targeted rollback to a Guardian-signed checkpoint, or request safe resume after corrective action.
 - **Exit:** only after Guardian-authorized operator action or after an automatically scheduled, pre-authorized maintenance window (both actions generate CRITICAL audit events).
 
 ### Safe Mode (procedural definition)
+
 - **What it is:** a restricted runtime state with network disabled, shell execution blocked, and autonomous loops paused.
 - **Triggers:** memory corruption detection, failed Guardian attestation, missing isolation primitives (Job Object creation failure), or explicit Operator request.
 - **Behavior:** no subprocesses may be launched; only Guardian and Core diagnostics APIs run in read-only or recovery-only mode.
@@ -917,7 +936,7 @@ Exacta App Studio supports **single-goal execution only**. Multiple concurrent g
 This sandbox does NOT defend against kernel-level compromise, firmware attacks, or physical access. These are covered by the Platform Trust Assumption.
 
 
-### 12.2 Filesystem Safety — System Paths Protection
+### 12.2 Filesystem Safety - System Paths Protection
 
 
 - **Project root jail** — All file operations confined to detected project root
@@ -939,7 +958,7 @@ The following paths trigger SYSTEM-LEVEL classification:
 - `.exacta\certified_state.json`
 
 
-## 13. IPC — Inter-Process Security
+## 13. IPC - Inter-Process Security
 
 
 **SYSTEM LAW:** Binding internal security mechanism.
@@ -963,7 +982,7 @@ The following paths trigger SYSTEM-LEVEL classification:
 **AI Agent (Lowest Authority, Untrusted)** — Decision proposer only. Generates goals, plans, diffs, and decisions. **Cannot execute, modify files, access system resources, self-authorize, or alter its own binary.**
 
 
-## 14. Indexing — Consistency Model
+## 14. Indexing - Consistency Model
 
 
 **SYSTEM LAW:** Binding internal security mechanism.
@@ -1012,7 +1031,7 @@ Each committed Project Index snapshot MUST include:
 **INV-MEM-17: Signed Index Root** — AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
 
 
-## 15. Failure Taxonomy — Halt Rules
+## 15. Failure Taxonomy - Halt Rules
 
 
 The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
@@ -1031,12 +1050,14 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 
 
 ### Recovery Workflow (operator-driven)
+
 - For each fatal error the system records an appropriate recovery action:
 - **AGENT-RUNAWAY** → automatic restore to last committed checkpoint unless Operator requests evidence-preservation mode; Operator may request manual forensic export.
 - **RECURSIVE-LOOP** → system halts and shows suggested interventions; Operator may adjust goal or escalate to debug mode.
 - **SCOPE-BREACH / CAPABILITY-ESCALATION** → automatic halt; Operator reviews and may grant explicit signed capability token for corrective action.
 
 Operator-initiated restore path:
+
 1. Operator opens Guardian Recovery UI (administrative).
 2. Guardian shows candidate committed checkpoints (signed).
 3. Operator selects checkpoint and submits signed restore request.
@@ -1044,8 +1065,19 @@ Operator-initiated restore path:
 
 All recovery actions are CRITICAL audit events.
 
+### 15.1 State Machine Priority
 
-## 16. Testing — Validation (Engineering Discipline)
+**SYSTEM LAW:** The following priority order defines the system state during failure cascades:
+
+1.  **SANDBOX_BREACH** (Highest Priority) - Overrides all other states. Triggers immediate HALT and Evidence Preservation.
+2.  **OP_PRESERVE** (Operational Preservation Mode) - System is frozen for forensic review.
+3.  **SAFE_MODE** (Restricted Recovery) - Network/Execution disabled, recovery tools only.
+4.  **RUNTIME** (Normal Operation) - Standard autonomous loops permitted.
+
+**Transition Logic:** A higher-priority state ALWAYS preempts a lower-priority state. A lower-priority state CANNOT override a higher-priority blocking state without Guardian authorization.
+
+
+## 16. Testing - Validation (Engineering Discipline)
 
 
 **Automatic Test Generation:**
@@ -1092,12 +1124,14 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 **Purpose:** Restricts package installation to trusted, audited package managers to prevent supply chain attacks and untrusted code execution.
 
 **Default Allowlist:**
+
 - **NuGet:** `nuget.exe`, `dotnet restore`, `dotnet add package` (C#/.NET packages from nuget.org)
 - **npm:** `npm.cmd`, `npm.exe`, `npm install`, `npm update` (Node.js packages from npm registry)
 - **pip:** `pip.exe`, `pip install`, `pip wheel` (Python packages from PyPI)
 - **Chocolatey:** `choco.exe`, `choco install` (Windows system packages, requires PROCESS_KILL capability)
 
 **Security Controls:**
+
 - All package manager commands require PACKAGE_EXEC capability token
 - Network access restricted to official registries only (no custom registries without explicit approval)
 - Package installation requires user confirmation for non-development dependencies
@@ -1124,7 +1158,7 @@ A release build MUST NOT be signed or distributed unless:
 - Upgrade signature verification tests PASS
 
 
-## 17. Release — Update — Upgrade Model
+## 17. Release - Update - Upgrade Model
 
 
 **Manual Installer Updates:**
@@ -1148,7 +1182,7 @@ A release build MUST NOT be signed or distributed unless:
 - Security-critical updates clearly flagged (but still user's choice)
 
 
-## 18. Offline — Network Behavior
+## 18. Offline - Network Behavior
 
 
 **Network Tolerance:**
@@ -1187,6 +1221,9 @@ When offline mode is active, all NET_* capability tokens are treated as DENY reg
 
 **Network Policy Hierarchy:**
 
+**INV-NET-HIER-1: Network policy hierarchy enforcement**
+The following precedence rules MUST be enforced:
+
 1. **Offline mode** → All network DENY (highest priority)
 2. **No NET_* token** → Network disabled for subprocesses (default)
 3. **NET_AI_ONLY token** → Only AI provider endpoints allowed
@@ -1198,7 +1235,7 @@ When offline mode is active, all NET_* capability tokens are treated as DENY reg
 The documentation endpoint allowlist is stored in Guardian policy storage and may only be modified via signed system upgrade or explicit Operator approval. All changes are logged as POLICY-NETWORK events with old and new values recorded.
 
 
-## 19. Telemetry — Logging — Diagnostics (Local-Only)
+## 19. Telemetry - Logging - Diagnostics (Local-Only)
 
 **API Key & Secret Storage:**
 Operator-provided AI provider credentials and other secrets are stored only in OS-protected credential stores (Windows DPAPI / Credential Locker or equivalent) accessible by Guardian only. Core does not hold raw secrets; API calls are proxied through Guardian-managed signed request paths when possible.
@@ -1246,14 +1283,14 @@ Operational logs, engineering-grade exports, and security incident records:
 - Are suspended from deletion under administrative hold (engineering builds only)
 
 
-## 20. Operator Model — Authority Limits
+## 20. Operator Model - Authority Limits
 
 This section defines Operator privileges and constraints:
 - Operator can set goals, configure AI provider credentials during setup, and approve signed policy profiles (administrative action).
 - Operator **cannot** modify Guardian policy ad-hoc; only signed profiles may change enforcement.
 - Emergency stop is available to the Operator and honored immediately at the next safe boundary (INV-A8).
 
-## 21. Hard Limits — Circuit Breakers
+## 21. Hard Limits - Circuit Breakers
 
 
 **Execution Time & Circuit Breakers:**
@@ -1376,7 +1413,7 @@ Every autonomous cycle enforces:
 - Max subprocess lifetime
 
 
-## 23. Legal, Licensing — Trust Stance
+## 23. Legal, Licensing - Trust Stance
 
 
 **Source Model:**
@@ -1404,7 +1441,7 @@ Every autonomous cycle enforces:
 - Immutable core guarantees logs and invariants are trustworthy
 
 
-## 24. Background Recovery — Crash Semantics
+## 24. Background Recovery - Crash Semantics
 
 
 Exacta maintains internal background snapshots strictly for:
@@ -1501,14 +1538,13 @@ Use of cloud AI providers SHALL be treated as a data disclosure event governed b
 
 ### 26.1 AI Provider Management
 
-Exacta App Studio automatically manages AI provider connections and model selection. Provider setup and model discovery are handled internally with no user-visible governance or catalog features.
+**Provider Selection:** Exacta App Studio automatically manages AI provider connection logic, routing, and model selection. This governance is handled internally by the system.
 
-Provider credentials are configured during installation or via administrative configuration outside the default product UI.
+**Credential Authority:** The Operator is solely responsible for providing valid API credentials (keys/endpoints). These are entered during setup or via administrative configuration.
+
+**Note:** The System selects the *model* (logic); The Operator provides the *keys* (access).
 
 ---
-
----
-
 
 ## 27. Visibility Model
 
@@ -1523,6 +1559,7 @@ By default, Exacta operates with a minimalist visibility model. Advanced visibil
 ## 28. Getting Started
 
 Minimal steps:
+
 1. Install Exacta and run setup (Guardian keys generated).
 2. Configure AI provider credentials (stored in OS credential store; see Section 26.1).
 3. Open or create project in a folder; Core will build a signed Project Index snapshot.
@@ -1543,7 +1580,7 @@ Short feature list (default UI):
 
 
 
-## Appendix A — Engineering Schemas
+## Appendix A - Engineering Schemas
 
 
 These mechanisms are internal implementation details and do not constitute compliance, legal, or regulatory guarantees. They exist to provide engineering-grade safety and operational stability.
@@ -1586,7 +1623,7 @@ In-flight actions using SHELL_EXEC are canceled at next safe boundary
 
 
 
-## Appendix B — Invariant Index
+## Appendix B - Invariant Index
 
 This index MUST enumerate all INV-* identifiers defined in this document. Missing entries constitute a SPEC VIOLATION.
 
@@ -1610,30 +1647,26 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-ITC-3 | No Upward Authority Flow | 22.1 |
 | INV-MEM-0 | System-Owned Memory Authority | 22.1 |
 | INV-MEM-1 | Atomic State Commit | 8.5 |
+| INV-MEM-4 | World Model Isolation | 8.1 |
+| INV-MEM-7 | Corruption Fails Closed | 8.5 |
+| INV-MEM-9 | No Operational Perception | 7.4 |
 | INV-MEM-11 | No Unverified Index Exposure | 14.1 |
 | INV-MEM-13 | Goal Isolation | 22.1 |
 | INV-MEM-14 | Provider Memory Boundary | 26 |
 | INV-MEM-15 | No Execution Trace in Context | 7.4 |
 | INV-MEM-17 | Signed Index Root | 14.2 |
 | INV-MEM-CS-1 | AI No Reconstruction | 9.2 |
-| INV-NET-HIER-1 | Network policy hierarchy enforcement (offline > NET_* > explicit) | 18 |
-| INV-OP-PRES-1 | Operational Preservation Mode semantics (evidence preservation + guarded recovery) | 11.2 |
-| INV-TERM-1 | Operator is sole human authority term (terminology discipline) | 3 |
-| INV-MEM-4 | World Model Isolation | 8.1 |
-| INV-MEM-7 | Corruption Fails Closed | 8.5 |
-| INV-MEM-9 | No Operational Perception | 7.4 |
-| INV-MEM-CS1 | AI No Reconstruction | 9.2 |
 | INV-MEM-CTX-1 | Operational Non-Observability | 7.4 |
-| INV-NET-HIER-1 | Network policy hierarchy enforcement | 18 |
-| INV-OP-PRES-1 | Operational Preservation Mode on guardian failure | 11.2 |
-| INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
 | INV-MEM-DIGEST-1 | Core-Only Digest Authority | 22.1 |
 | INV-MEM-FW-2 | Semantic Neutralization | 7.4 |
+| INV-NET-HIER-1 | Network policy hierarchy enforcement | 18 |
+| INV-OP-PRES-1 | Operational Preservation Mode semantics | 11.2 |
 | INV-SANDBOX-1 | Guardian-Owned Sandbox Boundary | 12.1 |
+| INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
 | INV-TERM-1 | Operator is sole human authority term | 3 |
 
 
-## Appendix C — Change Log
+## Appendix C - Change Log
 
 
 | Version | Date | Change Description |
