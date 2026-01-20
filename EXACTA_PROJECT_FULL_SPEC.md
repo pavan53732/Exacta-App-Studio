@@ -362,11 +362,11 @@ are NOT visible in the default UI.
 
 Exacta App Studio is **intentionally not designed** for the following use cases:
 
-- âŒ **Mobile applications** — No iOS, Android, or mobile development support
-- âŒ **Web applications** — No browser-based apps, SPAs, or web frameworks
-- âŒ **Cloud deployment** — No Azure, AWS, or cloud infrastructure management
-- âŒ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
-- âŒ **Plugin marketplace** — No third-party plugin ecosystem or extensions
+- ❌ **Mobile applications** — No iOS, Android, or mobile development support
+- ❌ **Web applications** — No browser-based apps, SPAs, or web frameworks
+- ❌ **Cloud deployment** — No Azure, AWS, or cloud infrastructure management
+- ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
+- ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
 These are deliberate scope constraints to maintain focus on local-first, deterministic Windows desktop application development.
 
@@ -522,7 +522,7 @@ The AI Agent SHALL NOT:
 - Persist embeddings, summaries, vector indexes, or compressed representations of project data
 - Maintain cross-session recall
 - Store prior goal context in any external system
-- Use provider-side “memory” or “conversation history” features
+- Use provider-side “memory” or “conversation history” features
 
 Any detected persistent provider-side memory behavior will be treated as a security concern, flagged in local logs, and submitted for operator review.
 
@@ -532,12 +532,12 @@ Any detected persistent provider-side memory behavior will be treated as a secur
 
 | Memory Layer   | AI Agent | Core Runtime | Guardian |
 |---------------|----------|--------------|----------|
-| Project Index | ✅ Read-only | ✅ Full | ⚠️  Verify |
-| Goal Memory   | ⚠️  Redacted | ✅ Full | ✅ Full |
-| Plan Trace   | ⚠️  Summary only | ✅ Full | ✅ Full |
-| Execution Log| âŒ None | âŒ None | ✅ Full |
-| Checkpoints  | âŒ None | ⚠️  Restore only | ✅ Full |
-| Secrets/Keys | âŒ None | âŒ None | ✅ Full |
+| Project Index | ✅ Read-only | ✅ Full | ⚠️ Verify |
+| Goal Memory   | ⚠️ Redacted | ✅ Full | ✅ Full |
+| Plan Trace   | ⚠️ Summary only | ✅ Full | ✅ Full |
+| Execution Log | ❌ None | ❌ None | ✅ Full |
+| Checkpoints   | ❌ None | ⚠️ Restore only | ✅ Full |
+| Secrets/Keys  | ❌ None | ❌ None | ✅ Full |
 
 
 ### 8.4 Memory Migration Rule
@@ -589,7 +589,7 @@ System SHALL:
 ### 9.1 Failure Recovery Guarantees (Explicit)
 
 
-Exacta App Studio is **fail-closed**. If execution is halted (budget exhaustion, policy violation, crash, or manual stop), **all in-flight subprocesses are terminated as a group** using the Windows Job Object boundary, including any child processes spawned by build tools or CLIs. Any step that does not reach a recorded “safe boundary” is treated as **failed**, and Exacta will not continue autonomously. For power loss or OS crash mid-cycle, Exacta guarantees that on next launch it will either (a) resume from the **last fully committed checkpoint**, or (b) require Operator review if recovery cannot be proven. Partially applied file operations are prevented by atomic write/replace semantics, so the project is restored to a known checkpointed state rather than an in-between state.
+Exacta App Studio is **fail-closed**. If execution is halted (budget exhaustion, policy violation, crash, or manual stop), **all in-flight subprocesses are terminated as a group** using the Windows Job Object boundary, including any child processes spawned by build tools or CLIs. Any step that does not reach a recorded “safe boundary” is treated as **failed**, and Exacta will not continue autonomously. For power loss or OS crash mid-cycle, Exacta guarantees that on next launch it will either (a) resume from the **last fully committed checkpoint**, or (b) require Operator review if recovery cannot be proven. Partially applied file operations are prevented by atomic write/replace semantics, so the project is restored to a known checkpointed state rather than an in-between state.
 
 
 ### 9.2 Cold Start Memory Rule
@@ -701,7 +701,7 @@ Rule {
 **Override precedence:**
 
 - **Non-overridable:** global invariants, sandbox boundary, system path protection, and capability enforcement.
-- **Operator overrides (allowed):** only by switching to a pre-defined, signed *policy profile* (e.g., “More permissive shell allowlist”), never by ad-hoc runtime editing.
+- **Operator overrides (allowed):** only by switching to a pre-defined, signed *policy profile* (e.g., “More permissive shell allowlist”), never by ad-hoc runtime editing.
 - **Most restrictive wins:** When multiple rules apply, the final decision is the minimum in this order: `DENY` > `ALLOW_WITH_LIMITS` > `ALLOW`.
 
 **Determinism requirement:** Policy evaluation is deterministic for a given `(goal, action, state, policy_version)` snapshot, and the snapshot is logged with the decision.
@@ -928,7 +928,7 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 
 - ✅ **Generate tests automatically** — When no tests exist, agent generates minimal smoke-test set
 - ✅ **Run tests automatically after edits** — Tests and builds execute automatically after code modifications
-- âŒ **Testing is NOT user-managed only** — System proactively manages test lifecycle
+- ❌ **Testing is NOT user-managed only** — System proactively manages test lifecycle
 
 **Test Management:**
 
@@ -1010,8 +1010,8 @@ A release build MUST NOT be signed or distributed unless:
 **Manual Installer Updates:**
 
 - ✅ **User-controlled updates** — Download and install when you choose
-- âŒ No automatic background updates
-- âŒ No forced updates or nagging prompts
+- ❌ No automatic background updates
+- ❌ No forced updates or nagging prompts
 
 **Update Flow:**
 
@@ -1090,8 +1090,8 @@ No metrics are transmitted off-device under any condition.
 - ✅ All diagnostics stored locally on user's machine
 - ✅ Crash dumps, error logs, performance metrics remain on-device
 - ✅ **All health metrics are local-only and never transmitted** (latency, error rate, call counts, and uptime are computed on-device)
-- âŒ **No outbound telemetry** — Zero data transmitted to external servers
-- âŒ No usage analytics, no error reporting, no phone-home
+- ❌ **No outbound telemetry** — Zero data transmitted to external servers
+- ❌ No usage analytics, no error reporting, no phone-home
 
 **What is logged locally:**
 
@@ -1118,7 +1118,7 @@ Operational logs, engineering-grade exports, and security incident records:
 
 ## 20. Operator Model — Authority Limits
 
-
+This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
 
 ## 21. Hard Limits — Circuit Breakers
 
@@ -1360,8 +1360,9 @@ Use of cloud AI providers SHALL be treated as a data disclosure event governed b
 
 ### 26.1 AI Provider Management
 
-
 Exacta App Studio automatically manages AI provider connections and model selection. Provider setup and model discovery are handled internally with no user-visible governance or catalog features.
+
+Provider credentials are configured during installation or via administrative configuration outside the default product UI.
 
 ---
 
