@@ -86,6 +86,7 @@ Determinism is guaranteed ONLY for:
 - [10. System Architecture Overview](#10-system-architecture-overview)
 - [11. Guardian - Policy Enforcement (System Constitution)](#11-guardian---policy-enforcement-system-constitution)
   - [11.1 Policy Engine Minimal Formalism (V1)](#111-policy-engine-minimal-formalism-v1)
+  - [11.1.1 Policy Profile (Formal Definition)](#1111-policy-profile-formal-definition)
   - [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
   - [11.3 Capability Authority](#113-capability-authority)
   - [11.4 Budget Enforcer](#114-budget-enforcer)
@@ -395,7 +396,7 @@ Exacta App Studio is **intentionally not designed** for the following use cases:
 - ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
 - ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
-These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain and Toolchain rules in Section 25).  **Note:** "deterministic" in the sense of replayability is *not* claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
+These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain trust rules in Section 25).  **Note:** "deterministic" in the sense of replayability is *not* claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
 
 
 ## 6. Autonomous Execution Model
@@ -945,6 +946,12 @@ This boundary includes:
 
 **Failure Rule:** If a Windows Job Object cannot be created or attached, the action MUST be DENIED and the system MUST enter Safe Mode. No subprocess may execute outside a Job Object.
 
+**Nested Job Object Rule:**
+If Core detects it is already running within a Job Object:
+1. Log JOB-OBJECT-NESTED warning
+2. Attempt to apply required limits within nested context
+3. If enforcement cannot be guaranteed, enter Safe Mode
+
 **Authority Model:**
 
 - The sandbox boundary is enforced by the Guardian, with Core acting only as a policy-constrained execution proxy
@@ -963,14 +970,14 @@ Any detected sandbox violation MUST:
 **Invariant:**
 **INV-SANDBOX-BREACH: Mandatory Halt on Boundary Violation** — Any detected sandbox boundary violation SHALL immediately halt autonomous execution, enter Operational Preservation Mode, preserve all forensic artifacts, and require Guardian-authorized Operator recovery before resumption.
 
-### Operational Preservation Mode (definition)
+**Operational Preservation Mode (definition)**
 
 - **What it is:** an evidence-preservation operating state that freezes volatile operations, preserves logs and memory artifacts, prevents further autonomous actions, and exposes a guarded Operator recovery/inspection workflow.
 - **Triggers:** sandbox breach, Guardian attestation failure, or critical corruption (INV-MEM-7).
 - **Operator actions available:** view preserved logs (read-only), request guarded snapshot export, approve targeted rollback to a Guardian-signed checkpoint, or request safe resume after corrective action.
 - **Exit:** only after Guardian-authorized operator action or after an automatically scheduled, pre-authorized maintenance window (both actions generate CRITICAL audit events).
 
-### Safe Mode (procedural definition)
+**Safe Mode (procedural definition)**
 
 - **What it is:** a restricted runtime state with network disabled, shell execution blocked, and autonomous loops paused.
 - **Triggers:** memory corruption detection, failed Guardian attestation, missing isolation primitives (Job Object creation failure), or explicit Operator request.
@@ -1105,7 +1112,7 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 | REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required; not treated as deterministic replay failure; use EnvironmentSnapshot anchor for investigation |
 
 
-### Recovery Workflow (operator-driven)
+**Recovery Workflow (operator-driven)**
 
 - For each fatal error the system records an appropriate recovery action:
 - **AGENT-RUNAWAY** → automatic restore to last committed checkpoint unless Operator requests evidence-preservation mode; Operator may request manual forensic export.
@@ -1589,6 +1596,12 @@ All AI outputs are considered advisory only and MUST pass through Policy Engine 
 - No AI output can bypass Guardian or Core enforcement
 - Provider API keys are user-owned; vendor assumes no liability for provider behavior
 
+**Missing Toolchain Rule:**
+If a required external toolchain is not found in PATH or fails hash verification:
+1. Log TOOLCHAIN-MISSING or TOOLCHAIN-HASH-FAILED error
+2. Halt goal execution
+3. Display actionable guidance to Operator (install path, expected hash)
+
 
 ## 26. AI Provider Trust Model
 
@@ -1692,7 +1705,20 @@ In-flight actions using SHELL_EXEC are canceled at next safe boundary
          ↓
 ```
 
-### Structured Diagnostic Format (SDF)
+**Progress Digest Format:**
+
+```tsx
+ProgressDigest {
+  goal_id: UUID
+  cycle_count: number
+  current_phase: 'PERCEIVE' | 'DECIDE' | 'ACT' | 'OBSERVE' | 'CHECKPOINT'
+  files_modified: number
+  budget_remaining: BudgetState
+  last_action_summary: string  // Redacted per INV-MEM-DIGEST-1
+}
+```
+
+**Structured Diagnostic Format (SDF)**
 
 ```tsx
 StructuredDiagnostic {
@@ -1730,7 +1756,7 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-CORE-1 | Immutable Core Runtime | 22.1 |
 | INV-CORE-2 | Controlled Upgrade Only | 22.1 |
 | INV-CTX-FAST-1 | Risk Escalation (Fast Mode) | 7.2 |
-| INV-DET-1 | Snapshot Completeness | 24.1 |
+| INV-DET-1 | Snapshot Completeness | 24.2 |
 | INV-GLOBAL-14 | External Toolchain Orchestration Only | 22.1 |
 | INV-INDEX-1 | Index Follows File System | 14.1 |
 | INV-IPC-1 | Authenticated IPC Only | 13 |
@@ -1740,7 +1766,7 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-MEM-4 | World Model Isolation | 8.1 |
 | INV-MEM-7 | Corruption Fails Closed | 8.5 |
 | INV-MEM-9 | No Operational Perception | 7.4 |
-| INV-MEM-11 | No Unverified Index Exposure | 14.1 |
+| INV-MEM-11 | No Unverified Index Exposure | 14 |
 | INV-MEM-13 | Goal Isolation | 22.1 |
 | INV-MEM-14 | Provider Memory Boundary | 26 |
 | INV-MEM-15 | No Execution Trace in Context | 7.4 |
@@ -1764,4 +1790,5 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | --- | --- | --- |
 | 1.0.0 | 2024-05-22 | Initial Canonical Authority Ratification |
 | 1.1.0 | 2024-05-23 | Table of Contents & Header Alignment |
+| 1.2.0 | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules) |
 
