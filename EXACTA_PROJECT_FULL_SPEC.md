@@ -43,87 +43,85 @@ Determinism is guaranteed ONLY for:
 > **For applications requiring strict operational logging, deterministic execution, or formal compliance guarantees, consider traditional development workflows with manual code review and explicit version control practices.**
 
 
-
-
 ## Table of Contents
 
-* [0. Canonical Authority - Scope](#0-canonical-authority---scope)
-  * [0.1 Canonical Authority Statement](#01-canonical-authority-statement)
-  * [0.2 Authority Boundary (Product Contract vs System Constitution)](#02-authority-boundary-product-contract-vs-system-constitution)
-  * [0.3 Normative Language - Interpretation Rules](#03-normative-language---interpretation-rules)
-  * [0.4 Section Registry (Canonical Index)](#04-section-registry-canonical-index)
-* [1. Product Overview (User-Facing Contract)](#1-product-overview-user-facing-contract)
-  * [1.1 What Exacta App Studio Is](#11-what-exacta-app-studio-is)
-  * [1.2 Core Design Philosophy (Flow-First, Autonomous)](#12-core-design-philosophy-flow-first-autonomous)
-  * [1.3 What the User Sees (and Does NOT See)](#13-what-the-user-sees-and-does-not-see)
-  * [1.4 Lovable-Style Interaction Model](#14-lovable-style-interaction-model)
-  * [1.5 Execution & Isolation Tradeoffs](#15-execution--isolation-tradeoffs)
-* [2. Product Operating Model (Default Mode)](#2-product-operating-model-default-mode)
-* [3. Terminology - Concept Glossary](#3-terminology---concept-glossary)
-* [4. User Experience Model (Visible Surface)](#4-user-experience-model-visible-surface)
-  * [4.1 User Surface vs System Surface](#41-user-surface-vs-system-surface)
-  * [4.2 Chat-First Interaction](#42-chat-first-interaction)
-* [5. Non-Goals - Explicit Exclusions](#5-non-goals---explicit-exclusions)
-* [6. Autonomous Execution Model](#6-autonomous-execution-model)
-  * [6.1 Continuous Execution Loop](#61-continuous-execution-loop)
-  * [6.2 Cycle Boundaries - Safe Interruption Points](#62-cycle-boundaries---safe-interruption-points)
-  * [6.3 Failure Detection - Halt Conditions](#63-failure-detection---halt-conditions)
-  * [6.4 Concurrency Rules (Single-Goal Model)](#64-concurrency-rules-single-goal-model)
-  * [6.5 Determinism Scope](#65-determinism-scope)
-* [7. Context Handling - AI Isolation (Hidden)](#7-context-handling---ai-isolation-hidden)
-  * [7.1 Implicit Context Assembly](#71-implicit-context-assembly)
-  * [7.2 Progressive Context Mode](#72-progressive-context-mode)
-  * [7.3 Context Sharding - Dependency Closure](#73-context-sharding---dependency-closure)
-  * [7.4 Memory Injection Firewall](#74-memory-injection-firewall)
-* [8. Memory Model (Internal System Law)](#8-memory-model-internal-system-law)
-  * [8.1 World Model Hard Containment Rule](#81-world-model-hard-containment-rule)
-  * [8.2 AI Memory Prohibition Rule (Hard)](#82-ai-memory-prohibition-rule-hard)
-  * [8.3 Memory Visibility Rules (Read Authority Matrix)](#83-memory-visibility-rules-read-authority-matrix)
-  * [8.4 Memory Migration Rule](#84-memory-migration-rule)
-  * [8.5 Memory Corruption Rule](#85-memory-corruption-rule)
-* [9. Change Application - Recovery Model](#9-change-application---recovery-model)
-  * [9.1 Failure Recovery Guarantees (Explicit)](#91-failure-recovery-guarantees-explicit)
-  * [9.2 Cold Start Memory Rule](#92-cold-start-memory-rule)
-  * [9.3 Transactional State Commit Protocol](#93-transactional-state-commit-protocol)
-* [10. System Architecture Overview](#10-system-architecture-overview)
-* [11. Guardian - Policy Enforcement (System Constitution)](#11-guardian---policy-enforcement-system-constitution)
-  * [11.1 Policy Engine Minimal Formalism (V1)](#111-policy-engine-minimal-formalism-v1)
-  * [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
-  * [11.3 Capability Authority](#113-capability-authority)
-  * [11.4 Budget Enforcer](#114-budget-enforcer)
-* [12. Sandbox - Isolation Model](#12-sandbox---isolation-model)
-  * [12.1 Unified Sandbox Boundary (Canonical)](#121-unified-sandbox-boundary-canonical)
-  * [12.2 Filesystem Safety - System Paths Protection](#122-filesystem-safety---system-paths-protection)
-* [13. IPC - Inter-Process Security](#13-ipc---inter-process-security)
-* [14. Indexing - Consistency Model](#14-indexing---consistency-model)
-  * [14.1 Index-File Consistency](#141-index-file-consistency)
-  * [14.2 Index Root Attestation](#142-index-root-attestation)
-* [15. Failure Taxonomy - Halt Rules](#15-failure-taxonomy---halt-rules)
-* [16. Testing - Validation (Engineering Discipline)](#16-testing---validation-engineering-discipline)
-  * [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
-  * [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
-  * [16.3 Release Gating Rule](#163-release-gating-rule)
-* [17. Release - Update - Upgrade Model](#17-release---update---upgrade-model)
-* [18. Offline - Network Behavior](#18-offline---network-behavior)
-* [19. Telemetry - Logging - Diagnostics (Local-Only)](#19-telemetry---logging---diagnostics-local-only)
-* [20. Operator Model - Authority Limits](#20-operator-model---authority-limits)
-* [21. Hard Limits - Circuit Breakers](#21-hard-limits---circuit-breakers)
-* [22. Security Model Summary](#22-security-model-summary)
-  * [22.1 Hard Invariants](#221-hard-invariants)
-  * [22.2 SHELL_EXEC Security Model](#222-shell_exec-security-model)
-  * [22.3 Blast Radius Control](#223-blast-radius-control)
-* [23. Legal, Licensing - Trust Stance](#23-legal-licensing---trust-stance)
-* [24. Background Recovery - Crash Semantics](#24-background-recovery---crash-semantics)
-  * [24.1 Environment Snapshot Schema (Determinism Anchor)](#241-environment-snapshot-schema-determinism-anchor)
-* [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
-* [26. AI Provider Trust Model](#26-ai-provider-trust-model)
-  * [26.1 AI Provider Management](#261-ai-provider-management)
-* [27. Visibility Model](#27-visibility-model)
-* [28. Getting Started](#28-getting-started)
-* [29. Features](#29-features)
-* [Appendix A - Engineering Schemas](#appendix-a---engineering-schemas)
-* [Appendix B - Invariant Index](#appendix-b---invariant-index)
-* [Appendix C - Change Log](#appendix-c---change-log)
+- [0. Canonical Authority - Scope](#0-canonical-authority---scope)
+  - [0-1 Canonical Authority Statement](#0-1-canonical-authority-statement)
+  - [0-2 Authority Boundary (Product Contract vs System Constitution)](#0-2-authority-boundary-product-contract-vs-system-constitution)
+  - [0-3 Normative Language - Interpretation Rules](#0-3-normative-language---interpretation-rules)
+  - [0-4 Section Registry (Canonical Index)](#0-4-section-registry-canonical-index)
+- [1. Product Overview (User-Facing Contract)](#1-product-overview-user-facing-contract)
+  - [1.1 What Exacta App Studio Is](#11-what-exacta-app-studio-is)
+  - [1.2 Core Design Philosophy (Flow-First, Autonomous)](#12-core-design-philosophy-flow-first-autonomous)
+  - [1.3 What the User Sees (and Does NOT See)](#13-what-the-user-sees-and-does-not-see)
+  - [1.4 Lovable-Style Interaction Model](#14-lovable-style-interaction-model)
+  - [1.5 Execution & Isolation Tradeoffs](#15-execution--isolation-tradeoffs)
+- [2. Product Operating Model (Default Mode)](#2-product-operating-model-default-mode)
+- [3. Terminology - Concept Glossary](#3-terminology---concept-glossary)
+- [4. User Experience Model (Visible Surface)](#4-user-experience-model-visible-surface)
+  - [4.1 User Surface vs System Surface](#41-user-surface-vs-system-surface)
+  - [4.2 Chat-First Interaction](#42-chat-first-interaction)
+- [5. Non-Goals - Explicit Exclusions](#5-non-goals---explicit-exclusions)
+- [6. Autonomous Execution Model](#6-autonomous-execution-model)
+  - [6.1 Continuous Execution Loop](#61-continuous-execution-loop)
+  - [6.2 Cycle Boundaries - Safe Interruption Points](#62-cycle-boundaries---safe-interruption-points)
+  - [6.3 Failure Detection - Halt Conditions](#63-failure-detection---halt-conditions)
+  - [6.4 Concurrency Rules (Single-Goal Model)](#64-concurrency-rules-single-goal-model)
+  - [6.5 Determinism Scope](#65-determinism-scope)
+- [7. Context Handling - AI Isolation (Hidden)](#7-context-handling---ai-isolation-hidden)
+  - [7.1 Implicit Context Assembly](#71-implicit-context-assembly)
+  - [7.2 Progressive Context Mode](#72-progressive-context-mode)
+  - [7.3 Context Sharding - Dependency Closure](#73-context-sharding---dependency-closure)
+  - [7.4 Memory Injection Firewall](#74-memory-injection-firewall)
+- [8. Memory Model (Internal System Law)](#8-memory-model-internal-system-law)
+  - [8.1 World Model Hard Containment Rule](#81-world-model-hard-containment-rule)
+  - [8.2 AI Memory Prohibition Rule (Hard)](#82-ai-memory-prohibition-rule-hard)
+  - [8.3 Memory Visibility Rules (Read Authority Matrix)](#83-memory-visibility-rules-read-authority-matrix)
+  - [8.4 Memory Migration Rule](#84-memory-migration-rule)
+  - [8.5 Memory Corruption Rule](#85-memory-corruption-rule)
+- [9. Change Application - Recovery Model](#9-change-application---recovery-model)
+  - [9.1 Failure Recovery Guarantees (Explicit)](#91-failure-recovery-guarantees-explicit)
+  - [9.2 Cold Start Memory Rule](#92-cold-start-memory-rule)
+  - [9.3 Transactional State Commit Protocol](#93-transactional-state-commit-protocol)
+- [10. System Architecture Overview](#10-system-architecture-overview)
+- [11. Guardian - Policy Enforcement (System Constitution)](#11-guardian---policy-enforcement-system-constitution)
+  - [11.1 Policy Engine Minimal Formalism (V1)](#111-policy-engine-minimal-formalism-v1)
+  - [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
+  - [11.3 Capability Authority](#113-capability-authority)
+  - [11.4 Budget Enforcer](#114-budget-enforcer)
+- [12. Sandbox - Isolation Model](#12-sandbox---isolation-model)
+  - [12.1 Unified Sandbox Boundary (Canonical)](#121-unified-sandbox-boundary-canonical)
+  - [12.2 Filesystem Safety - System Paths Protection](#122-filesystem-safety---system-paths-protection)
+- [13. IPC - Inter-Process Security](#13-ipc---inter-process-security)
+- [14. Indexing - Consistency Model](#14-indexing---consistency-model)
+  - [14.1 Index-File Consistency](#141-index-file-consistency)
+  - [14.2 Index Root Attestation](#142-index-root-attestation)
+- [15. Failure Taxonomy - Halt Rules](#15-failure-taxonomy---halt-rules)
+- [16. Testing - Validation (Engineering Discipline)](#16-testing---validation-engineering-discipline)
+  - [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
+  - [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
+  - [16.3 Release Gating Rule](#163-release-gating-rule)
+- [17. Release - Update - Upgrade Model](#17-release---update---upgrade-model)
+- [18. Offline - Network Behavior](#18-offline---network-behavior)
+- [19. Telemetry - Logging - Diagnostics (Local-Only)](#19-telemetry---logging---diagnostics-local-only)
+- [20. Operator Model - Authority Limits](#20-operator-model---authority-limits)
+- [21. Hard Limits - Circuit Breakers](#21-hard-limits---circuit-breakers)
+- [22. Security Model Summary](#22-security-model-summary)
+  - [22.1 Hard Invariants](#221-hard-invariants)
+  - [22.2 SHELL_EXEC Security Model](#222-shell_exec-security-model)
+  - [22.3 Blast Radius Control](#223-blast-radius-control)
+- [23. Legal, Licensing - Trust Stance](#23-legal-licensing---trust-stance)
+- [24. Background Recovery - Crash Semantics](#24-background-recovery---crash-semantics)
+  - [24.1 Environment Snapshot Schema (Determinism Anchor)](#241-environment-snapshot-schema-determinism-anchor)
+- [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
+- [26. AI Provider Trust Model](#26-ai-provider-trust-model)
+  - [26.1 AI Provider Management](#261-ai-provider-management)
+- [27. Visibility Model](#27-visibility-model)
+- [28. Getting Started](#28-getting-started)
+- [29. Features](#29-features)
+- [Appendix A - Engineering Schemas](#appendix-a---engineering-schemas)
+- [Appendix B - Invariant Index](#appendix-b---invariant-index)
+- [Appendix C - Change Log](#appendix-c---change-log)
 
 ```
 TOC AUTHORITY RULE:
@@ -135,13 +133,11 @@ Any change to headers without updating the TOC is a SPEC VIOLATION.
 
 ## 0. Canonical Authority - Scope
 
-### 0.1 Canonical Authority Statement
+### 0-1 Canonical Authority Statement
 
 The content of this section is defined in the document prologue. This section serves as the formal anchor for TOC authority.
 
-
-### 0.2 Authority Boundary (Product Contract vs System Constitution)
-
+### 0-2 Authority Boundary (Product Contract vs System Constitution)
 
 This document contains two distinct authority layers:
 
@@ -150,19 +146,15 @@ This document contains two distinct authority layers:
 
 Unless explicitly marked as USER-FACING, all mechanisms described are internal constitutional laws. They are NOT visible, configurable, or negotiable by the Operator or AI agents. The Product Contract NEVER overrides the System Constitution.
 
-
-### 0.3 Normative Language - Interpretation Rules
-
+### 0-3 Normative Language - Interpretation Rules
 
 The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this document are to be interpreted as described in RFC 2119.
 
-
-### 0.4 Section Registry (Canonical Index)
+### 0-4 Section Registry (Canonical Index)
 
 Formatting markers (bold, callouts, or labels) do NOT constitute section headers unless using Markdown heading syntax (#).
 
 This document recognizes only sections listed in the Table of Contents as valid authority-bearing headers. Any unlisted header is NON-AUTHORITATIVE and MUST NOT be implemented.
-
 
 ## 1. Product Overview (User-Facing Contract)
 
@@ -236,8 +228,6 @@ Notes:
 - No file-tree or diff-first UI in default mode.
 - "Revert and edit" UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
 
-
-
 ### 1.5 Execution & Isolation Tradeoffs
 
 This boundary includes:
@@ -291,9 +281,6 @@ This sandbox does NOT defend against kernel-level compromise, firmware attacks, 
 - Exacta MAY orchestrate Windows signing tools (e.g., `signtool.exe`) as a sandboxed subprocess after packaging.
 - Signing MUST require an explicit capability token and MUST NOT embed private keys in project files, diffs, or checkpoints.
 
-
-
-
 ## 2. Product Operating Model (Default Mode)
 
 
@@ -344,7 +331,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 | **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
 | **Goal** | User-defined objective with success criteria | Task, Objective |
 | **Cycle** | One complete Perceive→Decide→Act→Observe→Checkpoint loop | Loop, Iteration |
-| **Checkpoint** | Internal system state snapshot for recovery | Snapshot, Restore Point |
+| **Checkpoint** | Internal system state snapshot for recovery | Recovery Point |
 | **Scope Root** | Project directory jail boundary | Project Root, Jail |
 | **Capability Token** | Permission grant for specific actions | Token, Permission |
 | **Progressive Context Mode** | Multi-cycle execution for large codebases | Context Sharding |
@@ -779,6 +766,14 @@ Rule {
     network?: 'DENY' | 'AI_ONLY' | 'DOCS_ONLY' | 'ALLOW'
   }
 }
+
+Predicates:
+- Operators: AND, OR, NOT
+- Comparisons: ==, !=, <, <=, >, >=
+- PathMatch (path, glob)
+- UrlMatch (url, domain)
+- HasCapability (token)
+- InState (mode)
 ```
 
 **Evaluation order (fail-closed):**
@@ -831,7 +826,6 @@ If attestation fails:
 - Transition requires dual-signed upgrade packages and is recorded as a CRITICAL audit event.
 
 
-**Built for developers who value speed, momentum, and continuous forward progress over formal control, operational logging, and reversible execution.**
 
 
 ### 11.3 Capability Authority
@@ -849,10 +843,12 @@ Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC
 
 Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/cycle (2000), build runs/goal (5), tokens/goal (500k), time/goal (30 min), network calls/goal (200)
 
+Budget scopes are GOAL-BOUND. Budgets reset only when a new goal_id is issued.
+
 ## 12. Sandbox - Isolation Model
 
 
-**Local-First Architecture** — All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
+**Local-First Architecture** — All execution and state processing occurs locally; external communication is limited to operator-authorized AI provider requests and documentation endpoints. All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
 
 **Fail-Closed Security** — When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
 
@@ -887,7 +883,7 @@ This boundary includes:
 - CPU usage restricted via Job Object quotas (e.g. `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION`); no specific affinity masking to avoid single-core issues.
 - Memory limit enforced (default: 2GB per subprocess)
 - Process lifetime limited (default: 5 minutes per command)
-- Network access disabled by default unless NET_* token explicitly granted
+- Network access disabled by default unless NET_* token explicitly granted. Enforcement relies on OS firewall/AppContainer/WDAC integration; if unavailable, network-deny is best-effort and logged as a compliance warning.
 
 **Failure Rule:** If a Windows Job Object cannot be created or attached, the action MUST be DENIED and the system MUST enter Safe Mode. No subprocess may execute outside a Job Object.
 
@@ -903,9 +899,11 @@ Any detected sandbox violation MUST:
 
 - Immediately HALT autonomous execution
 - Enter **Operational Preservation Mode**
-- **INV-SANDBOX-BREACH**: Sandbox violation triggers halt and operator review
-- Log a `SANDBOX-BREACH` security incident
-- Require Operator intervention before resumption
+- Preserve all forensic artifacts
+- Require Guardian-authorized Operator recovery before resumption
+
+**Invariant:**
+**INV-SANDBOX-BREACH: Mandatory Halt on Boundary Violation** — Any detected sandbox boundary violation SHALL immediately halt autonomous execution, enter Operational Preservation Mode, preserve all forensic artifacts, and require Guardian-authorized Operator recovery before resumption.
 
 ### Operational Preservation Mode (definition)
 
@@ -1464,6 +1462,13 @@ Recovery is system-driven, not user-operated.
 Operators are expected to use external version control (Git) for manual history and rollback.
 
 
+
+
+### 24.3 State Artifact Classes (Taxonomy)
+
+1. **Checkpoint** — Signed, rollback-capable, atomic system state (authoritative).
+2. **Snapshot** — Unsigned crash-recovery artifact (non-authoritative, diagnostic only).
+3. **EnvironmentSnapshot** — Metadata anchor only (never rollback source).
 
 
 ### 24.1 Environment Snapshot Schema (Determinism Anchor)
