@@ -265,7 +265,7 @@ Exacta App Studio supports single-goal execution by default. Multiple concurrent
 
 **Non-Goals:**
 
-This sandbox does NOT defend against kernel-level compromise, firmware attacks, malicious local administrators, or physical access. These are outside the threat model.
+This sandbox does NOT defend against kernel-level compromise, firmware attacks, malicious local administrators, or physical access. These are outside the defined threat model.
 
 - **Optional** — Unsigned installers are allowed but clearly warned
 - **User-provided certificates** — Bring your own code signing cert for signed output
@@ -410,7 +410,7 @@ LOOP or HALT
 - Goal is satisfied (success criteria met)
 - Budget is exhausted (any cap exceeded)
 - Policy violation occurs (denied action attempted)
-- User presses emergency stop
+- Operator presses emergency stop
 - System detects instability (runaway pattern)
 
 **Decision Model:**
@@ -934,11 +934,10 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 | POLICY-VIOLATION | Action denied by Autonomy Policy Engine | Review policy rules, adjust goal scope |
 | CAPABILITY-ESCALATION | Attempted action without valid capability token | Revoke escalated capabilities |
 | SCOPE-BREACH | Action attempted outside scope_root or on system paths | System restores to last safe state, review goal scope definition |
-| COMMAND-CLASS-VIOLATION | Shell command denied by classification rules (e.g., SYSTEM without CRITICAL) | Review command, adjust risk class or use safer alternative |
+| COMMAND-CLASS-VIOLATION | Shell command denied by classification rules (e.g., SYSTEM without risk_class=CRITICAL) | Review command, adjust risk class or use safer alternative |
 | RECURSIVE-LOOP | Detected cyclic decision pattern with no progress | Manual intervention required |
 | GOAL-DRIFT | System actions diverging from goal success criteria | Clarify goal, tighten success criteria |
-| REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required
- |
+| REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required |
 
 
 ## 16. Testing — Validation (Engineering Discipline)
@@ -1154,7 +1153,7 @@ This section is reserved. No authority or behavior is granted unless explicitly 
 
 - ❌ **Max project size** — System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
 - ❌ **Max files per plan** — Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
-- ❌ **Max AI cost per session** — User's API key, user's budget (soft warning at budget thresholds)
+- ❌ **Max AI cost per session** — Operator's API key, operator's budget (soft warning at budget thresholds)
 
 **Budget Soft Limits (warnings, not blocks):**
 
@@ -1203,11 +1202,11 @@ Resource management is fully automatic and not visible or configurable in the UI
 
 **INV-A5: System Recovery (Internal System Function — Not Exposed in UI)** — Advanced modes provide checkpoint-backed rollback. Default mode focuses on forward progress with system recovery on critical failures.
 
-**INV-A6: Local-Only Execution** — All processing occurs on the user's machine. External network communication is restricted to user-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
+**INV-A6: Local-Only Execution** — All processing occurs on the operator's machine. External network communication is restricted to operator-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
 
 **INV-A7: No External Telemetry** — No usage data, error reports, or analytics transmitted externally.
 
-**INV-A8: Human Kill Switch Always Available** — User can emergency stop at any time. System honors halt immediately.
+**INV-A8: Human Kill Switch Always Available** — Operator can emergency stop at any time. System honors halt immediately.
 
 **INV-GLOBAL-14: External Toolchain Orchestration Only** — Exacta App Studio SHALL NOT implement or embed any compiler, linker, or packaging logic. It may only orchestrate external toolchain binaries as sandboxed subprocesses.
 
