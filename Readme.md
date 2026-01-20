@@ -2,14 +2,14 @@
 
 It is designed to feel invisible: you describe what you want, and the system continuously changes the project until it works.
 
-There are no visible context windows, no dependency controls, no diff staging, and no undo buttons â€” only goals, progress, and results.
+There are no visible context windows, no dependency controls, no diff staging, and no undo buttons — only goals, progress, and results.
 
 **Behavioral focus:** Exacta prioritizes fast, intent-driven editing loops that apply changes to the workspace as they are produced (auto-apply by default). Responsibility for long-term recovery and full auditability is shifted toward background snapshots and external VCS (recommended), not per-action review UIs. 
 
 **Determinism & Guarantees:** Exacta operates in a *best-effort, iterative* mode. The system does **not** guarantee deterministic execution ordering, strict checkpoint determinism, or replay equivalence of AI outputs. Execution focuses on fast iteration: changes are applied immediately and the system attempts to self-correct over subsequent cycles rather than block for strict, pre-apply verification.  
 Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
 
-> **âš ï¸ Flow vs. Formal Guarantees Tradeoff**
+> **⚠️  Flow vs. Formal Guarantees Tradeoff**
 > 
 > Exacta prioritizes **developer flow** and **immediate productivity** over formal auditability and deterministic guarantees. This design choice means:
 > 
@@ -54,7 +54,7 @@ The system iterates forward until:
 - The budget is exhausted
 - The operator halts execution
 
-Validation occurs through build success, runtime behavior, and observed outcomes â€” not through formal file coverage or dependency proofs.
+Validation occurs through build success, runtime behavior, and observed outcomes — not through formal file coverage or dependency proofs.
 
 It is a Windows desktop application that builds complete desktop applications (output: **.exe** and **.msi** installers) through fully autonomous, goal-driven execution loops.
 
@@ -67,7 +67,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 | **Guardian** | Elevated security process enforcing policy and sandbox | Security Guardian, Policy Engine |
 | **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
 | **Goal** | User-defined objective with success criteria | Task, Objective |
-| **Cycle** | One complete Perceiveâ†’Decideâ†’Actâ†’Observeâ†’Checkpoint loop | Loop, Iteration |
+| **Cycle** | One complete Perceive→Decide→Act→Observe→Checkpoint loop | Loop, Iteration |
 | **Checkpoint** | Restorable system state snapshot | Snapshot, Restore Point |
 | **Scope Root** | Project directory jail boundary | Project Root, Jail |
 | **Capability Token** | Permission grant for specific actions | Token, Permission |
@@ -89,15 +89,15 @@ It is a Windows desktop application that builds complete desktop applications (o
 **Autonomous Workflow (Lovable-Style)**
 
 Goal (user intent)
-  â†“
+  ↓
 AI proposes changes
-  â†“
+  ↓
 System applies changes automatically
-  â†“
+  ↓
 Build / Preview updates
-  â†“
+  ↓
 User refines goal
-  â†“
+  ↓
 Loop continues
 
 Designed for developers who demand full control, complete auditability, and reversible execution.
@@ -120,13 +120,13 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 
 **Supported Application Types (Hard Constraints):**
 
-- âœ… **WPF (.NET)** â€” Windows Presentation Foundation
-- âœ… **WinUI 3 (.NET)** â€” Modern Windows UI Library
-- âœ… **WinForms** â€” Classic Windows Forms
-- âœ… **C++ (Win32)** â€” Supported as advanced/limited templates only (to control complexity)
-- âœ… **Console applications** â€” Command-line tools
-- âŒ **Rust (Tauri-style)** â€” Not supported
-- âŒ **WebView-based desktop** â€” Not supported
+- ✅ **WPF (.NET)** — Windows Presentation Foundation
+- ✅ **WinUI 3 (.NET)** — Modern Windows UI Library
+- ✅ **WinForms** — Classic Windows Forms
+- ✅ **C++ (Win32)** — Supported as advanced/limited templates only (to control complexity)
+- ✅ **Console applications** — Command-line tools
+- âŒ **Rust (Tauri-style)** — Not supported
+- âŒ **WebView-based desktop** — Not supported
 
 **C++ Default Risk Classification:**
 
@@ -144,9 +144,9 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 
 **Installer Signing:**
 
-- **Optional** â€” Unsigned installers are allowed but clearly warned
-- **User-provided certificates** â€” Bring your own code signing cert for signed output
-- **Default behavior** â€” Generates unsigned installers with security warnings visible to end users
+- **Optional** — Unsigned installers are allowed but clearly warned
+- **User-provided certificates** — Bring your own code signing cert for signed output
+- **Default behavior** — Generates unsigned installers with security warnings visible to end users
 
 **Optional Signing Orchestration (External Toolchain):**
 
@@ -155,11 +155,11 @@ Exacta App Studio creates **complete Windows desktop applications** from natural
 
 ## Core Principles
 
-**Bounded Autonomy** â€” System runs self-directed loops within strict capability tokens, budget limits, and policy constraints. User approves goals, system auto-executes steps, Guardian enforces boundaries.
+**Bounded Autonomy** — System runs self-directed loops within strict capability tokens, budget limits, and policy constraints. User approves goals, system auto-executes steps, Guardian enforces boundaries.
 
-**Policy-Deterministic by Design** â€” Every execution follows the autonomous loop: Goal â†’ Perceive â†’ Decide â†’ Act â†’ Observe â†’ Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
+**Policy-Deterministic by Design** — Every execution follows the autonomous loop: Goal → Perceive → Decide → Act → Observe → Checkpoint. Repeats until goal satisfied, budget exhausted, or user halts.
 
-**Determinism Scope (Internal System Function â€” Not Exposed in UI):** Deterministic guarantees apply only when the system is running in advanced modes. In default mode, execution ordering and context coverage are best-effort and may vary between runs.
+**Determinism Scope (Internal System Function — Not Exposed in UI):** Deterministic guarantees apply only when the system is running in advanced modes. In default mode, execution ordering and context coverage are best-effort and may vary between runs.
 
 **Determinism Exclusions (Hard Limits):**
 
@@ -189,17 +189,17 @@ Determinism guarantees apply only to:
 - Budget enforcement
 - Checkpoint creation and rollback behavior
 
-**Sandboxed Execution** â€” All operations run in a hardened sandbox: project root jail (no path traversal), capability token enforcement (no raw system access), shell command classification (parsed before execution), subprocess isolation, Guardian-enforced boundaries.
+**Sandboxed Execution** — All operations run in a hardened sandbox: project root jail (no path traversal), capability token enforcement (no raw system access), shell command classification (parsed before execution), subprocess isolation, Guardian-enforced boundaries.
 
-**Local-First Architecture** â€” All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
+**Local-First Architecture** — All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
 
-**Fail-Closed Security** â€” When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
+**Fail-Closed Security** — When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
 
-**Complete Audit Trail** â€” Every goal, decision, action, and file modification is correlated and logged with causal chain traceability.
+**Complete Audit Trail** — Every goal, decision, action, and file modification is correlated and logged with causal chain traceability.
 
-**Guardian-Enforced Authority** â€” A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
+**Guardian-Enforced Authority** — A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
 
-**User as Governor** â€” You set goals, budgets, and capabilities. System supervises execution. Emergency stop always available.
+**User as Governor** — You set goals, budgets, and capabilities. System supervises execution. Emergency stop always available.
 
 ## Memory Model (Product-Level View)
 
@@ -210,18 +210,18 @@ The system maintains internal state for stability and recovery.
 
 There is no user-accessible memory, recall, timeline, or historical reasoning surface in the UI.
 
-## ðŸ—ï¸ Architecture Overview
+## ðŸ— Architecture Overview
 
 ### **Autonomous Execution Model**
 
-Exacta App Studio runs continuous **Goal â†’ Perceive â†’ Decide â†’ Act â†’ Observe â†’ Checkpoint** loops until goal is satisfied, budget is exhausted, policy is violated, or user halts.
+Exacta App Studio runs continuous **Goal → Perceive → Decide → Act → Observe → Checkpoint** loops until goal is satisfied, budget is exhausted, policy is violated, or user halts.
 
 Every cycle:
 
 - Creates a checkpoint before execution
 - Validates capability tokens before actions
 - Enforces budget limits (hard caps)
-- Logs causal chain (goal_id â†’ cycle_id â†’ decision_id â†’ actions â†’ results)
+- Logs causal chain (goal_id → cycle_id → decision_id → actions → results)
 - Detects runaway patterns (same file 3x in 5 loops, consecutive build failures)
 
 ### **Trust Boundary Separation (Immutable Core Architecture)**
@@ -236,8 +236,8 @@ Exacta App Studio uses a **three-layer authority model** with an **immutable tru
 |  - Upgrade Manager        |
 |  - Certification State    |
 +---------------------------+
-           â†‘ Advanced API
-           â†“ (IPC boundary)
+           ↑ Advanced API
+           ↓ (IPC boundary)
 +---------------------------+
 |   CORE RUNTIME (LOCKED)   |  â† Immutable at runtime
 |  - Orchestrator           |
@@ -246,18 +246,18 @@ Exacta App Studio uses a **three-layer authority model** with an **immutable tru
 |  - Audit Log              |
 |  - File Gateway           |
 +---------------------------+
-           â†‘ Execution API
-           â†“
+           ↑ Execution API
+           ↓
 +---------------------------+
 |       AI AGENT            |  â† Untrusted proposer
 +---------------------------+
-           â†“
+           ↓
 +---------------------------+
 |     PROJECT SPACE         |  â† Fully mutable
 +---------------------------+
 ```
 
-**Guardian (Highest Authority, Separate Process)** â€” Enforces policy, manages upgrades, controls system paths, signs certification state, issues capability tokens. Runs in a separate process with just-in-time elevated privileges granted only for:
+**Guardian (Highest Authority, Separate Process)** — Enforces policy, manages upgrades, controls system paths, signs certification state, issues capability tokens. Runs in a separate process with just-in-time elevated privileges granted only for:
 
 - Upgrade installation
 - Certificate validation
@@ -266,17 +266,17 @@ Exacta App Studio uses a **three-layer authority model** with an **immutable tru
 
 Guardian does NOT maintain persistent administrator privileges. **Cannot be modified by Core or AI.**
 
-**Core Runtime (Middle Authority, User Process)** â€” Orchestrates AI interactions, manages project files within jail, executes within capability tokens, enforces budgets. Communicates with Guardian via IPC. **Cannot touch Guardian paths, policy storage, or self-upgrade.**
+**Core Runtime (Middle Authority, User Process)** — Orchestrates AI interactions, manages project files within jail, executes within capability tokens, enforces budgets. Communicates with Guardian via IPC. **Cannot touch Guardian paths, policy storage, or self-upgrade.**
 
 **IPC Security Model:**
 
-- **Transport** â€” Named pipes with Windows ACLs (Guardian process SID only)
-- **Authentication** â€” HMAC-SHA256 message authentication with per-session key (derived from Guardian_Secret via HKDF)
-- **Authorization** â€” Every IPC request includes capability token; Guardian validates before processing
-- **Replay protection** â€” Nonce + timestamp in every message (5-second validity window)
+- **Transport** — Named pipes with Windows ACLs (Guardian process SID only)
+- **Authentication** — HMAC-SHA256 message authentication with per-session key (derived from Guardian_Secret via HKDF)
+- **Authorization** — Every IPC request includes capability token; Guardian validates before processing
+- **Replay protection** — Nonce + timestamp in every message (5-second validity window)
 - **Nonce validity logic**: max(5 seconds, 2x observed IPC round-trip time); clock skew tolerance Â±30 seconds with warning on detection
-- **Encryption** â€” AES-256-GCM for all IPC payloads (defends against non-privileged local process inspection; does not defend against kernel or administrator-level compromise)
-- **Sequence enforcement** â€” Messages include sequence numbers; out-of-order messages rejected
+- **Encryption** — AES-256-GCM for all IPC payloads (defends against non-privileged local process inspection; does not defend against kernel or administrator-level compromise)
+- **Sequence enforcement** — Messages include sequence numbers; out-of-order messages rejected
 
 **Guardian_Secret Management:**
 
@@ -291,9 +291,9 @@ Guardian does NOT maintain persistent administrator privileges. **Cannot be modi
 
 **Invariant:**
 
-**INV-IPC-1: Authenticated IPC Only** â€” Guardian SHALL reject any IPC message lacking valid HMAC, current nonce, or valid capability token.
+**INV-IPC-1: Authenticated IPC Only** — Guardian SHALL reject any IPC message lacking valid HMAC, current nonce, or valid capability token.
 
-**AI Agent (Lowest Authority, Untrusted)** â€” Decision proposer only. Generates goals, plans, diffs, and decisions. **Cannot execute, modify files, access system resources, self-authorize, or alter its own binary.**
+**AI Agent (Lowest Authority, Untrusted)** — Decision proposer only. Generates goals, plans, diffs, and decisions. **Cannot execute, modify files, access system resources, self-authorize, or alter its own binary.**
 
 ### Context Handling (Hidden)
 
@@ -322,7 +322,7 @@ Context management is an implementation detail, not a product feature.
 - Use topological sort on the dependency graph to identify safe execution order
 - Circular dependencies detected via Strongly Connected Components (SCC) analysis: if SCC size > 1, treat entire component as single shard with warning
 - Each shard MUST be < 80% of the provider's context capacity to allow headroom
-- If a single file + its immediate dependencies > capacity â†’ HALT with "Unsupported: file too large for context window"
+- If a single file + its immediate dependencies > capacity → HALT with "Unsupported: file too large for context window"
 - Cross-shard dependencies are validated at cycle boundaries to prevent violations
 
 The Operator MAY enable Throughput Mode, allowing relevance-ranked context selection instead of strict dependency closure.
@@ -349,7 +349,7 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 - Normalizes injected context ordering to reduce inference of execution history. This does NOT prevent historical inference from file contents themselves.
 
 **Invariant:**  
-**INV-MEM-CTX-1: Forensic Non-Observability** â€” AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
+**INV-MEM-CTX-1: Forensic Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
 
 **INV-MEM-FW-2: Semantic Neutralization**
 All injected content SHALL be normalized to prevent:
@@ -358,9 +358,9 @@ All injected content SHALL be normalized to prevent:
 - Change chronology reconstruction
 - Goal lineage reconstruction
 
-**INV-MEM-9: No Forensic Perception** â€” AI SHALL NOT perceive, infer from, or receive execution logs, checkpoints, policy decisions, or causal traces. Only redacted outcome summaries produced by Core MAY be provided.
+**INV-MEM-9: No Forensic Perception** — AI SHALL NOT perceive, infer from, or receive execution logs, checkpoints, policy decisions, or causal traces. Only redacted outcome summaries produced by Core MAY be provided.
 
-**INV-MEM-15: No Execution Trace in Context** â€” Execution traces, causal records, and audit logs SHALL NOT be exposed to the AI Agent during PERCEIVE under any condition.
+**INV-MEM-15: No Execution Trace in Context** — Execution traces, causal records, and audit logs SHALL NOT be exposed to the AI Agent during PERCEIVE under any condition.
 
 ### Redacted Outcome Schema (AI-Visible)
 
@@ -400,7 +400,7 @@ GoalProgressDigest {
 }
 ```
 
-**Advanced Fields (Internal System Function â€” Not Exposed in UI):**
+**Advanced Fields (Internal System Function — Not Exposed in UI):**
 
 * coverage_progress
 * token counts
@@ -426,7 +426,7 @@ A deterministic system component responsible for:
 The Context Planner SHALL NOT use embeddings, vector databases, or AI ranking.
 All decisions are graph-based and deterministic.
 
-## Formal Definitions â€” Memory vs State vs Context
+## Formal Definitions — Memory vs State vs Context
 
 ### Global Memory Invariants (Non-Overridable)
 
@@ -440,24 +440,24 @@ AI context and reasoning state SHALL be ephemeral and SHALL NOT persist across c
 Memory artifacts from one Goal SHALL NOT be visible, injectable, or inferable in another Goal.
 
 **INV-MEM-G4: Guardian Final Authority**
-In any memory conflict, corruption, or ambiguity, Guardianâ€™s state SHALL be treated as ground truth.
+In any memory conflict, corruption, or ambiguity, Guardian’s state SHALL be treated as ground truth.
 
 ## Memory Lifecycle State Machine
 
 Persistent memory objects SHALL follow this lifecycle:
 
-CREATED â†’ VERIFIED â†’ ACTIVE â†’ [ARCHIVED | EVIDENCE]
-â†“
+CREATED → VERIFIED → ACTIVE → [ARCHIVED | EVIDENCE]
+↓
 CORRUPT
 
 ### Rules
 
-- **CREATED** â€” Written during PHASE 1 (PREPARE)
-- **VERIFIED** â€” Hash + schema + Guardian signature validated
-- **ACTIVE** â€” Eligible for rollback, replay, and audit reference
-- **ARCHIVED** â€” Retained but excluded from active rollback window
-- **EVIDENCE** â€” Legal Hold or incident-linked, immutable, non-prunable
-- **CORRUPT** â€” Validation failure â†’ Safe Mode enforced
+- **CREATED** — Written during PHASE 1 (PREPARE)
+- **VERIFIED** — Hash + schema + Guardian signature validated
+- **ACTIVE** — Eligible for rollback, replay, and audit reference
+- **ARCHIVED** — Retained but excluded from active rollback window
+- **EVIDENCE** — Legal Hold or incident-linked, immutable, non-prunable
+- **CORRUPT** — Validation failure → Safe Mode enforced
 
 **INV-MEM-L1:** Only Guardian may transition objects into or out of EVIDENCE  
 **INV-MEM-L2:** CORRUPT state SHALL be terminal until Operator intervention
@@ -529,19 +529,19 @@ Rule {
 
 **Evaluation order (fail-closed):**
 
-1. **Global hard invariants** (non-overridable): if any match â†’ `DENY`.
+1. **Global hard invariants** (non-overridable): if any match → `DENY`.
 2. **Safety Mode / Offline mode** gates: enforced before any allow.
-3. **Scope + path jail checks**: outside `scope_root` or system paths â†’ `DENY`.
-4. **Capability requirements**: missing required capability token â†’ `DENY`.
-5. **Command classification** (READ/BUILD/FS_MUTATE/SYSTEM/NETWORK): apply class policy; unknown â†’ `DENY`.
-6. **Budget checks**: if would exceed any cap â†’ `DENY`.
+3. **Scope + path jail checks**: outside `scope_root` or system paths → `DENY`.
+4. **Capability requirements**: missing required capability token → `DENY`.
+5. **Command classification** (READ/BUILD/FS_MUTATE/SYSTEM/NETWORK): apply class policy; unknown → `DENY`.
+6. **Budget checks**: if would exceed any cap → `DENY`.
 7. **Ordered policy rules**: first matching rule with `DENY` wins; otherwise accumulate the most restrictive allow (`ALLOW_WITH_LIMITS` beats `ALLOW`).
 8. Default: `DENY`.
 
 **Override precedence:**
 
 - **Non-overridable:** global invariants, sandbox boundary, system path protection, and capability enforcement.
-- **Operator overrides (allowed):** only by switching to a pre-defined, signed *policy profile* (e.g., â€œMore permissive shell allowlistâ€), never by ad-hoc runtime editing.
+- **Operator overrides (allowed):** only by switching to a pre-defined, signed *policy profile* (e.g., “More permissive shell allowlist”), never by ad-hoc runtime editing.
 - **Most restrictive wins:** When multiple rules apply, the final decision is the minimum in this order: `DENY` > `ALLOW_WITH_LIMITS` > `ALLOW`.
 
 **Determinism requirement:** Policy evaluation is deterministic for a given `(goal, action, state, policy_version)` snapshot, and the snapshot is logged with the decision.
@@ -592,9 +592,9 @@ EnvironmentSnapshot {
 }
 
 **Invariant:**  
-**INV-DET-1: Snapshot Completeness** â€” A checkpoint SHALL NOT be considered deterministic unless a valid EnvironmentSnapshot is present and hash-anchored.
+**INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered deterministic unless a valid EnvironmentSnapshot is present and hash-anchored.
 
-### **Transactional State Commit Protocol (Internal System Function â€” Not Exposed in UI)**
+### **Transactional State Commit Protocol (Internal System Function — Not Exposed in UI)**
 
 All **persistent state layers** SHALL be modified only through a **two-phase atomic commit protocol**.
 
@@ -610,14 +610,14 @@ All **persistent state layers** SHALL be modified only through a **two-phase ato
 **Protocol:**
 
 ```
-PHASE 1 â€” PREPARE
+PHASE 1 — PREPARE
 - Write file diffs to a temporary workspace (.exacta/staging/)
 - Build new Project Index snapshot in memory
 - Write checkpoint record with status=PENDING
 - Validate schema versions for all memory objects
 - Verify sufficient disk space and write permissions
 
-PHASE 2 â€” COMMIT
+PHASE 2 — COMMIT
 - Atomically move staged files into scope_root
 - Atomically promote index snapshot
 - Commit goal state and budget counters
@@ -640,11 +640,11 @@ System SHALL:
 4. Require Operator forensic review
 
 **Invariant:**  
-**INV-MEM-7: Corruption Fails Closed** â€” System SHALL NEVER attempt auto-repair or regeneration of corrupted memory.
+**INV-MEM-7: Corruption Fails Closed** — System SHALL NEVER attempt auto-repair or regeneration of corrupted memory.
 
 **Invariant:**
 
-**INV-MEM-1: Atomic State Commit** â€” Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
+**INV-MEM-1: Atomic State Commit** — Filesystem, index, goal state, budget counters, and checkpoint metadata SHALL be committed as a single atomic unit. Partial state visibility is forbidden.
 
 ### Persistent Memory Quotas
 
@@ -655,7 +655,7 @@ System SHALL:
 - Checkpoint Metadata: 100MB (excluding file blobs)
 
 **Invariant:**  
-**INV-MEM-10: Quota Enforcement** â€” If any memory class exceeds its quota, system SHALL:
+**INV-MEM-10: Quota Enforcement** — If any memory class exceeds its quota, system SHALL:
 1. Halt autonomous execution
 2. Notify Operator
 3. Require explicit approval to expand quota or prune non-evidence data
@@ -673,11 +673,11 @@ System SHALL:
 Watchdog monitoring action velocity, repeated failures, loop patterns, scope expansion. Can forcibly freeze agent, revoke capabilities, roll back system
 
 - **5-Layer Persistent State & Execution Memory Architecture**
-- **Project Index (Structured State Cache)** â€” Dependency graph, symbol map, file fingerprints. Cache only; filesystem is ground truth.
-- **Goal State (Persistent State)** â€” Objectives, constraints, budgets, and policy bindings.
-- **Plan Trace (Execution State)** â€” Proposed actions, approvals, and decision lineage.
-- **Execution Log (Forensic State)** â€” What actually ran, timestamps, exit codes, capability grants.
-- **World Model (Volatile Advisory State)** â€” AI assumptions; non-authoritative; never persisted.
+- **Project Index (Structured State Cache)** — Dependency graph, symbol map, file fingerprints. Cache only; filesystem is ground truth.
+- **Goal State (Persistent State)** — Objectives, constraints, budgets, and policy bindings.
+- **Plan Trace (Execution State)** — Proposed actions, approvals, and decision lineage.
+- **Execution Log (Forensic State)** — What actually ran, timestamps, exit codes, capability grants.
+- **World Model (Volatile Advisory State)** — AI assumptions; non-authoritative; never persisted.
 
 ### **Persistent State Object Schema Authority**
 
@@ -702,7 +702,7 @@ MemoryHeader {
 
 **Failure Rule:**
 
-**INV-MEM-2: Schema Mismatch HALT** â€” If any memory objectâ€™s `schema_version` or `producer_version` is incompatible with the running system, execution MUST HALT and require Operator review.
+**INV-MEM-2: Schema Mismatch HALT** — If any memory object’s `schema_version` or `producer_version` is incompatible with the running system, execution MUST HALT and require Operator review.
 
 ### Memory Migration Rule
 
@@ -729,29 +729,29 @@ Only Core-generated state may influence policy evaluation.
 
 | Memory Layer   | AI Agent | Core Runtime | Guardian |
 |---------------|----------|--------------|----------|
-| Project Index | âœ… Read-only | âœ… Full | âš ï¸ Verify |
-| Goal Memory   | âš ï¸ Redacted | âœ… Full | âœ… Full |
-| Plan Trace   | âš ï¸ Summary only | âœ… Full | âœ… Full |
-| Execution Log| âŒ None | âŒ None | âœ… Full |
-| Checkpoints  | âŒ None | âš ï¸ Restore only | âœ… Full |
-| Secrets/Keys | âŒ None | âŒ None | âœ… Full |
+| Project Index | ✅ Read-only | ✅ Full | ⚠️  Verify |
+| Goal Memory   | ⚠️  Redacted | ✅ Full | ✅ Full |
+| Plan Trace   | ⚠️  Summary only | ✅ Full | ✅ Full |
+| Execution Log| âŒ None | âŒ None | ✅ Full |
+| Checkpoints  | âŒ None | ⚠️  Restore only | ✅ Full |
+| Secrets/Keys | âŒ None | âŒ None | ✅ Full |
 
 ### Memory Write Authority Matrix
 
 | Memory Layer   | AI Agent | Core Runtime | Guardian |
 |---------------|----------|--------------|----------|
-| Project Index | âŒ None  | âœ… Full       | âš ï¸ Verify |
-| Goal Memory   | âŒ None  | âœ… Full       | âœ… Full |
-| Plan Trace    | âŒ None  | âœ… Full       | âœ… Full |
-| Execution Log | âŒ None  | âŒ None      | âœ… Full |
-| Checkpoints   | âŒ None  | âŒ None      | âœ… Full |
-| Secrets/Keys  | âŒ None  | âŒ None      | âœ… Full |
+| Project Index | âŒ None  | ✅ Full       | ⚠️  Verify |
+| Goal Memory   | âŒ None  | ✅ Full       | ✅ Full |
+| Plan Trace    | âŒ None  | ✅ Full       | ✅ Full |
+| Execution Log | âŒ None  | âŒ None      | ✅ Full |
+| Checkpoints   | âŒ None  | âŒ None      | ✅ Full |
+| Secrets/Keys  | âŒ None  | âŒ None      | ✅ Full |
 
 **Invariant:**  
-**INV-MEM-3B: No AI Write Authority** â€” AI SHALL NOT write to any persistent or forensic memory layer under any condition.
+**INV-MEM-3B: No AI Write Authority** — AI SHALL NOT write to any persistent or forensic memory layer under any condition.
 
 **Invariant:**
-**INV-MEM-3: No Forensic Leakage to AI** â€” AI SHALL NOT read audit logs, checkpoints, secrets, or Guardian-owned memory layers under any condition.
+**INV-MEM-3: No Forensic Leakage to AI** — AI SHALL NOT read audit logs, checkpoints, secrets, or Guardian-owned memory layers under any condition.
 
 ### **World Model Hard Containment Rule**
 
@@ -769,7 +769,7 @@ It SHALL NOT be used for:
 
 **Invariant:**
 
-**INV-MEM-4: World Model Isolation** â€” Any attempt to use World Model data for policy or execution SHALL trigger immediate Guardian intervention and system halt.
+**INV-MEM-4: World Model Isolation** — Any attempt to use World Model data for policy or execution SHALL trigger immediate Guardian intervention and system halt.
 
 ### AI Memory Prohibition Rule (Hard)
 
@@ -778,7 +778,7 @@ The AI Agent SHALL NOT:
 - Persist embeddings, summaries, vector indexes, or compressed representations of project data
 - Maintain cross-session recall
 - Store prior goal context in any external system
-- Use provider-side â€œmemoryâ€ or â€œconversation historyâ€ features
+- Use provider-side “memory” or “conversation history” features
 
 Any detection of persistent AI memory behavior SHALL be classified as a **SANDBOX-BREACH** event.
 
@@ -796,11 +796,11 @@ Any detection of persistent AI memory behavior SHALL be classified as a **SANDBO
 
 While the system is fully autonomous, goals can be categorized by intent:
 
-- **CreateProject** â€” Scaffold new project structure from templates
-- **AddFeature** â€” Add new functionality with continuous refinement
-- **FixBug** â€” Debug and repair defects iteratively
-- **BuildPackage** â€” Compile, test, and package application
-- **Custom Goals** â€” Any software engineering objective with defined success criteria
+- **CreateProject** — Scaffold new project structure from templates
+- **AddFeature** — Add new functionality with continuous refinement
+- **FixBug** — Debug and repair defects iteratively
+- **BuildPackage** — Compile, test, and package application
+- **Custom Goals** — Any software engineering objective with defined success criteria
 
 ### **Goal Evaluation**
 
@@ -857,7 +857,7 @@ The system optimizes for:
 
 ### **Immediate Change Application (Lovable-Style)**
 
-**Lovable Pattern:** Single "Apply Changes" button â†’ instant application
+**Lovable Pattern:** Single "Apply Changes" button → instant application
 **Exacta Enhancement:** Background recovery mechanisms (invisible to user)
 
 **Single-Step Flow:**
@@ -897,24 +897,24 @@ The system optimizes for:
 ### **Background Execution Model**
 
 - Plans execute in background workers with smart retry (up to 3 attempts)
-- **Safe interruption boundaries** â€” User can pause/cancel at step boundaries only
-- **Step boundary definition** â€” After checkpoint commit, before next AI call (ensures atomic state)
-- **Notification policy** â€” Risk-based toasts vs. modals
-- **Correlation tracking** â€” Full lineage from intent to file change
+- **Safe interruption boundaries** — User can pause/cancel at step boundaries only
+- **Step boundary definition** — After checkpoint commit, before next AI call (ensures atomic state)
+- **Notification policy** — Risk-based toasts vs. modals
+- **Correlation tracking** — Full lineage from intent to file change
 
 ## Security Model
 
 ### **Hard Invariants**
 
-**INV-MEM-0: System-Owned Memory Authority** â€” All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
+**INV-MEM-0: System-Owned Memory Authority** — All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
 
-**INV-MEM-13: Goal Isolation** â€” Persistent State, Index views, and Outcome Summaries SHALL be goal-scoped. Data from Goal A SHALL NOT be injected into AI context for Goal B under any condition.
+**INV-MEM-13: Goal Isolation** — Persistent State, Index views, and Outcome Summaries SHALL be goal-scoped. Data from Goal A SHALL NOT be injected into AI context for Goal B under any condition.
 
-**INV-MEM-DIGEST-1: Core-Only Digest Authority** â€” Goal progress digests SHALL be generated only by Core from persistent state. AI SHALL NOT summarize, compress, or transform execution history. Digest injection into AI context SHALL follow the same redaction rules as OutcomeSummary.
+**INV-MEM-DIGEST-1: Core-Only Digest Authority** — Goal progress digests SHALL be generated only by Core from persistent state. AI SHALL NOT summarize, compress, or transform execution history. Digest injection into AI context SHALL follow the same redaction rules as OutcomeSummary.
 
-**INV-A1: System Authority Supremacy** â€” Only Guardian and Core Runtime have execution authority. AI is untrusted decision proposer.
+**INV-A1: System Authority Supremacy** — Only Guardian and Core Runtime have execution authority. AI is untrusted decision proposer.
 
-**INV-A2: Capability-Scoped Actions Only** â€” Every action must present valid capability token (FS_READ, FS_WRITE, BUILD_EXEC, etc.). No raw system access.
+**INV-A2: Capability-Scoped Actions Only** — Every action must present valid capability token (FS_READ, FS_WRITE, BUILD_EXEC, etc.). No raw system access.
 
 **INV-A3: System Resource Protection**
 
@@ -922,23 +922,23 @@ Exacta enforces internal safeguards to prevent runaway execution and system inst
 
 Resource management is fully automatic and not visible or configurable in the UI.
 
-**INV-A4: Checkpoint Before Action (Internal System Function â€” Not Exposed in UI)** â€” Advanced modes create restore points before execution. Default mode uses lightweight state snapshots for system recovery.
+**INV-A4: Checkpoint Before Action (Internal System Function — Not Exposed in UI)** — Advanced modes create restore points before execution. Default mode uses lightweight state snapshots for system recovery.
 
-**INV-A5: System Recovery (Internal System Function â€” Not Exposed in UI)** â€” Advanced modes provide checkpoint-backed rollback. Default mode focuses on forward progress with system recovery on critical failures.
+**INV-A5: System Recovery (Internal System Function — Not Exposed in UI)** — Advanced modes provide checkpoint-backed rollback. Default mode focuses on forward progress with system recovery on critical failures.
 
-**INV-A6: Local-Only Execution** â€” All processing occurs on the user's machine. External network communication is restricted to user-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
+**INV-A6: Local-Only Execution** — All processing occurs on the user's machine. External network communication is restricted to user-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
 
-**INV-A7: No External Telemetry** â€” No usage data, error reports, or analytics transmitted externally.
+**INV-A7: No External Telemetry** — No usage data, error reports, or analytics transmitted externally.
 
-**INV-A8: Human Kill Switch Always Available** â€” User can emergency stop at any time. System honors halt immediately.
+**INV-A8: Human Kill Switch Always Available** — User can emergency stop at any time. System honors halt immediately.
 
-**INV-GLOBAL-14: External Toolchain Orchestration Only** â€” Exacta App Studio SHALL NOT implement or embed any compiler, linker, or packaging logic. It may only orchestrate external toolchain binaries as sandboxed subprocesses.
+**INV-GLOBAL-14: External Toolchain Orchestration Only** — Exacta App Studio SHALL NOT implement or embed any compiler, linker, or packaging logic. It may only orchestrate external toolchain binaries as sandboxed subprocesses.
 
-**INV-ITC-3: No Upward Authority Flow** â€” Core components SHALL NOT grant AI agents or lower-trust components access to file system, network, shell, build, signing, packaging, or binary staging authority.
+**INV-ITC-3: No Upward Authority Flow** — Core components SHALL NOT grant AI agents or lower-trust components access to file system, network, shell, build, signing, packaging, or binary staging authority.
 
-**INV-CORE-1: Immutable Core Runtime** â€” The Exacta App Studio binary, Guardian, Policy Engine, Capability Authority, Budget Enforcer, Checkpoint System, and Audit Log are immutable at runtime. No code path shall allow the AI agent to modify these components.
+**INV-CORE-1: Immutable Core Runtime** — The Exacta App Studio binary, Guardian, Policy Engine, Capability Authority, Budget Enforcer, Checkpoint System, and Audit Log are immutable at runtime. No code path shall allow the AI agent to modify these components.
 
-**INV-CORE-2: Controlled Upgrade Only** â€” System upgrades require human approval, cryptographic signature verification, and execution by Guardian updater. AI may propose upgrades but cannot apply them.
+**INV-CORE-2: Controlled Upgrade Only** — System upgrades require human approval, cryptographic signature verification, and execution by Guardian updater. AI may propose upgrades but cannot apply them.
 
 ### **Unified Sandbox Boundary (Canonical)**
 
@@ -1002,10 +1002,10 @@ Providers may retain, log, or train on submitted prompts according to their own 
 **Non-Mitigable Risk Notice**
 
 Exacta App Studio CANNOT technically prevent AI providers from retaining or training on submitted data.
-Use of cloud AI providers SHALL be treated as a data disclosure event governed by the providerâ€™s terms.
+Use of cloud AI providers SHALL be treated as a data disclosure event governed by the provider’s terms.
 
 **Invariant:**  
-**INV-MEM-14: Provider Memory Boundary** â€” System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
+**INV-MEM-14: Provider Memory Boundary** — System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
 
 ### Supply Chain Trust Boundary
 
@@ -1034,12 +1034,12 @@ All AI outputs are considered advisory only and MUST pass through Policy Engine 
 
 ### **Filesystem Safety**
 
-- **Project root jail** â€” All file operations confined to detected project root
-- **Path traversal prevention** â€” Absolute paths and `..` outside project rejected
-- **Symlinks not followed** â€” Prevents jail escape
-- **Binary edits forbidden** â€” Diffs cannot modify binary files
-- **Atomic writes** â€” Temp file + atomic move with automatic backup
-- **Capability tokens required** â€” FS_READ for reads, FS_WRITE for writes
+- **Project root jail** — All file operations confined to detected project root
+- **Path traversal prevention** — Absolute paths and `..` outside project rejected
+- **Symlinks not followed** — Prevents jail escape
+- **Binary edits forbidden** — Diffs cannot modify binary files
+- **Atomic writes** — Temp file + atomic move with automatic backup
+- **Capability tokens required** — FS_READ for reads, FS_WRITE for writes
 
 ### **System Paths Protection**
 
@@ -1097,11 +1097,11 @@ Before executing any action, the system validates that the appropriate capabilit
     - Agent Supervisor detects abuse pattern
     - Policy violation detected
     - Goal is suspended or halted
-- **Expiration** â€” Tokens expire at the earliest of:
+- **Expiration** — Tokens expire at the earliest of:
     - Goal completion
     - IPC session termination
     - 24-hour maximum lifetime
-- **No token caching** â€” Core must request fresh validation from Guardian for every action
+- **No token caching** — Core must request fresh validation from Guardian for every action
 
 **Capability Grant Provenance:**
 
@@ -1142,13 +1142,13 @@ Tokens are non-transferable and valid only within the IPC session in which they 
 
 ```jsx
 User clicks "Disable SHELL_EXEC" in UI
-         â†“
+         ↓
 Guardian revokes SHELL_EXEC token for active goal
-         â†“
+         ↓
 Core receives CAPABILITY_REVOKED event via IPC
-         â†“
+         ↓
 In-flight actions using SHELL_EXEC are canceled at next safe boundary
-         â†“
+         ↓
 Subsequent SHELL_EXEC attempts return DENY
 ```
 
@@ -1214,16 +1214,16 @@ Every autonomous cycle enforces:
 
 **Detection Mechanism:**
 
-- **Pre-Cycle Fingerprint Check** â€” Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
+- **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
 - **Drift Classification:**
     - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
     - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, requires user confirmation to continue
     - **High drift** (>20 files or >2000 lines): System HALTS, requires full re-indexing and user review before resuming
-- **Reconciliation** â€” Detected drift triggers automatic index rebuild from file system ground truth
+- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth
 
 **Invariant:**
 
-**INV-INDEX-1: Index Follows File System** â€” The Project Index is a cache, not authority. File system is ground truth. Any detected drift triggers reconciliation before execution continues.
+**INV-INDEX-1: Index Follows File System** — The Project Index is a cache, not authority. File system is ground truth. Any detected drift triggers reconciliation before execution continues.
 
 ### Index Trust Boundary
 
@@ -1235,7 +1235,7 @@ Before each cycle:
 - AI context injection is BLOCKED until rebuild completes
 
 **Invariant:**  
-**INV-MEM-11: No Unverified Index Exposure** â€” AI SHALL NOT receive Project Index data that has not passed Guardian verification in the current cycle.
+**INV-MEM-11: No Unverified Index Exposure** — AI SHALL NOT receive Project Index data that has not passed Guardian verification in the current cycle.
 
 ### Index Root Attestation
 
@@ -1245,7 +1245,7 @@ Each committed Project Index snapshot MUST include:
 - guardian_signature = HMAC(Guardian_Secret, index_hash)
 
 **Invariant:**  
-**INV-MEM-17: Signed Index Root** â€” AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
+**INV-MEM-17: Signed Index Root** — AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
 
 ### **Index Rebuild Failure Mode**
 
@@ -1258,7 +1258,7 @@ If index rebuild fails due to corruption or inconsistency:
 
 **Invariant:**
 
-**INV-MEM-5: Index Integrity First** â€” System SHALL NOT proceed with any operations if Project Index cannot be verified as consistent and current.
+**INV-MEM-5: Index Integrity First** — System SHALL NOT proceed with any operations if Project Index cannot be verified as consistent and current.
 
 ## ðŸ”„ Autonomous Execution Loop
 
@@ -1266,17 +1266,17 @@ The system follows this continuous cycle:
 
 ```
 GOAL (User-defined with success criteria)
-  â†“
+  ↓
 PERCEIVE (Verified Project Index + Goal State Summary + Redacted Outcome Summaries)
-  â†“
-DECIDE (Policy Engine + Budget Check â†’ AI proposes Decision)
-  â†“
+  ↓
+DECIDE (Policy Engine + Budget Check → AI proposes Decision)
+  ↓
 ACT (Capability-Scoped Execution with token validation)
-  â†“
+  ↓
 OBSERVE (Result + Drift + Side Effects)
-  â†“
+  ↓
 CHECKPOINT (Advanced: Snapshot + Budget Update | Default: Lightweight State)
-  â†“
+  ↓
 LOOP or HALT
 ```
 
@@ -1321,12 +1321,12 @@ When AI is generating a response:
 ```
 ðŸ¤– AI is thinking...
 
-Analyzing dependencies... âœ“
-Planning changes... âœ“  
+Analyzing dependencies... ✓
+Planning changes... ✓  
 Generating diffs... [â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–‘â–‘] 80%
-  â€¢ src/App.tsx (done)
-  â€¢ src/api/users.ts (done)
-  â€¢ src/utils/helpers.ts (in progress...)
+  ”¢ src/App.tsx (done)
+  ”¢ src/api/users.ts (done)
+  ”¢ src/utils/helpers.ts (in progress...)
 ```
 
 **Rationale:** Improve perceived performance and give Operator visibility into AI progress without violating any security boundaries.
@@ -1368,10 +1368,10 @@ Based on Lovable's performance, Exacta targets:
 - Full project scaffolding: 30-60 seconds
 
 **Key Differences from Lovable:**
-- âœ… Exacta shows **file-level progress** (Lovable doesn't)
-- âœ… Exacta shows **policy validation steps** (Lovable auto-applies)
-- âœ… Exacta shows **budget consumption** in real-time
-- âœ… Exacta requires **explicit commit** (Lovable auto-applies)
+- ✅ Exacta shows **file-level progress** (Lovable doesn't)
+- ✅ Exacta shows **policy validation steps** (Lovable auto-applies)
+- ✅ Exacta shows **budget consumption** in real-time
+- ✅ Exacta requires **explicit commit** (Lovable auto-applies)
 
 ---
 
@@ -1381,15 +1381,15 @@ Based on Lovable's performance, Exacta targets:
 
 ```
 Applying changes...
-âœ“ src/App.tsx (staged)
-âœ“ src/api/users.ts (staged)
+✓ src/App.tsx (staged)
+✓ src/api/users.ts (staged)
 â³ Validating policy... 
 â³ Computing checkpoint hash...
 ```
 
 **After Commit:**
 ```
-âœ… Checkpoint created: cp_a3f9c2
+✅ Checkpoint created: cp_a3f9c2
    3 files modified, 68 lines changed
 ```
 
@@ -1413,9 +1413,9 @@ Applying changes...
 â”‚                                             â”‚
 â”‚  ðŸ¤– Exacta (12:34 PM)                       â”‚
 â”‚  I'll add SQLite persistence. This will:    â”‚
-â”‚  â€¢ Create TodoContext.cs (EF Core)          â”‚
-â”‚  â€¢ Add Todo.Id property                     â”‚
-â”‚  â€¢ Register DbContext in Program.cs         â”‚
+â”‚  ”¢ Create TodoContext.cs (EF Core)          â”‚
+â”‚  ”¢ Add Todo.Id property                     â”‚
+â”‚  ”¢ Register DbContext in Program.cs         â”‚
 â”‚                                             â”‚
 â”‚                                             â”‚
 â”‚  ðŸ‘¤ You (12:35 PM)                          â”‚
@@ -1442,7 +1442,7 @@ Applying changes...
 - Action buttons (Preview, Apply, Reject)
 
 **3. System Messages**
-- Build completed: âœ… Build successful (3 warnings)
+- Build completed: ✅ Build successful (3 warnings)
 - Policy denied: â›” Action denied: SHELL_EXEC required
 - Checkpoint created: ðŸ’¾ Checkpoint cp_a3f9c2 saved
 
@@ -1456,7 +1456,7 @@ Applying changes...
 **Context Awareness:**
 - AI can reference previous messages
 - Every message includes current budget state
-- File references auto-link to file tree (Internal System Function â€” Not Exposed in UI)
+- File references auto-link to file tree (Internal System Function — Not Exposed in UI)
 
 **Quick Actions:**
 ```
@@ -1466,18 +1466,18 @@ Recent commands:
 
 **Conversation Export:**
 ```
-[Export Chat] â†’ Saves as .md with:
+[Export Chat] → Saves as .md with:
 - All messages
 - Budget usage per request  
-- Checkpoints created (Internal System Function â€” Not Exposed in UI)
+- Checkpoints created (Internal System Function — Not Exposed in UI)
 - Files modified
 ```
 
 **Keyboard Shortcuts:**
-- `Enter` â†’ Send message
-- `Shift+Enter` â†’ New line
-- `Ctrl+K` â†’ Clear chat
-- `Ctrl+R` â†’ Rollback last change (Internal System Function â€” Not Exposed in UI)
+- `Enter` → Send message
+- `Shift+Enter` → New line
+- `Ctrl+K` → Clear chat
+- `Ctrl+R` → Rollback last change (Internal System Function — Not Exposed in UI)
 
 ---
 
@@ -1485,11 +1485,11 @@ Recent commands:
 
 ### **System Requirements**
 
-- **Windows 10 Build 1809 or later, or Windows 11 (64-bit)** â€” Minimum supported OS version. Build 1809 required for Job Object enforcement and process isolation features.
+- **Windows 10 Build 1809 or later, or Windows 11 (64-bit)** — Minimum supported OS version. Build 1809 required for Job Object enforcement and process isolation features.
 - .NET Runtime (version 8.0 or later)
 - 4GB RAM minimum, 8GB recommended
 - 500MB disk space for application
-- **Offline-capable** â€” Can operate without internet connection (with warnings and cached documentation fallback)
+- **Offline-capable** — Can operate without internet connection (with warnings and cached documentation fallback)
 
 ### **Installation**
 
@@ -1522,13 +1522,13 @@ When a project directory is selected:
 Exacta will:
 
 1. Create persistent goal with success criteria
-2. Enter continuous loop: PERCEIVE â†’ DECIDE â†’ ACT â†’ OBSERVE â†’ CHECKPOINT
+2. Enter continuous loop: PERCEIVE → DECIDE → ACT → OBSERVE → CHECKPOINT
 3. Show live action stream in supervisor UI
 4. Display real-time budget meters and capability status
 5. Create checkpoint after each cycle for rollback
 6. Run until goal satisfied, budget exhausted, or user stops
-7. Log causal chain: goal_id â†’ cycle_id â†’ decision_id â†’ actions â†’ results
-8. **Persist full plan + state** â€” System survives reboots and can resume execution from last checkpoint
+7. Log causal chain: goal_id → cycle_id → decision_id → actions → results
+8. **Persist full plan + state** — System survives reboots and can resume execution from last checkpoint
 
 ## Trust Model
 
@@ -1557,10 +1557,10 @@ All Operator actions are recorded with:
 
 The Operator CANNOT override budget caps, capability enforcement, or sandbox rules at runtime. Operator authority is limited to:
 
-- âœ… Halt execution
-- âœ… Approve upgrades
-- âœ… Enable/disable Safe Mode (system-wide safety profile)
-- âœ… Grant or revoke capability tokens for goals
+- ✅ Halt execution
+- ✅ Approve upgrades
+- ✅ Enable/disable Safe Mode (system-wide safety profile)
+- ✅ Grant or revoke capability tokens for goals
 - âŒ **Cannot bypass budgets** (hard enforced by Core)
 - âŒ **Cannot disable sandbox** (Guardian-enforced)
 - âŒ **Cannot modify audit logs** (Guardian-owned, immutable)
@@ -1576,13 +1576,13 @@ The Operator CANNOT override budget caps, capability enforcement, or sandbox rul
 
 ### **What Exacta App Studio CAN do:**
 
-- âœ… Read/write project files within scope_root
-- âœ… Orchestrate execution of external build and packaging tools as sandboxed subprocesses
-- âœ… Execute shell commands (within classification policy)
-- âœ… Make network calls to AI APIs and documentation sources
-- âœ… Create checkpoints and rollback to any cycle
-- âœ… Run autonomously within goal and budget constraints
-- âœ… **Propose system upgrades** (via Controlled Self-Upgrade Pipeline)
+- ✅ Read/write project files within scope_root
+- ✅ Orchestrate execution of external build and packaging tools as sandboxed subprocesses
+- ✅ Execute shell commands (within classification policy)
+- ✅ Make network calls to AI APIs and documentation sources
+- ✅ Create checkpoints and rollback to any cycle
+- ✅ Run autonomously within goal and budget constraints
+- ✅ **Propose system upgrades** (via Controlled Self-Upgrade Pipeline)
 
 ### **What Exacta App Studio CANNOT do:**
 
@@ -1606,12 +1606,12 @@ The Operator CANNOT override budget caps, capability enforcement, or sandbox rul
 
 **Guarantees:**
 
-- âœ… Logs are trustworthy (agent cannot rewrite audit trail)
-- âœ… Budgets are enforced (agent cannot disable caps)
-- âœ… Capability limits are real (agent cannot remove tokens)
-- âœ… Kill switch works (agent cannot patch it out)
-- âœ… Rollback always possible (checkpoint system is protected)
-- âœ… System is certifiable (formal safety guarantees)
+- ✅ Logs are trustworthy (agent cannot rewrite audit trail)
+- ✅ Budgets are enforced (agent cannot disable caps)
+- ✅ Capability limits are real (agent cannot remove tokens)
+- ✅ Kill switch works (agent cannot patch it out)
+- ✅ Rollback always possible (checkpoint system is protected)
+- ✅ System is certifiable (formal safety guarantees)
 
 **Controlled Self-Upgrade Pipeline:**
 
@@ -1619,17 +1619,17 @@ The agent can propose upgrades but **cannot apply them:**
 
 ```jsx
 Agent detects bug or improvement opportunity
-         â†“
+         ↓
 Generates patch / update proposal (staged in .exacta/upgrades/pending/)
-         â†“
+         ↓
 User reviews diffs, risk assessment, privilege impact
-         â†“
+         ↓
 User explicitly approves upgrade
-         â†“
+         ↓
 Guardian verifies signature + hashes
-         â†“
+         ↓
 Guardian applies update atomically (agent halted during upgrade)
-         â†“
+         ↓
 Guardian restarts Core with new binary
 ```
 
@@ -1667,7 +1667,7 @@ Verification includes:
 - Signature chain validation
 - IPC ACL verification
 - Log anchor accessibility
-- **Trusted Root** â€” Guardian verifies signatures against a vendor-controlled public root certificate embedded at build time and protected by OS code integrity mechanisms (Windows Authenticode)
+- **Trusted Root** — Guardian verifies signatures against a vendor-controlled public root certificate embedded at build time and protected by OS code integrity mechanisms (Windows Authenticode)
 
 **Root Rotation Policy:** The trusted root certificate may only be updated via a Guardian-controlled, dual-signed upgrade package containing both the current valid root and the new root. Root changes require explicit Operator approval and are recorded as a CRITICAL security event in the audit log.
 
@@ -1686,7 +1686,7 @@ The system operates with **auto-apply behavior (LOVABLE default)** for routine d
 
 All other actions execute automatically within configured boundaries.
 
-### **Supervisor UI (Internal System Function â€” Not Exposed in UI)**
+### **Supervisor UI (Internal System Function — Not Exposed in UI)**
 
 The following UI panels are **required for advanced operation**:
 
@@ -1699,7 +1699,7 @@ The following UI panels are **required for advanced operation**:
 
 ```
 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Exacta App Studio - [Project: WPF Todo App]         [âš™ï¸] [âŒ]  â”‚
+â”‚  Exacta App Studio - [Project: WPF Todo App]         [⚠️™] [âŒ]  â”‚
 â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
 â”‚          â”‚                        â”‚                               â”‚
 â”‚  PANEL 1 â”‚      PANEL 2           â”‚         PANEL 3               â”‚
@@ -1716,11 +1716,11 @@ The following UI panels are **required for advanced operation**:
 â”‚  persist.â”‚  â”‚  â”‚  [Add Task] â”‚ â”‚  â”‚                               â”‚
 â”‚          â”‚  â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚  â”‚                               â”‚
 â”‚          â”‚  â”‚                  â”‚  â”‚                               â”‚
-â”‚  ðŸ“ Active Filesâ”‚  â”‚  [Refresh] [âš™ï¸]  â”‚  â”‚                               â”‚
+â”‚  ðŸ“ Active Filesâ”‚  â”‚  [Refresh] [⚠️™]  â”‚  â”‚                               â”‚
 â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”‚  â”‚                  â”‚  â”‚                               â”‚
-â”‚  âœ“ Todo.cs (modified)â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚                               â”‚
-â”‚  âœ“ TodoContext.cs (new)â”‚                        â”‚                               â”‚
-â”‚  â³ Program.cs (in progress)â”‚  Status: âœ… Build OK   â”‚                               â”‚
+â”‚  ✓ Todo.cs (modified)â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â”‚                               â”‚
+â”‚  ✓ TodoContext.cs (new)â”‚                        â”‚                               â”‚
+â”‚  â³ Program.cs (in progress)â”‚  Status: ✅ Build OK   â”‚                               â”‚
 â”‚          â”‚  Tests: 3/3 passing    â”‚                               â”‚
 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
@@ -1774,11 +1774,11 @@ The following are **FATAL** errors that trigger automatic HALT + ROLLBACK:
 
 ### **Additional System Failures**
 
-- File system errors (FS-xxx) â€” Path violations (FS-001), permission denied (FS-002), write failures (FS-003)
-- Build failures (BLD-xxx) â€” Compilation errors (BLD-001), toolchain failures (BLD-002), dependency issues (BLD-003)
-- IPC protocol errors (IPC-xxx) â€” Communication failures (IPC-001), authentication failures (IPC-002), sequence errors (IPC-003)
-- Validation errors (VAL-xxx) â€” Schema violations (VAL-001), constraint failures (VAL-002)
-- Configuration errors (CFG-xxx) â€” Invalid settings (CFG-001), missing dependencies (CFG-002)
+- File system errors (FS-xxx) — Path violations (FS-001), permission denied (FS-002), write failures (FS-003)
+- Build failures (BLD-xxx) — Compilation errors (BLD-001), toolchain failures (BLD-002), dependency issues (BLD-003)
+- IPC protocol errors (IPC-xxx) — Communication failures (IPC-001), authentication failures (IPC-002), sequence errors (IPC-003)
+- Validation errors (VAL-xxx) — Schema violations (VAL-001), constraint failures (VAL-002)
+- Configuration errors (CFG-xxx) — Invalid settings (CFG-001), missing dependencies (CFG-002)
 
 ## Goal Model (Implicit)
 
@@ -1792,11 +1792,11 @@ The system maintains internal representations for execution only. There is no us
 
 Exacta App Studio is **intentionally not designed** for the following use cases:
 
-- âŒ **Mobile applications** â€” No iOS, Android, or mobile development support
-- âŒ **Web applications** â€” No browser-based apps, SPAs, or web frameworks
-- âŒ **Cloud deployment** â€” No Azure, AWS, or cloud infrastructure management
-- âŒ **Team collaboration** â€” Single-user tool; no multi-user workspaces or real-time collaboration
-- âŒ **Plugin marketplace** â€” No third-party plugin ecosystem or extensions
+- âŒ **Mobile applications** — No iOS, Android, or mobile development support
+- âŒ **Web applications** — No browser-based apps, SPAs, or web frameworks
+- âŒ **Cloud deployment** — No Azure, AWS, or cloud infrastructure management
+- âŒ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
+- âŒ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
 These are deliberate scope constraints to maintain focus on local-first, deterministic Windows desktop application development.
 
@@ -1836,11 +1836,11 @@ When offline mode is active, all NET_* capability tokens are treated as DENY reg
 
 **Network Policy Hierarchy:**
 
-1. **Offline mode** â†’ All network DENY (highest priority)
-2. **No NET_* token** â†’ Network disabled for subprocesses (default)
-3. **NET_AI_ONLY token** â†’ Only AI provider endpoints allowed
-4. **NET_DOCS_ONLY token** â†’ Only documentation sources allowed
-5. **Explicit user override** â†’ Network enabled per user command in UI
+1. **Offline mode** → All network DENY (highest priority)
+2. **No NET_* token** → Network disabled for subprocesses (default)
+3. **NET_AI_ONLY token** → Only AI provider endpoints allowed
+4. **NET_DOCS_ONLY token** → Only documentation sources allowed
+5. **Explicit user override** → Network enabled per user command in UI
 
 **Documentation Allowlist Governance:**
 
@@ -1850,7 +1850,7 @@ The documentation endpoint allowlist is stored in Guardian policy storage and ma
 
 ### **Failure Recovery Guarantees (Explicit)**
 
-Exacta App Studio is **fail-closed**. If execution is halted (budget exhaustion, policy violation, crash, or manual stop), **all in-flight subprocesses are terminated as a group** using the Windows Job Object boundary, including any child processes spawned by build tools or CLIs. Any step that does not reach a recorded â€œsafe boundaryâ€ is treated as **failed**, and Exacta will not continue autonomously. For power loss or OS crash mid-cycle, Exacta guarantees that on next launch it will either (a) resume from the **last fully committed checkpoint**, or (b) require Operator review if recovery cannot be proven. Partially applied file operations are prevented by atomic write/replace semantics, so the project is restored to a known checkpointed state rather than an in-between state.
+Exacta App Studio is **fail-closed**. If execution is halted (budget exhaustion, policy violation, crash, or manual stop), **all in-flight subprocesses are terminated as a group** using the Windows Job Object boundary, including any child processes spawned by build tools or CLIs. Any step that does not reach a recorded “safe boundary” is treated as **failed**, and Exacta will not continue autonomously. For power loss or OS crash mid-cycle, Exacta guarantees that on next launch it will either (a) resume from the **last fully committed checkpoint**, or (b) require Operator review if recovery cannot be proven. Partially applied file operations are prevented by atomic write/replace semantics, so the project is restored to a known checkpointed state rather than an in-between state.
 
 ### Cold Start Memory Rule
 
@@ -1865,15 +1865,15 @@ On fresh launch or crash recovery:
 ### **Versioning & Backward Compatibility (Audit Guarantees)**
 
 - **Checkpoint format is versioned.** Each checkpoint includes a schema version and the Exacta build identifier that produced it.
-- **Backwards readability is guaranteed within a compatibility window.** Newer versions must be able to *read and display* older checkpoints and audit logs, or they must fail closed and clearly mark the checkpoint as â€œrequires older Exacta version.â€
-- **Replay across versions:** deterministic replay is **scoped to the same Exacta version (and recorded toolchain/environment)**. Cross-version replay is **not guaranteed** and is treated as a separate, explicitly labeled â€œbest-effort replayâ€ mode, never used for compliance-grade audit claims.
+- **Backwards readability is guaranteed within a compatibility window.** Newer versions must be able to *read and display* older checkpoints and audit logs, or they must fail closed and clearly mark the checkpoint as “requires older Exacta version.”
+- **Replay across versions:** deterministic replay is **scoped to the same Exacta version (and recorded toolchain/environment)**. Cross-version replay is **not guaranteed** and is treated as a separate, explicitly labeled “best-effort replay” mode, never used for compliance-grade audit claims.
 
 **State Persistence:**
 
-- **Full goal state** â€” Goals, budgets, capabilities, success criteria
-- **Execution state** â€” Current cycle, step history, decision log
-- **Checkpoint snapshots** â€” File states, index snapshots, budget counters
-- **Audit trail** â€” Complete causal chain from goal inception to current state
+- **Full goal state** — Goals, budgets, capabilities, success criteria
+- **Execution state** — Current cycle, step history, decision log
+- **Checkpoint snapshots** — File states, index snapshots, budget counters
+- **Audit trail** — Complete causal chain from goal inception to current state
 
 **Resume After Reboot:**
 
@@ -1891,14 +1891,14 @@ On fresh launch or crash recovery:
 
 **Automatic Test Generation:**
 
-- âœ… **Generate tests automatically** â€” When no tests exist, agent generates minimal smoke-test set
-- âœ… **Run tests automatically after edits** â€” Tests and builds execute automatically after code modifications
-- âŒ **Testing is NOT user-managed only** â€” System proactively manages test lifecycle
+- ✅ **Generate tests automatically** — When no tests exist, agent generates minimal smoke-test set
+- ✅ **Run tests automatically after edits** — Tests and builds execute automatically after code modifications
+- âŒ **Testing is NOT user-managed only** — System proactively manages test lifecycle
 
 **Test Management:**
 
-- If no tests exist â†’ Generate minimal smoke-test set (basic functionality coverage)
-- If tests exist â†’ Run them after every code change
+- If no tests exist → Generate minimal smoke-test set (basic functionality coverage)
+- If tests exist → Run them after every code change
 - Modify tests only when required by refactors or API changes
 - Test failures trigger rollback to last passing checkpoint
 
@@ -1934,7 +1934,7 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 - Package installation requires user confirmation for non-development dependencies
 - Automatic dependency resolution limited to direct dependencies (no deep transitive installs)
 
-**User Additions:** Via Settings â†’ Security â†’ Package Managers (logged as POLICY event with audit trail)
+**User Additions:** Via Settings → Security → Package Managers (logged as POLICY event with audit trail)
 
 **Rationale:** Package managers are high-risk because they download and execute untrusted code. The allowlist ensures only well-audited, officially supported package managers can be used, with additional controls on network access and user approval.
 
@@ -1968,15 +1968,15 @@ No metrics are transmitted off-device under any condition.
 
 **Local-Only Diagnostics:**
 
-- âœ… All diagnostics stored locally on user's machine
-- âœ… Crash dumps, error logs, performance metrics remain on-device
-- âœ… **All health metrics are local-only and never transmitted** (latency, error rate, call counts, and uptime are computed on-device)
-- âŒ **No outbound telemetry** â€” Zero data transmitted to external servers
+- ✅ All diagnostics stored locally on user's machine
+- ✅ Crash dumps, error logs, performance metrics remain on-device
+- ✅ **All health metrics are local-only and never transmitted** (latency, error rate, call counts, and uptime are computed on-device)
+- âŒ **No outbound telemetry** — Zero data transmitted to external servers
 - âŒ No usage analytics, no error reporting, no phone-home
 
 **What is logged locally:**
 
-- Execution traces (goal â†’ cycle â†’ action â†’ result)
+- Execution traces (goal → cycle → action → result)
 - AI API call metadata (tokens used, latency, errors)
 - Build output and test results
 - System performance metrics (CPU, memory, disk I/O)
@@ -2000,13 +2000,13 @@ Audit logs, forensic exports, and security incident records:
 
 **Manual Installer Updates:**
 
-- âœ… **User-controlled updates** â€” Download and install when you choose
+- ✅ **User-controlled updates** — Download and install when you choose
 - âŒ No automatic background updates
 - âŒ No forced updates or nagging prompts
 
 **Update Flow:**
 
-1. New version available â†’ Notification in UI (non-intrusive)
+1. New version available → Notification in UI (non-intrusive)
 2. User reviews release notes and change log
 3. User downloads signed installer at their convenience
 4. User runs installer with admin privileges
@@ -2044,20 +2044,20 @@ Audit logs, forensic exports, and security incident records:
 - No telemetry means no data leaves your machine
 - Immutable core guarantees logs and invariants are trustworthy
 
-## âš™ï¸ Hard Limits Enforced
+## ⚠️™ Hard Limits Enforced
 
 **Execution Time & Circuit Breakers:**
 
-- âœ… **Max execution time per goal** â€” Default 30 minutes (configurable)
-- âœ… **Max retries** â€” 3 attempts per failed action before escalation
-- âœ… **Circuit breakers** â€” Automatic halt on repeated failures (3x build failure, 3x same file edit)
-- âœ… **Runaway detection** â€” Same file modified 3x in 5 loops triggers HALT
+- ✅ **Max execution time per goal** — Default 30 minutes (configurable)
+- ✅ **Max retries** — 3 attempts per failed action before escalation
+- ✅ **Circuit breakers** — Automatic halt on repeated failures (3x build failure, 3x same file edit)
+- ✅ **Runaway detection** — Same file modified 3x in 5 loops triggers HALT
 
 **No Hard Limits On:**
 
-- âŒ **Max project size** â€” System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
-- âŒ **Max files per plan** â€” Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
-- âŒ **Max AI cost per session** â€” User's API key, user's budget (soft warning at budget thresholds)
+- âŒ **Max project size** — System scales to any reasonable Windows project (up to 10,000 files, 1GB total size)
+- âŒ **Max files per plan** — Budgets enforce per-cycle caps (50 files/cycle) but plans can span multiple cycles
+- âŒ **Max AI cost per session** — User's API key, user's budget (soft warning at budget thresholds)
 
 **Budget Soft Limits (warnings, not blocks):**
 
