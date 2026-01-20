@@ -159,6 +159,8 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 
 ### 0.4 Section Registry (Canonical Index)
 
+Formatting markers (bold, callouts, or labels) do NOT constitute section headers unless using Markdown heading syntax (#).
+
 This document recognizes only sections listed in the Table of Contents as valid authority-bearing headers. Any unlisted header is NON-AUTHORITATIVE and MUST NOT be implemented.
 
 
@@ -425,6 +427,15 @@ Decision {
 ```
 
 System translates this into bounded, validated execution steps with capability token requirements.
+
+
+
+**Risk Mapping Rule:**
+AI-provided risk_level SHALL be mapped by Core to Guardian risk_class as follows:
+low → LOW
+medium → MEDIUM
+high → HIGH
+CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
 
 ### 6.2 Cycle Boundaries — Safe Interruption Points
@@ -926,7 +937,8 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 | COMMAND-CLASS-VIOLATION | Shell command denied by classification rules (e.g., SYSTEM without CRITICAL) | Review command, adjust risk class or use safer alternative |
 | RECURSIVE-LOOP | Detected cyclic decision pattern with no progress | Manual intervention required |
 | GOAL-DRIFT | System actions diverging from goal success criteria | Clarify goal, tighten success criteria |
-| REPLAY-MISMATCH | Logged execution cannot be deterministically reproduced | Operational analysis required, possible state corruption |
+| REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required
+ |
 
 
 ## 16. Testing — Validation (Engineering Discipline)
@@ -1024,9 +1036,9 @@ A release build MUST NOT be signed or distributed unless:
 **Update Flow:**
 
 1. New version available → Notification in UI (non-intrusive)
-2. User reviews release notes and change log
-3. User downloads signed installer at their convenience
-4. User runs installer with admin privileges
+2. Operator reviews release notes and change log
+3. Operator downloads signed installer at their convenience
+4. Operator runs installer with admin privileges
 5. Guardian verifies signature and applies update
 
 **Version Policy:**
@@ -1042,9 +1054,9 @@ A release build MUST NOT be signed or distributed unless:
 **Network Tolerance:**
 
 - System can operate **fully offline** after initial setup
-- AI API calls require network (user's own API keys)
+- AI API calls require network (operator's own API keys)
 - Documentation lookups fall back to **cached docs** when network unavailable
-- User can proceed with **warnings** if offline (e.g., "Latest dependency versions unavailable, using cached metadata")
+- Operator can proceed with **warnings** if offline (e.g., "Latest dependency versions unavailable, using cached metadata")
 
 **What works offline:**
 
@@ -1154,7 +1166,7 @@ This section is reserved. No authority or behavior is granted unless explicitly 
 **Why selective limits:**
 
 - Project size and file counts are domain-specific (enterprise apps may be large)
-- AI cost is user's responsibility (their API key, their budget)
+- AI cost is operator's responsibility (their API key, their budget)
 - Time and retry limits prevent infinite loops and runaway execution
 
 ---
@@ -1228,6 +1240,7 @@ Every shell command is classified before execution:
 - Commands are **parsed before execution**
 - All paths must be inside `scope_root` (jail enforced)
 - Network tools blocked unless `NET_AI_ONLY` or `NET_DOCS_ONLY` token present
+- All NETWORK class commands require a NET_* capability token. No generic NETWORK token exists.
 - SYSTEM class requires goal `risk_class: CRITICAL`
 - Unknown commands default to DENY
 
@@ -1478,6 +1491,9 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-MEM-9 | No Operational Perception | 7.4 |
 | INV-MEM-CS1 | AI No Reconstruction | 9.2 |
 | INV-MEM-CTX-1 | Operational Non-Observability | 7.4 |
+| INV-NET-HIER-1 | Network policy hierarchy enforcement | 18 |
+| INV-OP-PRES-1 | Operational Preservation Mode on guardian failure | 11.2 |
+| INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
 | INV-MEM-DIGEST-1 | Core-Only Digest Authority | 22.1 |
 | INV-MEM-FW-2 | Semantic Neutralization | 7.4 |
 | INV-SANDBOX-1 | Guardian-Owned Sandbox Boundary | 12.1 |
