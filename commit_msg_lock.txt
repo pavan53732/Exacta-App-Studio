@@ -1,0 +1,16 @@
+Final Spec Architecture Lock (v1.3.0): Boot State, AI Router, and Trust Models
+
+This commit applies 9 surgical architectural modifications to EXACTA_PROJECT_FULL_SPEC.md, establishing the final "OS-level" rigor for the specification.
+
+Changes applied:
+1.  **Boot State Machine (Section 2.1):** Formalized system states (BOOT, ATTEST, NO_AI_PROVIDER, READY, SAFE_MODE, OP_PRESERVE) and added `INV-BOOT-1: No Execution Before READY`.
+2.  **Autonomy Definition (Section 1.1):** Clarified "Autonomous" execution vs. "Cognition Source". Exacta is the vessel; AI (local or remote) is the engine.
+3.  **Toolchain Authority (Section 1.1):** Explicitly defined Exacta as an orchestrator of external toolchains, not a compiler implementation.
+4.  **Mandatory Cognition (Section 26.1):** Added `Mandatory Cognition Rule` and `INV-AI-BOOT-1`. System cannot enter READY state without a valid AI provider.
+5.  **AI Router Authority (Section 26.2):** Mandated Guardian-mediated AI routing. Forbidden direct API calls from UI/Core. Added `INV-AI-ROUTER-1`.
+6.  **Local Model Runtime (Section 26):** Classified local models as "Untrusted Cognition / Trusted Execution" hybrid components (subject to Job Objects).
+7.  **AI Routing Determinism (Section 6.5):** Clarified that provider *selection* is deterministic, while AI *output* is not.
+8.  **UI Trust Level (Section 10):** Explicitly classified UI as "Lowest Trust" with no direct execution or privileged access.
+9.  **Invariant Registry (Appendix B):** Registered `INV-BOOT-1`, `INV-AI-BOOT-1`, and `INV-AI-ROUTER-1`.
+
+Use this state as the canonical architectural reference for all implementation work.

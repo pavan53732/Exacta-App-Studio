@@ -57,6 +57,7 @@ Determinism is guaranteed ONLY for:
   - [1.4 Lovable-Style Interaction Model](#14-lovable-style-interaction-model)
   - [1.5 Execution & Isolation Tradeoffs](#15-execution--isolation-tradeoffs)
 - [2. Product Operating Model (Default Mode)](#2-product-operating-model-default-mode)
+  - [2.1 System Boot State Machine](#21-system-boot-state-machine)
 - [3. Terminology - Concept Glossary](#3-terminology---concept-glossary)
 - [4. User Experience Model (Visible Surface)](#4-user-experience-model-visible-surface)
   - [4.1 User Surface vs System Surface](#41-user-surface-vs-system-surface)
@@ -119,6 +120,7 @@ Determinism is guaranteed ONLY for:
 - [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
 - [26. AI Provider Trust Model](#26-ai-provider-trust-model)
   - [26.1 AI Provider Management](#261-ai-provider-management)
+  - [26.2 AI Routing Authority](#262-ai-routing-authority)
 - [27. Visibility Model](#27-visibility-model)
 - [28. Getting Started](#28-getting-started)
 - [29. Features](#29-features)
@@ -165,6 +167,27 @@ This document recognizes only sections listed in the Table of Contents as valid 
 
 Exacta App Studio is a single-user, local-first Windows desktop application that turns high-level goals into complete Windows desktop applications (source, build, packaging). Operators express intent conversationally; the system autonomously iterates until success criteria are met or operator halts execution. The UI surfaces only goals, high-level progress, and preview; internal enforcement and policy machinery are hidden and authoritative.
 
+Runs entirely locally on your PC for execution, storage, sandboxing, and policy enforcement.  
+AI cognition MAY be provided by either:
+- Operator-configured external providers, or
+- Operator-installed local model runtimes.
+
+Autonomous execution SHALL NOT begin unless at least one AI cognition source is available.
+
+**Toolchain Authority Model**
+
+Exacta App Studio DOES NOT implement compilers, linkers, packagers, or signers.
+
+Exacta SHALL ONLY:
+- Discover
+- Verify
+- Sandbox
+- Orchestrate
+
+external, Operator-installed toolchains.
+
+All .exe and .msi artifacts are produced exclusively by third-party toolchains executed under Guardian-enforced sandbox controls.
+
 
 
 ### 1.2 Core Design Philosophy (Flow-First, Autonomous)
@@ -199,6 +222,7 @@ Determinism guarantees apply only to:
 - Capability token validation
 
 Execution order, checkpoint timing, file state, toolchain behavior, and recovery outcomes are best-effort and non-deterministic.
+AI output content is explicitly non-deterministic.
 
 
 ### 1.3 What the User Sees (and Does NOT See)
@@ -287,6 +311,68 @@ This sandbox does NOT defend against kernel-level compromise, firmware attacks, 
 
 ## 2. Product Operating Model (Default Mode)
 
+## 2.1 System Boot State Machine
+
+**SYSTEM LAW:** Binding internal control flow.
+
+Exacta App Studio SHALL operate as a finite-state system with the following boot and runtime states. Transitions are Guardian-authorized and fail-closed.
+
+### States
+
+BOOT  
+- Process startup
+- No execution authority
+- No AI access
+- No filesystem mutation
+- UI may render status only
+
+ATTEST  
+- Guardian integrity attestation
+- Root of trust verification
+- IPC channel establishment
+- Policy profile verification
+
+NO_AI_PROVIDER  
+- No valid AI provider or local model available
+- Autonomous execution DISABLED
+- Allowed:
+  - UI interaction
+  - Project open/load
+  - Index rebuild
+  - Manual operator inspection
+- Forbidden:
+  - PERCEIVE
+  - DECIDE
+  - ACT
+  - Any capability token issuance
+
+READY  
+- Guardian attested
+- Valid AI provider OR local model available
+- Policy engine active
+- Autonomous execution ENABLED
+
+SAFE_MODE  
+- Restricted runtime
+- Network disabled
+- Shell execution disabled
+- Recovery-only operations allowed
+
+OP_PRESERVE  
+- Evidence preservation mode
+- Autonomous execution frozen
+- Forensic export and rollback only
+
+### Transition Rules
+
+BOOT → ATTEST  
+ATTEST → READY (if Guardian attests AND AI provider/local model exists)  
+ATTEST → NO_AI_PROVIDER (if Guardian attests AND no AI provider/local model exists)  
+ANY → SAFE_MODE (on corruption, missing sandbox primitive, or policy failure)  
+ANY → OP_PRESERVE (on sandbox breach, Guardian failure, or invariant violation)
+
+**Invariant:**  
+**INV-BOOT-1: No Execution Before READY** — PERCEIVE, DECIDE, ACT, capability issuance, or subprocess execution SHALL NOT occur unless system state is READY.
 
 Exacta App Studio operates exclusively as a **permanent auto-apply, flow-first, autonomous builder**.
 
@@ -502,6 +588,12 @@ No multi-goal concurrency allowed in default mode.
 - Logging Structure — Structured Diagnostic Format (not deterministic replay)
 - Execution Order — Best-effort only
 - Outcome Equivalence — Not guaranteed
+
+**AI Routing Determinism**
+
+For a given `(goal_id, policy_profile, provider_set, budget_state)` snapshot, the selection of AI provider or local model SHALL be deterministic.
+
+AI output content is explicitly non-deterministic.
 
 
 ## 7. Context Handling - AI Isolation (Hidden)
@@ -744,6 +836,15 @@ Communication flows:
 Authority rules:
 
 - Guardian is the ultimate arbiter of capability tokens and policy decisions (see Section 11).
+
+**UI Trust Level**
+
+Electron/WinUI/WPF UI components are classified as:
+- Lowest-trust system components
+- No execution authority
+- No direct filesystem, network, or provider access
+
+All privileged actions MUST transit Core → Guardian IPC.
 
 ## 11. Guardian - Policy Enforcement (System Constitution)
 
@@ -1620,6 +1721,19 @@ Use of cloud AI providers SHALL be treated as a data disclosure event governed b
 **INV-MEM-14: Provider Memory Boundary** — System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
 
 
+**Local Model Runtime Classification**
+
+Local AI runtimes (e.g., llama.cpp servers, Ollama, LM Studio, ONNX Runtime, embedded inference engines) are classified as:
+
+- Untrusted cognition sources
+- Trusted execution targets (sandboxed subprocesses)
+
+They MUST:
+- Run under Job Object enforcement
+- Be hash-verified if binary-based
+- Be capability-gated (PROCESS_EXEC + NET_* if networked)
+- Be subject to budget limits
+
 ### 26.1 AI Provider Management
 
 **Provider Selection:** Exacta App Studio automatically manages AI provider connection logic, routing, and model selection. This governance is handled internally by the system.
@@ -1627,6 +1741,43 @@ Use of cloud AI providers SHALL be treated as a data disclosure event governed b
 **Credential Authority:** The Operator is solely responsible for providing valid API credentials (keys/endpoints). These are entered during setup or via administrative configuration.
 
 **Note:** The System selects the *model* (logic); The Operator provides the *keys* (access).
+
+**Mandatory Cognition Rule**
+
+Exacta App Studio SHALL NOT enter READY state unless at least one valid AI cognition source is available:
+
+- External provider (API-based), OR
+- Local model runtime (CLI or embedded runtime)
+
+If neither exists, the system MUST enter NO_AI_PROVIDER state and operate in UI-only, non-autonomous mode.
+
+**Invariant:**  
+**INV-AI-BOOT-1: No Cognition, No Autonomy** — Autonomous execution SHALL NOT be permitted without a valid AI cognition source.
+
+### 26.2 AI Routing Authority
+
+**SYSTEM LAW:** Binding internal security mechanism.
+
+All AI requests SHALL be routed through a Guardian-governed AI Router.
+
+Forbidden:
+- Direct Core → Provider API calls
+- Direct UI → Provider API calls
+- Hardcoded provider endpoints in Core or UI
+
+Required Flow:
+UI → Core → Guardian AI Router → Provider/Local Model → Guardian → Core → UI
+
+Guardian SHALL enforce:
+- Endpoint allowlist
+- Token redaction
+- Request size limits
+- Model allowlist
+- Budget accounting
+- Network capability validation
+
+**Invariant:**  
+**INV-AI-ROUTER-1: Guardian-Mediated AI Only** — No component SHALL communicate directly with any AI provider or model runtime without Guardian mediation.
 
 ---
 
@@ -1781,6 +1932,9 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
 | INV-POLICY-1 | Signed Policy Profiles Only | 11.1.1 |
 | INV-TERM-1 | Operator is sole human authority term | 3 |
+| INV-BOOT-1 | No Execution Before READY | 2.1 |
+| INV-AI-BOOT-1 | No Cognition, No Autonomy | 26.1 |
+| INV-AI-ROUTER-1 | Guardian-Mediated AI Only | 26.2 |
 
 
 ## Appendix C - Change Log
