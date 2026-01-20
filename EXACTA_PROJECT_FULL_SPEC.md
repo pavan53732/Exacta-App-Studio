@@ -31,7 +31,7 @@ Determinism is guaranteed ONLY for:
 2. Capability token validation (the permission system)
 3. Invariant enforcement (security boundaries)
 
-> **⚠️ Flow vs. Formal Guarantees Tradeoff**
+> **⚠️Flow vs. Formal Guarantees Tradeoff**
 > 
 > Exacta prioritizes **developer flow** and **immediate productivity** over formal operational logging and deterministic guarantees. This design choice means:
 > 
@@ -101,9 +101,9 @@ Determinism is guaranteed ONLY for:
   * [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
   * [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
   * [16.3 Release Gating Rule](#163-release-gating-rule)
-* [17. Release, Update — Upgrade Model](#17-release-update-upgrade-model)
+* [17. Release — Update — Upgrade Model](#17-release-update-upgrade-model)
 * [18. Offline — Network Behavior](#18-offline-network-behavior)
-* [19. Telemetry, Logging — Diagnostics (Local-Only)](#19-telemetry-logging-diagnostics-local-only)
+* [19. Telemetry — Logging — Diagnostics (Local-Only)](#19-telemetry-logging-diagnostics-local-only)
 * [20. Operator Model — Authority Limits](#20-operator-model-authority-limits)
 * [21. Hard Limits — Circuit Breakers](#21-hard-limits-circuit-breakers)
 * [22. Security Model Summary](#22-security-model-summary)
@@ -795,7 +795,7 @@ Any detected sandbox violation MUST:
 
 **Concurrency Handling:**
 
-Exacta App Studio supports **single-goal execution only**. Multiple concurrent goals are not supported to maintain deterministic execution and operational logging.
+Exacta App Studio supports **single-goal execution only**. Multiple concurrent goals are not supported to maintain controlled execution and structured operational logging.
 
 - **Subprocess Concurrency:** Within a single goal, multiple subprocesses (builds, tests) may run concurrently if explicitly allowed by capability tokens and budget limits.
 - **Job Object Grouping:** All subprocesses for a goal are grouped under a single Windows Job Object for coordinated termination.
@@ -975,7 +975,7 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 - Package installation requires user confirmation for non-development dependencies
 - Automatic dependency resolution limited to direct dependencies (no deep transitive installs)
 
-**User Additions:** Via Settings → Security → Package Managers (logged as POLICY event with operational logs)
+**Operator Additions:** Via signed policy profile update (administrative mode only) (logged as POLICY event with operational logs)
 
 **Rationale:** Package managers are high-risk because they download and execute untrusted code. The allowlist ensures only well-audited, officially supported package managers can be used, with additional controls on network access and user approval.
 
@@ -1004,7 +1004,7 @@ A release build MUST NOT be signed or distributed unless:
 - Upgrade signature verification tests PASS
 
 
-## 17. Release, Update — Upgrade Model
+## 17. Release — Update — Upgrade Model
 
 
 **Manual Installer Updates:**
@@ -1076,7 +1076,7 @@ When offline mode is active, all NET_* capability tokens are treated as DENY reg
 The documentation endpoint allowlist is stored in Guardian policy storage and may only be modified via signed system upgrade or explicit Operator approval. All changes are logged as POLICY-NETWORK events with old and new values recorded.
 
 
-## 19. Telemetry, Logging — Diagnostics (Local-Only)
+## 19. Telemetry — Logging — Diagnostics (Local-Only)
 
 
 **Local Telemetry Definition:**
@@ -1369,19 +1369,25 @@ Exacta App Studio automatically manages AI provider connections and model select
 
 
 ## 27. Visibility Model
-This section is reserved. Implementation pending.
+
+This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+
 
 
 Exacta operates with two distinct surfaces:
 
 
 ## 28. Getting Started
-This section is reserved. Implementation pending.
+
+This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+
 
 
 
 ## 29. Features
-This section is reserved. Implementation pending.
+
+This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+
 
 
 
@@ -1413,7 +1419,7 @@ Token = {
 **Token Revocation Flow:**
 
 ```jsx
-User clicks "Disable SHELL_EXEC" in UI
+Operator revokes SHELL_EXEC via signed policy profile update
          ↓
 Guardian revokes SHELL_EXEC token for active goal
          ↓
@@ -1447,7 +1453,7 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-ITC-3 | No Upward Authority Flow | 22.1 |
 | INV-MEM-0 | System-Owned Memory Authority | 22.1 |
 | INV-MEM-1 | Atomic State Commit | 8.5 |
-| INV-MEM-11 | No Unverified Index Exposure | 14 |
+| INV-MEM-11 | No Unverified Index Exposure | 14.1 |
 | INV-MEM-13 | Goal Isolation | 22.1 |
 | INV-MEM-14 | Provider Memory Boundary | 26 |
 | INV-MEM-15 | No Execution Trace in Context | 7.4 |
