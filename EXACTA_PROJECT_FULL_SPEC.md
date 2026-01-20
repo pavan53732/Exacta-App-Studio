@@ -1,6 +1,5 @@
 # EXACTA PROJECT FULL SPEC — CANONICAL AUTHORITY
 
-﻿### 0.1 Canonical Authority Statement
 
 This document is the single source of truth for Exacta App Studio.
 
@@ -41,6 +40,8 @@ Determinism is guaranteed ONLY for:
 > - **Background snapshots** instead of explicit checkpoint management
 > 
 > **For applications requiring strict operational logging, deterministic execution, or formal compliance guarantees, consider traditional development workflows with manual code review and explicit version control practices.**
+
+
 
 
 ## Table of Contents
@@ -136,6 +137,9 @@ Any change to headers without updating the TOC is a SPEC VIOLATION.
 
 ### 0.1 Canonical Authority Statement
 
+The content of this section is defined in the document prologue. This section serves as the formal anchor for TOC authority.
+
+
 ### 0.2 Authority Boundary (Product Contract vs System Constitution)
 
 
@@ -222,7 +226,7 @@ User refines goal
 This boundary includes:
 
 - **Filesystem access** (project root jail with MAX_PATH considerations, symlink rules, atomic writes, system-path denylist, no UNC paths)
-- **Process execution** (shell containment; Windows Job Objects are used to group and control subprocess lifetime, enforce memory and CPU usage limits, and enable coordinated termination)
+- **Process execution** (System sandboxing (Standard): Job Objects, standard Windows user isolation, and basic network allowlisting. Logs are **diagnostic only** and SHALL NOT be interpreted as replay, causality proof, or deterministic execution history. Subprocess lifetime, enforce memory and CPU usage limits, and enable coordinated termination)
 - **Network access** (explicitly gated by capability tokens; network isolation is an operator-configured policy and may rely on OS-level controls outside Exacta's runtime)
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
@@ -238,7 +242,7 @@ Network blocking, credential stripping, PATH enforcement, and environment scrubb
 
 **Authority Model:**
 
-- The sandbox boundary is enforced by Guardian and OS-level controls; Core acts as an execution proxy constrained by policy.
+- The sandbox boundary is enforced by Guardian as the sole policy authority, using OS-level primitives as execution mechanisms only; Core acts as an execution proxy constrained by policy.
 - Core and AI operate within these protections and cannot modify protected system components through standard UI or AI workflows.
 
 **Failure Mode:**
@@ -396,6 +400,8 @@ CHECKPOINT (Advanced: Snapshot + Budget Update | Default: Lightweight State)
   ↓
 LOOP or HALT
 ```
+
+**Perception Authority:** All Outcome Summaries SHALL be generated exclusively by Core. AI-generated summaries are forbidden.
 
 **System halts when:**
 
@@ -643,6 +649,8 @@ PHASE 2 — COMMIT
 
 ## 10. System Architecture Overview
 
+This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+
 ## 11. Guardian — Policy Enforcement (System Constitution)
 
 **Guardian Operational Modes:**
@@ -751,7 +759,7 @@ Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/c
 
 **Guardian-Enforced Authority** — A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
 
-**User as Governor** — You set goals, budgets, and capabilities. System supervises execution. Emergency stop always available.
+**User as Governor** — You set goals and budget preferences. Capabilities are issued exclusively by Guardian. System supervises execution. Emergency stop always available.
 
 
 ### 12.1 Unified Sandbox Boundary (Canonical)
@@ -1311,7 +1319,7 @@ EnvironmentSnapshot {
 }
 
 **Invariant:**  
-**INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered deterministic unless a valid EnvironmentSnapshot is present and hash-anchored.
+**INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered reproducible unless a valid EnvironmentSnapshot is present and hash-anchored.
 
 
 ## 25. Supply Chain Trust Boundary
@@ -1375,7 +1383,8 @@ This section is reserved. No authority or behavior is granted unless explicitly 
 
 
 
-Exacta operates with two distinct surfaces:
+
+
 
 
 ## 28. Getting Started
@@ -1406,6 +1415,7 @@ Token = {
   token_id: UUID,
   goal_id: UUID,
   capability_type: enum,
+  risk_class: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
   issued_at: timestamp,
   expires_at: timestamp,
   renewed_count: number,        // Number of times token has been renewed
@@ -1415,6 +1425,8 @@ Token = {
   signature: HMAC-SHA256(Guardian_Secret, all_fields)
 }
 ```
+
+**Rule:** SHELL_EXEC capability requires risk_class=CRITICAL
 
 
 **Token Revocation Flow:**
@@ -1428,6 +1440,8 @@ Core receives CAPABILITY_REVOKED event via IPC
          ↓
 In-flight actions using SHELL_EXEC are canceled at next safe boundary
          ↓
+```
+
 
 
 ## Appendix B — Invariant Index
@@ -1467,6 +1481,7 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-MEM-DIGEST-1 | Core-Only Digest Authority | 22.1 |
 | INV-MEM-FW-2 | Semantic Neutralization | 7.4 |
 | INV-SANDBOX-1 | Guardian-Owned Sandbox Boundary | 12.1 |
+| INV-TERM-1 | Operator is sole human authority term | 3 |
 
 
 ## Appendix C — Change Log
