@@ -168,6 +168,8 @@ This document recognizes only sections listed in the Table of Contents as valid 
 
 ### 1.1 What Exacta App Studio Is
 
+Exacta App Studio is a single-user, local-first Windows desktop application that turns high-level goals into complete Windows desktop applications (source, build, packaging). Operators express intent conversationally; the system autonomously iterates until success criteria are met or operator halts execution. The UI surfaces only goals, high-level progress, and preview; internal enforcement and policy machinery are hidden and authoritative.
+
 
 
 ### 1.2 Core Design Philosophy (Flow-First, Autonomous)
@@ -220,6 +222,17 @@ User refines goal
 
 
 ### 1.4 Lovable-Style Interaction Model
+
+Interaction is chat-first and goal-oriented:
+- Operator posts a goal or specification.
+- Core confirms goal, shows estimated budget and risk class.
+- AI proposes plan; Guardian evaluates policy and issues capability tokens.
+- Core executes actions (auto-apply) and reports high-level progress to the Operator.
+- Operator may refine the goal; system continues cycles.
+
+Notes:
+- No file-tree or diff-first UI in default mode.
+- "Revert and edit" UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
 
 
 
@@ -352,6 +365,16 @@ It is a Windows desktop application that builds complete desktop applications (o
 
 ### 4.1 User Surface vs System Surface
 
+User Surface (visible by default):
+- Chat input for goals
+- High-level status badges: BUILDING / ERROR / DONE
+- Live preview frame (rendered app)
+
+System Surface (hidden by default; available only in debug/administrative builds):
+- Guardian logs and detailed SBX test reports
+- Checkpoint management (advanced UI)
+- Policy profiles (signed, administrative)
+
 ### 4.2 Chat-First Interaction
 
 
@@ -374,7 +397,7 @@ Exacta App Studio is **intentionally not designed** for the following use cases:
 - ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
 - ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
-These are deliberate scope constraints to maintain focus on local-first, deterministic Windows desktop application development.
+These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are listed in Section 17).  **Note:** "deterministic" in the sense of replayability is *not* claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
 
 
 ## 6. Autonomous Execution Model
@@ -440,9 +463,28 @@ CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
 ### 6.2 Cycle Boundaries — Safe Interruption Points
 
+Safe interruption points are defined as points where no partially-written artifacts remain and atomic commit can be deferred or rolled back:
+- After PERCEIVE and prior to ACT (safe to pause and inspect)
+- After any subprocess group reaches its Job Object termination (post-ACT, pre-CHECKPOINT)
+- Immediately on Operator emergency stop (HALT at next safe boundary and preserve artifacts)
+
+Core documents safe-boundary timestamps in the execution log for operator inspection.
+
 ### 6.3 Failure Detection — Halt Conditions
 
+Primary halt conditions:
+- Budget exhaustion
+- Sandbox breach
+- Capability token revocation mid-cycle
+- Repeated build failures or runaway edits
+
+On halt, Core transitions to Operational Preservation Mode and exposes a guided recovery workflow to the Operator.
+
 ### 6.4 Concurrency Rules (Single-Goal Model)
+
+Default model: single-goal serial decisioning.
+Within a goal: certain subprocesses may be run in parallel but always grouped under a single Goal Job Object to preserve coordinated termination semantics.
+No multi-goal concurrency allowed in default mode.
 
 
 ### 6.5 Determinism Scope
@@ -461,13 +503,21 @@ CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
 
 ### 7.1 Implicit Context Assembly
-This section is reserved. Implementation pending.
+
+Core assembles AI context automatically using signed Project Index shards and sanitized outcome digests. Operators cannot directly alter injected context in default UI.
+
+Context assembly steps:
+1. Verify signed index snapshot (INV-MEM-17)
+2. Select shard by dependency closure heuristics
+3. Normalize and redact sensitive fields (Memory Injection Firewall)
+4. Produce context package and record fingerprint in execution log
 
 ### 7.2 Progressive Context Mode
 **Invariant: INV-CTX-FAST-1: Risk Escalation (Fast Mode)** — If the goal requires multi-cycle execution on high-volatility files, the system SHALL escalate to Operator confirmation.
 
 ### 7.3 Context Sharding — Dependency Closure
-This section is reserved. Implementation pending.
+
+Context sharding splits large projects into dependency-closed subsets ("shards") to keep per-cycle reasoning tractable. Shard selection favors high-impact files and dependency closure; low-impact files are deferred to subsequent cycles. Shard size parameters are controlled by Guardian policies.
 
 ### 7.4 Memory Injection Firewall
 
@@ -618,7 +668,7 @@ On fresh launch or crash recovery:
 - Only Core-generated Goal State Summary and Verified Index Snapshot may be injected
 - Execution resumes strictly from last COMMITTED checkpoint
 
-**INV-MEM-CS1:** AI SHALL NOT be used to reconstruct system state after restart.
+**INV-MEM-CS-1:** AI SHALL NOT be used to reconstruct system state after restart.
 
 
 ### 9.3 Transactional State Commit Protocol
@@ -660,7 +710,21 @@ PHASE 2 — COMMIT
 
 ## 10. System Architecture Overview
 
-This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+This section summarizes the runtime components and authority boundaries:
+- **Operator UI:** chat + preview + high-level controls
+- **Core Runtime:** orchestrates cycles, executes sandboxed actions, maintains checkpoints
+- **Guardian:** policy engine, capability authority, attestation, secret manager
+- **Indexer:** Project Index builder/validator (signed)
+- **SBX Test Harness:** automated sandbox enforcement tests
+
+Communication flows:
+- UI ↔ Core (local IPC)
+- Core ↔ Guardian (authenticated IPC)
+- Core ↔ Indexer (in-process or local IPC)
+- Core ↔ External toolchains (sandboxed subprocesses under Job Objects)
+
+Authority rules:
+- Guardian is the ultimate arbiter of capability tokens and policy decisions (see Section 11).
 
 ## 11. Guardian — Policy Enforcement (System Constitution)
 
@@ -747,6 +811,11 @@ If attestation fails:
 
 **Root Lifetime Guidance:** Implementations SHOULD define a maximum trusted root lifetime (e.g., 2 years) and surface warnings prior to expiry.
 
+**Privilege Transition Procedure**
+- During Setup/Upgrade Mode Guardian runs with elevated privileges to apply signed installers or key material.
+- After upgrade completes Guardian drops to Runtime Mode (standard user privileges) while retaining guarded access to protected storage (OS-protected key store).
+- Transition requires dual-signed upgrade packages and is recorded as a CRITICAL audit event.
+
 
 **Built for developers who value speed, momentum, and continuous forward progress over formal control, operational logging, and reversible execution.**
 
@@ -754,6 +823,12 @@ If attestation fails:
 ### 11.3 Capability Authority
 
 Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC, PACKAGE_EXEC, SIGN_EXEC, NET_AI_ONLY, NET_DOCS_ONLY, SHELL_EXEC (optional, high risk), PROCESS_KILL
+
+**Capability Token Lifecycle (summary)**
+- **Default token lifetimes:** per-action tokens: 15 minutes; session tokens: up to 24 hours (configurable via Guardian policy).
+- **Renewal:** tokens may be renewed automatically by Guardian if the renewal policy and budget allow it; renewal increments `renewed_count`.
+- **Expiry mid-action:** if a token expires mid-action, Core will attempt to reach the next safe boundary and then fail the action with `CAPABILITY-ESCALATION`. Guardian logs the event and may issue remediation directives.
+- **Revocation:** immediate via Guardian policy; Core receives `CAPABILITY_REVOKED` and cancels in-flight actions at next safe boundary (see Appendix A).
 
 ### 11.4 Budget Enforcer
 
@@ -766,7 +841,7 @@ Hard runtime governor enforcing caps: files modified/cycle (50), lines changed/c
 
 **Fail-Closed Security** — When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
 
-**Complete Operational Logs** — Every goal, decision, action, and file modification is correlated and logged with causal chain traceability.
+**Comprehensive Operational Logs** — Every goal, decision, action, and file modification is correlated and logged to enable debugging and post-mortem analysis. Logs are diagnostic evidence and correlation aids; they are **not** a formal cryptographic proof of causality or deterministic replayability. See Section 24.1 for determinism anchors and limits.
 
 **Guardian-Enforced Authority** — A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
 
@@ -784,7 +859,10 @@ This boundary includes:
 
 - **Filesystem access** (project root jail with MAX_PATH=260 chars, symlink rules, atomic writes, system-path denylist, no UNC paths, no device paths)
 - **Process execution** (shell containment, **Windows Job Object enforcement** with CPU/memory limits, no breakaway flag, resource limits)
-- **Network access** (token-gated endpoints only, Safe Mode full network kill, **execution disabled by default** during autonomous execution)
+- **Network access** (token-gated endpoints only, Safe Mode full network kill, **execution disabled by default for arbitrary subprocesses during autonomous execution**)
+
+**AI Provider Connectivity Exception**
+- If Operator configures AI provider credentials during setup, Guardian may issue a narrow NET_AI_ONLY token scoped to recognized provider endpoints for Core-to-provider API calls. This token is distinct from general NET_* tokens and is **not** granted for arbitrary subprocesses or package manager calls.
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) run inside a Windows Job Object with:
@@ -808,9 +886,21 @@ This boundary includes:
 Any detected sandbox violation MUST:
 
 - Immediately HALT autonomous execution
-- Enable Operational Preservation Mode
+- Enter **Operational Preservation Mode** (see definition below)
 - Log a `SANDBOX-BREACH` security incident
 - Require Operator intervention before resumption
+
+### Operational Preservation Mode (definition)
+- **What it is:** an evidence-preservation operating state that freezes volatile operations, preserves logs and memory artifacts, prevents further autonomous actions, and exposes a guarded Operator recovery/inspection workflow.
+- **Triggers:** sandbox breach, Guardian attestation failure, or critical corruption (INV-MEM-7).
+- **Operator actions available:** view preserved logs (read-only), request guarded snapshot export, approve targeted rollback to a Guardian-signed checkpoint, or request safe resume after corrective action.
+- **Exit:** only after Guardian-authorized operator action or after an automatically scheduled, pre-authorized maintenance window (both actions generate CRITICAL audit events).
+
+### Safe Mode (procedural definition)
+- **What it is:** a restricted runtime state with network disabled, shell execution blocked, and autonomous loops paused.
+- **Triggers:** memory corruption detection, failed Guardian attestation, missing isolation primitives (Job Object creation failure), or explicit Operator request.
+- **Behavior:** no subprocesses may be launched; only Guardian and Core diagnostics APIs run in read-only or recovery-only mode.
+- **Recovery:** Operator must review diagnostics; Guardian issues signed resume token after problem is addressed.
 
 **Concurrency Handling:**
 
@@ -897,11 +987,11 @@ Before each cycle:
 **Detection Mechanism:**
 
 - **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
-- **Drift Classification:**
+- **Drift Classification & Prevention:**
     - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
     - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, requires user confirmation to continue
     - **High drift** (>20 files or >2000 lines): System HALTS, requires full re-indexing and user review before resuming
-- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth
+- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth. If rebuild cannot complete before action execution, Core will pause autonomous execution and require Operator confirmation when drift exceeds policy thresholds.
 
 **Invariant:**
 
@@ -937,7 +1027,22 @@ The following are **FATAL** errors that trigger automatic HALT + RECOVERY:
 | COMMAND-CLASS-VIOLATION | Shell command denied by classification rules (e.g., SYSTEM without risk_class=CRITICAL) | Review command, adjust risk class or use safer alternative |
 | RECURSIVE-LOOP | Detected cyclic decision pattern with no progress | Manual intervention required |
 | GOAL-DRIFT | System actions diverging from goal success criteria | Clarify goal, tighten success criteria |
-| REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required |
+| REPLAY-DIVERGENCE | Observed behavior differs from prior execution trace beyond acceptable variance | Operational analysis required; not treated as deterministic replay failure; use EnvironmentSnapshot anchor for investigation |
+
+
+### Recovery Workflow (operator-driven)
+- For each fatal error the system records an appropriate recovery action:
+- **AGENT-RUNAWAY** → automatic restore to last committed checkpoint unless Operator requests evidence-preservation mode; Operator may request manual forensic export.
+- **RECURSIVE-LOOP** → system halts and shows suggested interventions; Operator may adjust goal or escalate to debug mode.
+- **SCOPE-BREACH / CAPABILITY-ESCALATION** → automatic halt; Operator reviews and may grant explicit signed capability token for corrective action.
+
+Operator-initiated restore path:
+1. Operator opens Guardian Recovery UI (administrative).
+2. Guardian shows candidate committed checkpoints (signed).
+3. Operator selects checkpoint and submits signed restore request.
+4. Guardian validates and issues restore token; Core performs atomic restore.
+
+All recovery actions are CRITICAL audit events.
 
 
 ## 16. Testing — Validation (Engineering Discipline)
@@ -973,12 +1078,16 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 | SBX-005 | Job Object breakaway attempt | HALT |
 | SBX-006 | Credential in shell output | REDACT + HALT |
 | SBX-007 | Package manager outside allowlist | DENY |
-
-**Package Manager Allowlist:**
+| SBX-CLI-001 | Goose CLI path traversal via `--output ../../system` | DENY + SANDBOX-BREACH |
+| SBX-CLI-002 | Aider git commit to remote without NET_AI_ONLY | DENY |
+| SBX-CLI-003 | GPT Engineer `npm install` without user approval | DENY |
+| SBX-CLI-004 | Crush CLI Job Object breakaway via subprocess spawn | HALT + INCIDENT |
+| SBX-CLI-005 | Codex CLI credential in stdout (API key leak) | REDACT + HALT |
+| SBX-CLI-006 | Droid Factory write to `.exacta/Guardian/` | DENY + INCIDENT |
+| SBX-CLI-007 | Blackbox CLI exceeding 5-minute timeout | KILL + HALT |
 
 
 ### 16.2 Package Manager Allowlist
-
 
 **Purpose:** Restricts package installation to trusted, audited package managers to prevent supply chain attacks and untrusted code execution.
 
@@ -997,14 +1106,6 @@ The system MUST maintain an automated test group validating sandbox enforcement:
 **Operator Additions:** Via signed policy profile update (administrative mode only) (logged as POLICY event with operational logs)
 
 **Rationale:** Package managers are high-risk because they download and execute untrusted code. The allowlist ensures only well-audited, officially supported package managers can be used, with additional controls on network access and user approval.
-
-| SBX-CLI-001 | Goose CLI path traversal via `--output ../../system` | DENY + SANDBOX-BREACH |
-| SBX-CLI-002 | Aider git commit to remote without NET_AI_ONLY | DENY |
-| SBX-CLI-003 | GPT Engineer `npm install` without user approval | DENY |
-| SBX-CLI-004 | Crush CLI Job Object breakaway via subprocess spawn | HALT + INCIDENT |
-| SBX-CLI-005 | Codex CLI credential in stdout (API key leak) | REDACT + HALT |
-| SBX-CLI-006 | Droid Factory write to `.exacta/Guardian/` | DENY + INCIDENT |
-| SBX-CLI-007 | Blackbox CLI exceeding 5-minute timeout | KILL + HALT |
 
 Failure of any SBX test blocks release.
 
@@ -1052,6 +1153,8 @@ A release build MUST NOT be signed or distributed unless:
 
 **Network Tolerance:**
 
+If Operator configures cloud AI provider credentials at setup, Guardian issues a narrowly scoped NET_AI_ONLY token for Core→provider traffic for the duration specified by policy. This does NOT enable network access for arbitrary subprocesses or package managers.
+
 - System can operate **fully offline** after initial setup
 - AI API calls require network (operator's own API keys)
 - Documentation lookups fall back to **cached docs** when network unavailable
@@ -1097,6 +1200,14 @@ The documentation endpoint allowlist is stored in Guardian policy storage and ma
 
 ## 19. Telemetry — Logging — Diagnostics (Local-Only)
 
+**API Key & Secret Storage:**
+Operator-provided AI provider credentials and other secrets are stored only in OS-protected credential stores (Windows DPAPI / Credential Locker or equivalent) accessible by Guardian only. Core does not hold raw secrets; API calls are proxied through Guardian-managed signed request paths when possible.
+
+**Guardian Secret Management (summary):**
+- Key material is generated in Guardian at install time, stored in OS-protected storage, and rotated per policy (default rotation: 90 days).
+- Rotation must be a dual-signed operation (current Guardian + admin approval).
+- Compromise procedure: Guardian enters Operational Preservation Mode and requires operator recovery.
+
 
 **Local Telemetry Definition:**
 
@@ -1137,7 +1248,10 @@ Operational logs, engineering-grade exports, and security incident records:
 
 ## 20. Operator Model — Authority Limits
 
-This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+This section defines Operator privileges and constraints:
+- Operator can set goals, configure AI provider credentials during setup, and approve signed policy profiles (administrative action).
+- Operator **cannot** modify Guardian policy ad-hoc; only signed profiles may change enforcement.
+- Emergency stop is available to the Operator and honored immediately at the next safe boundary (INV-A8).
 
 ## 21. Hard Limits — Circuit Breakers
 
@@ -1298,6 +1412,11 @@ Exacta maintains internal background snapshots strictly for:
 - Data corruption protection
 - Engineering-grade export (advanced use only)
 
+**Checkpoint retention policy (default):**
+- Retain last 50 committed checkpoints per project. Guardian policy may increase or decrease this limit.
+- If disk usage for checkpoints exceeds `X%` (policy default 10% of project disk), oldest checkpoints are pruned (Guardian logs CRITICAL event).
+- Checkpoint storage may be exported by Operator (administrative action) for long-term archival.
+
 The standard UI does NOT expose:
 - Undo buttons
 - Rollback timelines
@@ -1332,6 +1451,8 @@ EnvironmentSnapshot {
 
 **Invariant:**  
 **INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered reproducible unless a valid EnvironmentSnapshot is present and hash-anchored.
+
+**Note:** snapshot presence improves investigatory ability; it does not create a general deterministic replay guarantee for toolchains or networked fetches.
 
 
 ## 25. Supply Chain Trust Boundary
@@ -1391,7 +1512,7 @@ Provider credentials are configured during installation or via administrative co
 
 ## 27. Visibility Model
 
-This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+By default, Exacta operates with a minimalist visibility model. Advanced visibility (diagnostics, checkpoint browsing, SBX reports) is available only in administrative/debug builds gated by Guardian and administrative signature.
 
 
 
@@ -1401,14 +1522,23 @@ This section is reserved. No authority or behavior is granted unless explicitly 
 
 ## 28. Getting Started
 
-This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+Minimal steps:
+1. Install Exacta and run setup (Guardian keys generated).
+2. Configure AI provider credentials (stored in OS credential store; see Section 26.1).
+3. Open or create project in a folder; Core will build a signed Project Index snapshot.
+4. Provide a goal via chat; monitor progress in Preview and high-level status.
 
 
 
 
 ## 29. Features
 
-This section is reserved. No authority or behavior is granted unless explicitly defined here in a future revision.
+Short feature list (default UI):
+- Chat-first goal setting
+- Live preview
+- Autonomous auto-apply edits
+- Background snapshots and atomic commits
+- Administrative/debug features: SBX suite, checkpoint browser, guardian logs (signed)
 
 
 
@@ -1485,6 +1615,10 @@ This index MUST enumerate all INV-* identifiers defined in this document. Missin
 | INV-MEM-14 | Provider Memory Boundary | 26 |
 | INV-MEM-15 | No Execution Trace in Context | 7.4 |
 | INV-MEM-17 | Signed Index Root | 14.2 |
+| INV-MEM-CS-1 | AI No Reconstruction | 9.2 |
+| INV-NET-HIER-1 | Network policy hierarchy enforcement (offline > NET_* > explicit) | 18 |
+| INV-OP-PRES-1 | Operational Preservation Mode semantics (evidence preservation + guarded recovery) | 11.2 |
+| INV-TERM-1 | Operator is sole human authority term (terminology discipline) | 3 |
 | INV-MEM-4 | World Model Isolation | 8.1 |
 | INV-MEM-7 | Corruption Fails Closed | 8.5 |
 | INV-MEM-9 | No Operational Perception | 7.4 |
