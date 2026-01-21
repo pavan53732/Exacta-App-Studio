@@ -394,7 +394,7 @@ READY
 SAFE_MODE
 
 - Restricted runtime
-- Network disabled
+- Network disabled (Exception: NET_LOCAL_AI allowed for local model loopback)
 - Shell execution disabled
 - Recovery-only operations allowed
 
@@ -563,6 +563,9 @@ CHECKPOINT (Advanced: Snapshot + Budget Update | Default: Lightweight State)
   ↓
 LOOP or HALT
 ```
+
+**Action Sequence Numbering:**
+Every discrete action within a cycle SHALL be assigned a unique, monotonically increasing sequence number (`ActionSeq`) relative to the Goal.
 
 **Perception Authority:** All Outcome Summaries SHALL be generated exclusively by Core. AI-generated summaries are forbidden.
 
@@ -808,6 +811,16 @@ If Hybrid Search returns zero relevant results ($S < \text{Threshold}$):
 **Invariant:**
 **INV-SEARCH-FAIL-1: No Silent Failures** — If context discovery yields low confidence, the system MUST explicitly inform the process/Operator rather than hallucinating context.
 
+### 7.3.5 Context Philosophy: Dependency Closure
+
+Exacta prioritizes **Dependency Closure** over **Speculative Relevance**.
+
+- **Rule:** If a file is referenced by an import, it is relevant. If it is semantically similar but topologically disconnected, it is secondary.
+- **Anti-Pattern:** "RAG-first" reasoning where the AI guesses code locations based on embeddings alone.
+
+**Invariant:**
+**INV-CTX-3: Topological Precedence** — Graph distance (imports) always outweighs Embedding distance (similarity) for code retrieval.
+
 ### 7.4 Memory Injection Firewall
 
 Before any data is injected into an AI context window, Core SHALL apply a memory firewall that:
@@ -1021,8 +1034,15 @@ All privileged actions MUST transit Core → Guardian IPC.
 
 **Guardian Operational Modes:**
 
-- **Setup / Upgrade Mode:** Elevated privileges. Used only for installation and signed system updates.
-- **Runtime Mode:** SYSTEM Integrity (Service) or High Integrity (Admin) for enforcement. Guardian does NOT run as a Standard User.
+- **Setup / Upgrade Mode:** Runs as NT AUTHORITY\SYSTEM with SeDebugPrivilege. Used only for installation and signed system updates.
+- **Runtime Mode:** Runs as NT AUTHORITY\SYSTEM (Windows Service) with High Integrity Level. Guardian SHALL NOT run as Standard User or Medium Integrity.
+
+**Privilege Requirements:**
+
+- Windows Service Identity: `NT AUTHORITY\SYSTEM`
+- Integrity Level: `High` (minimum)
+- Required Privileges: `SeDebugPrivilege`, `SeAssignPrimaryTokenPrivilege`
+- ACL Protection: Guardian process DACL allows only SYSTEM and TrustedInstaller
 
 System authority that evaluates action type, target scope, capability tokens, budget state, and risk level. Outputs ALLOW, ALLOW_WITH_LIMITS, or DENY
 
@@ -1323,7 +1343,8 @@ The following paths trigger SYSTEM-LEVEL classification:
 
 **Guardian Secret Management (implementation detail):**
 
-- Guardian manages session-bound secrets and related lifecycle events. Exact cryptographic primitives and key-derivation mechanics are implementation details and not part of the product contract.
+- Guardian manages session-bound secrets and related lifecycle events.
+- **Key Generation:** Session keys SHALL be generated using a Cryptographically Secure Pseudo-Random Number Generator (CSPRNG).
 
 ### 13.1 IPC Handshake Protocol
 
@@ -1886,7 +1907,17 @@ The system maintains a deterministic heuristics engine to optimize execution wit
 ### 22.1 Hard Invariants
 
 **PLATFORM ASSUMPTION:**
-**PLAT-ASSUMP-1: Administrative Privilege Requirement** — Exacta App Studio requires Administrative privileges to enforce its sandbox (Job Objects, WFP, Global Namespace). Running without Admin rights SHALL force the system into SAFE_MODE.
+**PLAT-ASSUMP-1: SYSTEM Service Requirement** — Exacta App Studio Guardian MUST run as NT AUTHORITY\SYSTEM (Windows Service) to enforce sandbox boundaries (Job Objects, WFP Callout Driver, Global Namespace). If Guardian cannot acquire SYSTEM privileges:
+
+1. System SHALL enter SAFE_MODE
+2. Autonomous execution DISABLED
+3. Operator notified: "Installation requires Administrator approval to install Guardian Service"
+
+**Privilege Validation:** On startup, Guardian SHALL verify:
+
+- `whoami /user` returns `S-1-5-18` (NT AUTHORITY\SYSTEM)
+- `whoami /priv` includes `SeDebugPrivilege` (Enabled)
+- Process Integrity Level >= High (16384)
 
 **INV-MEM-0: System-Owned Memory Authority** — All persistent memory, execution state, checkpoints, and audit artifacts are owned by Core and Guardian. AI SHALL NOT create, modify, delete, version, or influence any persistent memory layer.
 
@@ -2863,6 +2894,17 @@ enum Capability {
   BUILD_EXEC, // Execute build tools (dotnet, npm)
   PACKAGE_EXEC, // Execute package managers (NuGet, npm, pip)
   SIGN_EXEC, // Execute code signing tools
+}
+```
+
+### A.5 Risk Class Enum
+
+```tsx
+enum RiskClass {
+  LOW, // Read-only or safe local mutation
+  MEDIUM, // Standard mutation (files, project structure)
+  HIGH, // System risk (Shell execution, new dependencies)
+  CRITICAL, // Sandbox/Security/Identity impact (Guardian only)
 }
 ```
 
