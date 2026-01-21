@@ -64,6 +64,7 @@ Determinism is guaranteed ONLY for:
 - [5. Non-Goals - Explicit Exclusions](#5-non-goals---explicit-exclusions)
 - [6. Autonomous Execution Model](#6-autonomous-execution-model)
   - [6.1 Continuous Execution Loop](#61-continuous-execution-loop)
+  - [6.1.1 Internal Cognitive Pipeline (Non-Authoritative)](#611-internal-cognitive-pipeline)
   - [6.2 Cycle Boundaries - Safe Interruption Points](#62-cycle-boundaries---safe-interruption-points)
   - [6.3 Failure Handling - Silent Self-Healing](#63-failure-handling---silent-self-healing)
   - [6.4 Concurrency Rules (Single-Goal Model)](#64-concurrency-rules-single-goal-model)
@@ -95,6 +96,7 @@ Determinism is guaranteed ONLY for:
   - [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
   - [11.2.1 Root of Trust Definition (Implementation)](#1121-root-of-trust-definition-implementation)
   - [11.3 Capability Authority](#113-capability-authority)
+  - [11.3.1 Action Identity Tags](#1131-action-identity-tags)
   - [11.4 Internal Resource Governor (Hidden)](#114-internal-resource-governor-hidden)
 - [12. Sandbox - Isolation Model](#12-sandbox---isolation-model)
   - [12.1 Unified Sandbox Boundary (Canonical)](#121-unified-sandbox-boundary-canonical)
@@ -104,7 +106,7 @@ Determinism is guaranteed ONLY for:
 - [14. Indexing - Consistency Model](#14-indexing---consistency-model)
   - [14.1 Index-File Consistency](#141-index-file-consistency)
   - [14.2 Index Root Attestation](#142-index-root-attestation)
-  - [14.3 Advanced Indexing Architecture (Implementation Detail)](#143-advanced-indexing-architecture-implementation-detail)
+  - [14.3 Project Knowledge Graph Architecture (Canonical)](#143-project-knowledge-graph-architecture-canonical)
   - [14.4 Index Lifecycle & Build Protocol](#144-index-lifecycle--build-protocol)
   - [14.5 Index Staleness & Revalidation](#145-index-staleness--revalidation)
   - [14.6 Embedding Index Specifications](#146-embedding-index-specifications)
@@ -121,6 +123,7 @@ Determinism is guaranteed ONLY for:
   - [19.1 No Crash Dump Uploads](#191-no-crash-dump-uploads)
 - [20. Operator Model - Authority Limits](#20-operator-model---authority-limits)
 - [21. Internal Stability Controls (Hidden)](#21-internal-stability-controls-hidden)
+  - [21.1 System Heuristics Engine (Hidden)](#211-system-heuristics-engine-hidden)
 - [22. Security Model Summary](#22-security-model-summary)
   - [22.1 Hard Invariants](#221-hard-invariants)
   - [22.2 SHELL_EXEC Security Model](#222-shell_exec-security-model)
@@ -133,7 +136,7 @@ Determinism is guaranteed ONLY for:
 - [26. AI Provider Trust Model](#26-ai-provider-trust-model)
   - [26.1 AI Provider Management](#261-ai-provider-management)
   - [26.1.1 Recognized Provider Ecosystem](#2611-recognized-provider-ecosystem)
-  - [26.2 AI Routing Authority](#262-ai-routing-authority)
+  - [26.2 AI Routing Interface (Non-Authoritative)](#262-ai-routing-interface-non-authoritative)
   - [26.3 Provider Registry (Canonical Schema)](#263-provider-registry-canonical-schema)
   - [26.4 CLI Agent Orchestration (Tier 5)](#264-cli-agent-orchestration-tier-5)
   - [26.5 Live Model Discovery Protocol](#265-live-model-discovery-protocol)
@@ -254,6 +257,9 @@ Determinism guarantees apply only to:
 
 Execution order, checkpoint timing, file state, toolchain behavior, and recovery outcomes are best-effort and non-deterministic.
 AI output content is explicitly non-deterministic.
+
+**Deep Autonomy Declaration:**
+Exacta embraces **System-Centric Autonomy**, not AI-Centric Autonomy. "Deep Autonomy" means the _System_ handles more complexity (heuristics, routing, verification, recovery) so the _AI_ can focus purely on reasoning. Autonomy increases system effectiveness; it does NOT increase AI authority.
 
 ### 1.3 What the Operator Sees (and Does NOT See)
 
@@ -586,7 +592,7 @@ AI outputs:
 Decision {
   intent: string
   proposed_actions: Action[]
-  risk_level: 'low' | 'medium' | 'high'
+  proposed_risk_class: 'low' | 'medium' | 'high'
   expected_outcome: string
 }
 ```
@@ -594,11 +600,24 @@ Decision {
 System translates this into bounded, validated execution steps with capability token requirements.
 
 **Risk Mapping Rule:**
-AI-provided risk_level SHALL be mapped by Core to Guardian risk_class as follows:
+AI-provided proposed_risk_class SHALL be mapped by Core to Guardian risk_class as follows:
 low → LOW
 medium → MEDIUM
 high → HIGH
 CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
+
+### 6.1.1 Internal Cognitive Pipeline (Non-Authoritative)
+
+To improve decision quality, the DECIDE phase employs a multi-stage cognitive pipeline. This is an internal implementation detail of the "AI Agent" and does not imply multi-agent authority.
+
+**Pipeline Stages:**
+
+1.  **Planner:** Decomposes the goal into high-level steps.
+2.  **Specialist:** specific domain analysis (e.g., Security, Architecture).
+3.  **Synthesizer:** Merges insights into a single `Decision` object.
+
+**Invariant:**
+**INV-AI-PIPE-1: Single Decision Authority** — Only the final `Decision` object from the Synthesizer is visible to Core. Intermediate thoughts, sub-plans, or "chats" between internal stages are discarded and SHALL NOT be acted upon.
 
 ### 6.2 Cycle Boundaries - Safe Interruption Points
 
@@ -661,6 +680,8 @@ If AI provider is unavailable or returns errors:
 3. If Ollama is available, fall back to local model
 4. Only after all options exhausted, display: "Having trouble connecting. Check your internet or AI settings."
 
+   > **Note:** Provider retries SHALL NOT occur while in SAFE_MODE or NETWORK-DENY. Only local models are permitted in these states.
+
 ### 6.4 Concurrency Rules (Single-Goal Model)
 
 Default model: single-goal serial decisioning.
@@ -696,7 +717,7 @@ Context assembly steps:
 
 ### 7.2 Progressive Context Mode
 
-**Invariant: INV-CTX-FAST-1: Risk Escalation (Fast Mode)** — If the goal requires multi-cycle execution on high-volatility files, the system SHALL escalate to Operator confirmation.
+**Invariant: INV-CTX-FAST-1: Risk Escalation (Fast Mode)** — If the goal requires multi-cycle execution on high-volatility files, the system SHALL enter Safe Mode and resume autonomous execution only after Guardian verifies index integrity and filesystem ground truth.
 
 ### 7.2.1 Progressive Context Expansion (Iterative Discovery)
 
@@ -709,6 +730,17 @@ The system SHALL NOT front-load context based on assumptions. It MUST use a **St
 
 **Invariant:**
 **INV-CTX-PROGRESSIVE-1: Just-in-Time Loading** — Context expansion SHALL ONLY occur in response to explicit AI signals or direct dependency traversals. Speculative "just in case" loading of directory trees is prohibited.
+
+**Progressive Graph Probing (Context Discovery Mode)**
+
+When Hybrid Search confidence is low, the system enters "Graph Probe Mode":
+
+1.  **Probe:** System traverses 1 hop from known instructions on the Knowledge Graph.
+2.  **Limit:** Max 3 probes per cycle.
+3.  **Depth:** Max 2 edges deep.
+
+**Invariant:**
+**INV-GRAPH-PROBE-1: Minimal Side-Effect Discovery** — Graph probing SHALL be used only for symbol resolution and side-effect discovery. It SHALL NOT be used for open-ended exploration.
 
 ### 7.3 Context Discovery & Sharding (Smart Hybrid Search)
 
@@ -774,7 +806,7 @@ If Hybrid Search returns zero relevant results ($S < \text{Threshold}$):
 3.  **Prompt:** The AI SHALL be prompted to "Clarify the request or provide a specific filename."
 
 **Invariant:**
-**INV-SEARCH-FAIL-1: No Silent Failures** — If context discovery yields low confidence, the system MUST explicitly inform the process/user rather than hallucinating context.
+**INV-SEARCH-FAIL-1: No Silent Failures** — If context discovery yields low confidence, the system MUST explicitly inform the process/Operator rather than hallucinating context.
 
 ### 7.4 Memory Injection Firewall
 
@@ -1147,6 +1179,17 @@ Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC
 - **Expiry mid-action:** if a token expires mid-action, Core will attempt to reach the next safe boundary and then fail the action with `CAPABILITY-ESCALATION`. Guardian logs the event and may issue remediation directives.
 - **Revocation:** immediate via Guardian policy; Core receives `CAPABILITY_REVOKED` and cancels in-flight actions at next safe boundary (see Appendix A).
 
+### 11.3.1 Action Identity Tags (Forensic Attribution)
+
+Every capability token issued is bound to an `action_tag`.
+
+- **Format:** `SHA256(goal_id + cycle_id + action.sequence_number)`
+- **Purpose:** Traces every file modification back to the specific AI Decision that requested it.
+- **Storage:** Logged in the Execution Trace and optionally as xattributes on modified files (if OS supported).
+
+**Invariant:**
+**INV-ID-1: No Cryptographic Authority for AI** — Action Tags are for diagnostic attribution only. They DO NOT grant trust, bypass policy, or serve as cryptographic signatures for the AI agent.
+
 ### 11.4 Internal Resource Governor (Hidden)
 
 **SYSTEM LAW:** Internal stability mechanism. NOT exposed in UI.
@@ -1191,7 +1234,7 @@ Budget scopes are GOAL-BOUND. Internal counters reset when a new goal_id is issu
 
 **Guardian-Enforced Authority** — A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
 
-**User as Governor** — You set goals and budget preferences. Capabilities are issued exclusively by Guardian. System supervises execution. Emergency stop always available.
+**User as Governor** -> **Operator as Governor** — You set goals and budget preferences. Capabilities are issued exclusively by Guardian. System supervises execution. Emergency stop always available.
 
 ### 12.1 Unified Sandbox Boundary (Canonical)
 
@@ -1220,6 +1263,9 @@ This boundary includes:
 
 **Network Enforcement Mechanism (Implementation):**
 Exacta uses the **Windows Filtering Platform (WFP)** via a bundled callout driver (or User-Mode WFP API where sufficient) to enforce per-process network rules.
+
+**Implementation Tier Note:**
+WFP Callout Driver enforcement is OPTIONAL in Community builds. If unavailable, Guardian SHALL fall back to User-Mode WFP API with reduced network isolation guarantees.
 
 - **Fail-Closed:** If the WFP filter cannot attach to the Job Object, the subprocess SHALL NOT start.
 - **Rule Scope:** Rules are bound to the `JobObjectId`.
@@ -1250,47 +1296,6 @@ If Core detects it is already running within a Job Object:
 
 - The sandbox boundary is enforced by the Guardian, with Core acting only as a policy-constrained execution proxy
 - Core and AI operate entirely inside this boundary
-- No component may weaken, bypass, or reconfigure sandbox rules at runtime
-
-**Failure Mode:**
-
-Any detected sandbox violation MUST:
-
-- Immediately HALT autonomous execution
-- Enter **Operational Preservation Mode**
-- Preserve all forensic artifacts
-- Require Guardian-authorized Operator recovery before resumption
-
-**Invariant:**
-**INV-SANDBOX-BREACH: Mandatory Halt on Boundary Violation** — Any detected sandbox boundary violation SHALL immediately halt autonomous execution, enter Operational Preservation Mode, preserve all forensic artifacts, and require Guardian-authorized Operator recovery before resumption.
-
-**Operational Preservation Mode (definition)**
-
-- **What it is:** an evidence-preservation operating state that freezes volatile operations, preserves logs and memory artifacts, prevents further autonomous actions, and exposes a guarded Operator recovery/inspection workflow.
-- **Triggers:** sandbox breach, Guardian attestation failure, or critical corruption (INV-MEM-7).
-- **Operator actions available:** view preserved logs (read-only), request guarded snapshot export, approve targeted rollback to a Guardian-signed checkpoint, or request safe resume after corrective action.
-- **Exit:** only after Guardian-authorized operator action or after an automatically scheduled, pre-authorized maintenance window (both actions generate CRITICAL audit events).
-
-**Safe Mode (procedural definition)**
-
-- **What it is:** a restricted runtime state with network disabled, shell execution blocked, and autonomous loops paused.
-- **Triggers:** memory corruption detection, failed Guardian attestation, missing isolation primitives (Job Object creation failure), or explicit Operator request.
-- **Behavior:** no subprocesses may be launched; only Guardian and Core diagnostics APIs run in read-only or recovery-only mode.
-- **Recovery:** Operator must review diagnostics; Guardian issues signed resume token after problem is addressed.
-
-**Concurrency Handling:**
-
-Exacta App Studio supports **single-goal execution only**. Multiple concurrent goals are not supported to maintain controlled execution and structured operational logging.
-
-- **Subprocess Concurrency:** Within a single goal, multiple subprocesses (builds, tests) may run concurrently if explicitly allowed by capability tokens and budget limits.
-- **Job Object Grouping:** All subprocesses for a goal are grouped under a single Windows Job Object for coordinated termination.
-- **Resource Limits:** Concurrent subprocesses share the goal's total resource budget (CPU, memory, time).
-- **Synchronization:** Core enforces sequential execution of AI decisions but allows parallel subprocess execution where safe.
-- **Failure Propagation:** If any subprocess fails, the entire goal cycle is marked failed and may trigger rollback.
-
-**Non-Goals:**
-
-This sandbox does NOT defend against kernel-level compromise, firmware attacks, or physical access. These are covered by the Platform Trust Assumption.
 
 ### 12.2 Filesystem Safety - System Paths Protection
 
@@ -1375,16 +1380,16 @@ Before each cycle:
 
 ### 14.1 Index-File Consistency
 
-**Problem:** The Project Index (in-memory code structure) can drift from the actual file system if external tools or the user modify files outside Exacta's control.
+**Problem:** The Project Index (in-memory code structure) can drift from the actual file system if external tools or the Operator modify files outside Exacta's control.
 
 **Detection Mechanism:**
 
 - **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
 - **Drift Classification & Prevention:**
   - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
-  - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, requires user confirmation to continue
-  - **High drift** (>20 files or >2000 lines): System HALTS, requires full re-indexing and user review before resuming
-- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth. If rebuild cannot complete before action execution, Core will pause autonomous execution and require Operator confirmation when drift exceeds policy thresholds.
+  - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, records a drift escalation event and switches to conservative execution mode (minimal context loading, no FS_MUTATE, no PACKAGE_EXEC) until stability is restored
+  - **High drift** (>20 files or >2000 lines): System enters Safe Mode, rebuilds index from filesystem ground truth, and resumes autonomous execution only after Guardian verifies index integrity
+- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth. If rebuild cannot complete before action execution, Core will enter Safe Mode, rebuild index from filesystem ground truth, and resume autonomous execution only after Guardian verifies index integrity and filesystem ground truth. The system SHALL record a diagnostic event and surface a generic task-level message (e.g. "Refreshing project understanding due to large external changes").
 
 **Invariant:**
 
@@ -1402,9 +1407,23 @@ Each committed Project Index snapshot MUST include:
 **Invariant:**  
 **INV-MEM-17: Signed Index Root** — AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
 
-### 14.3 Advanced Indexing Architecture (Implementation Detail)
+### 14.3 Project Knowledge Graph Architecture (Canonical)
 
-To support Smart Hybrid Search (Section 7.3), the Project Index MUST maintain a multi-modal representation of the workspace.
+Exacta formalizes the Project Index as a directed Knowledge Graph.
+
+**Graph Nodes:**
+
+- **FileNode:** Physical file on disk.
+- **SymbolNode:** Class, Function, Interface, Variable.
+- **ConceptNode:** Embedding cluster centroid.
+
+**Graph Edges:**
+
+- **ImportEdge:** Explicit `import` / `using`.
+- **CallEdge:** Reference to symbol.
+- **SimilarityEdge:** High cosine similarity (>0.85).
+
+**Purpose:** The Graph is used exclusively for Context Discovery, Impact Analysis, Dependency Closure, and Relevance Scoring. It is **NOT** a decision engine or policy store.
 
 **Index Components:**
 
@@ -1426,7 +1445,7 @@ The Project Index is NOT a static artifact. It follows a strict lifecycle:
 3.  **Compaction:** Periodically (every 100 changes), the index performs garbage collection.
 
 **Invariant:**
-**INV-INDEX-BUILD-1: Non-Blocking Availability** — Indexing operations SHALL run in a low-priority background thread (WFP Tier 3). Providing stale results is preferred over blocking the UI, provided the staleness is within the window defined in 14.5.
+**INV-INDEX-BUILD-1: Non-Blocking Availability** — Indexing operations SHALL run in a low-priority background thread (WFP Tier 3). Providing stale results is preferred over blocking the UI, provided the staleness is within the window defined in 14.5. Exception: Freshness guarantees in §14.5 take precedence over non-blocking behavior for AI context injection only. UI responsiveness SHALL remain non-blocking.
 
 ### 14.5 Index Staleness & Revalidation
 
@@ -1437,13 +1456,13 @@ To ensure AI trust, the index MUST track its own freshness:
 - **Revalidation:** If a query hits a "Dirty" node, the system MUST block for up to 500ms to re-index that specific node on demand.
 
 **Invariant:**
-**INV-INDEX-FRESH-1: Stale Read Bound** — The system SHALL NOT return index results older than 5 seconds. If the index falls behind by >5s, it MUST flag itself as "Degraded" and warn the Operator.
+**INV-INDEX-FRESH-1: Stale Read Bound** — The system SHALL NOT return index results older than 2 seconds. If the index falls behind by >2s, it MUST flag itself as "Degraded" and record a diagnostic event and surface a generic task-level message (e.g. "Refreshing project understanding…").
 
 ### 14.6 Embedding Index Specifications
 
 To standardize semantic search, Exacta defines the embedding contract:
 
-- **Model:** `text-embedding-3-small` (or equivalent high-performance local model).
+- **Model:** Any local or provider embedding model meeting dimensional and latency constraints (reference model: `text-embedding-3-small` or equivalent).
 - **Dimensions:** 1536.
 - **Chunking Strategy:**
   - _Code:_ Function/Class boundaries (via AST).
@@ -1570,7 +1589,7 @@ The system prioritizes **Bundled Portable Toolchains** (located in `%EXACTA_ROOT
 
 - All package manager commands require PACKAGE_EXEC capability token
 - Network access restricted to official registries only (no custom registries without explicit approval)
-- Package installation requires user confirmation for non-development dependencies
+- Package installation requires Operator confirmation for non-development dependencies
 - Automatic dependency resolution limited to direct dependencies (no deep transitive installs)
 
 **Operator Additions:** Via signed policy profile update (administrative mode only) (logged as POLICY event with operational logs)
@@ -1840,6 +1859,24 @@ The following are explicitly NOT shown to operators:
 - Visible limits create anxiety without adding value
 - Silent throttling achieves same stability without interruption
 
+### 21.1 System Heuristics Engine (Non-AI Learning)
+
+The system maintains a deterministic heuristics engine to optimize execution without AI involvement.
+
+**Learned Heuristics:**
+
+- **Build Failure Patterns:** "If Error X occurs, try Strategy Y first."
+- **Toolchain Latency:** "Don't use Tool Z during high load."
+- **Recovery Success Rates:** "Strategy A has 90% success for this error type."
+
+**Storage:** Heuristics are stored in `Guardian-owned` operational memory.
+
+**Invariant:**
+**INV-HEUR-1: Non-Cognitive Learning Only** — The Heuristics Engine SHALL NOT contain project code, user goals, or AI context. It is limited strictly to operational metadata (error codes, timings, success/fail booleans).
+
+**Invariant:**
+**INV-HEUR-2: Bounded Weight Adjustment** — Heuristic weight adjustments SHALL be bounded within Guardian-defined min/max ranges and SHALL NOT exceed ±25% of baseline values per 24 hours.
+
 ---
 
 ## 22. Security Model Summary
@@ -2093,7 +2130,7 @@ The Application Settings UI (accessible via the "Settings" icon) SHALL populate 
 
 **Mandatory Cognition Rule**
 
-Exacta App Studio SHALL NOT enter READY state unless at least one valid AI cognition source is available:
+Exacta App Studio SHALL NOT enter READY state unless at least at least one valid AI cognition source is available:
 
 - External provider (API-based), OR
 - Local model runtime (CLI or embedded runtime)
@@ -2218,7 +2255,9 @@ FIRST LAUNCH:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 26.2 AI Routing Authority
+### 26.2 AI Routing Interface (Non-Authoritative)
+
+AI MAY propose provider preferences, but Guardian SHALL be the sole authority that computes routing utility and selects providers.
 
 **SYSTEM LAW:** Binding internal security mechanism.
 
@@ -2305,6 +2344,12 @@ ProviderRecord {
 
 **Invariant:**
 **INV-AI-REG-1: Signed Provider Registry Only** — AI provider, CLI agent, or local runtime selection SHALL NOT occur unless the ProviderRecord is Guardian-signed and enabled.
+
+### 26.2 AI Routing Interface (Non-Authoritative)
+
+AI MAY propose provider preferences, but Guardian SHALL be the sole authority that computes routing utility and selects providers.
+
+**Invariants:**
 
 ### 26.4 CLI Agent Orchestration (Tier 5)
 
@@ -2559,16 +2604,16 @@ Health Metrics:
 - Budget pressure
 - Policy violations
 
-### Routing Score
+### Utility-Based Routing Function
 
-```text
-score = (w1 * success_rate)
-      - (w2 * latency_ms)
-      - (w3 * cost_per_unit)
-      - (w4 * violation_count)
+The "Routing Score" is replaced by a formal **Utility Function**:
 
-*Weights (w1-w4) are dynamically tuned by Guardian based on global system health state.*
-```
+$$ U(p) = \alpha \cdot \text{Quality}(p) - \beta \cdot \text{Cost}(p) - \gamma \cdot \text{Latency}(p) + \delta \cdot \text{Health}(p) $$
+
+Where:
+
+- $\alpha, \beta, \gamma, \delta$ are dynamic weights tuned by the System Heuristics Engine.
+- **AI Visibility:** ❌ NONE. The AI cannot see or influence routing weights.
 
 ### Selection Rules
 
@@ -2666,7 +2711,7 @@ The "Settings" icon in the UI SHALL provide a dedicated **"AI Providers"** panel
 - **Silent Self-Healing:** Automatic error recovery without nagging.
 - **Live Preview:** Real-time rendered application view.
 - **One-Click Export:** Generate standalone Windows binaries (.exe).
-- **Time Travel:** Undo/Redo any architectural decision.
+- **Background Recovery:** System-managed crash recovery and checkpoint-based rollback (no operator-visible undo/redo timeline; external VCS recommended).
 - **Local-First:** Works fully offline with Ollama.
 
 ## 30. Build Export Model
@@ -2777,6 +2822,7 @@ type RiskRule = {
 ```tsx
 type Action = {
   id: UUID;
+  sequence_number: number; // Monotonic per Decision, starting at 1
   type: "SHELL_EXEC" | "FILE_WRITE" | "FILE_READ" | "NET_REQUEST";
   target: string; // File path or URL
   content?: string; // For writes
@@ -2811,12 +2857,25 @@ enum Capability {
   CLI_AGENT_EXEC, // Execute CLI coding agents (Tier 5 providers)
   NET_AI_ONLY, // Connect to authorized AI providers
   NET_DOCS_ONLY, // Connect to allowlisted documentation sites
-  NET_OLLAMA, // Connect to Ollama at localhost:11434 only
+  NET_LOCAL_AI, // Connect to local AI runtimes (e.g. Ollama at localhost:11434)
   NET_REGISTRY, // Connect to trusted package managers
   NET_VCS, // Connect to trusted version control providers
   BUILD_EXEC, // Execute build tools (dotnet, npm)
   PACKAGE_EXEC, // Execute package managers (NuGet, npm, pip)
   SIGN_EXEC, // Execute code signing tools
+}
+```
+
+### A.6 Goal Schema (Canonical)
+
+```tsx
+Goal {
+  goal_id: UUID
+  description: string
+  success_criteria: string[]
+  risk_class: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  scope_root: string
+  created_at: timestamp
 }
 ```
 
@@ -2888,6 +2947,10 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 | INV-INDEX-BUILD-1     | Non-Blocking Availability                           | 14.4    |
 | INV-INDEX-FRESH-1     | Stale Read Bound                                    | 14.5    |
 | INV-EMBED-1           | Semantic Consistency                                | 14.6    |
+| INV-AI-PIPE-1         | Single Decision Authority                           | 6.1.1   |
+| INV-HEUR-1            | Non-Cognitive Learning Only                         | 21.1    |
+| INV-GRAPH-PROBE-1     | Minimal Side-Effect Discovery                       | 7.2.1   |
+| INV-ID-1              | No Cryptographic Authority for AI                   | 11.3.1  |
 
 ## Appendix C - Change Log
 
