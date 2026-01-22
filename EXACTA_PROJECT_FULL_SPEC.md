@@ -1,3 +1,5 @@
+# EXACTA_PROJECT_FULL_SPEC
+
 # EXACTA PROJECT FULL SPEC — CANONICAL AUTHORITY
 
 This document is the single source of truth for Exacta App Studio.
@@ -22,7 +24,7 @@ There are no visible context windows, no dependency controls, no diff staging, a
 
 **Behavioral focus:** Exacta prioritizes fast, intent-driven editing loops that apply changes to the workspace as they are produced (auto-apply by default). Responsibility for long-term recovery and full operational logging is shifted toward background snapshots and external VCS (recommended), not per-action review UIs.
 
-**Operational Model:** Exacta operates in a _best-effort, iterative_ mode. The system does **not** guarantee deterministic execution ordering, strict checkpoint determinism, or replay equivalence of AI outputs. Execution focuses on fast iteration: changes are applied autonomously and the system attempts to self-correct over subsequent cycles rather than block for strict, pre-apply verification.
+**Operational Model:** Exacta operates in a *best-effort, iterative* mode. The system does **not** guarantee deterministic execution ordering, strict checkpoint determinism, or replay equivalence of AI outputs. Execution focuses on fast iteration: changes are applied autonomously and the system attempts to self-correct over subsequent cycles rather than block for strict, pre-apply verification.
 Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
 
 Determinism is guaranteed ONLY for:
@@ -31,132 +33,135 @@ Determinism is guaranteed ONLY for:
 2. Capability token validation (the permission system)
 3. Invariant enforcement (security boundaries)
 
-> **⚠️ Flow vs. Formal Guarantees Tradeoff**
->
+> ⚠️ Flow vs. Formal Guarantees Tradeoff
+> 
+> 
 > Exacta prioritizes **developer flow** and **immediate productivity** over formal operational logging and deterministic guarantees. This design choice means:
->
+> 
 > - **Fast iteration** with auto-apply changes instead of per-step approvals
 > - **Hidden recovery mechanisms** instead of visible rollback UIs
 > - **Best-effort execution** instead of guaranteed deterministic outcomes
 > - **Background snapshots** instead of explicit checkpoint management
->
+> 
 > **For applications requiring strict operational logging, deterministic execution, or formal compliance guarantees, consider traditional development workflows with manual code review and explicit version control practices.**
+> 
 
 ## Table of Contents
 
-- [0. Canonical Authority - Scope](#0-canonical-authority---scope)
-  - [0-1 Canonical Authority Statement](#0-1-canonical-authority-statement)
-  - [0-2 Authority Boundary (Product Contract vs System Constitution)](#0-2-authority-boundary-product-contract-vs-system-constitution)
-  - [0-3 Normative Language - Interpretation Rules](#0-3-normative-language---interpretation-rules)
-  - [0-4 Section Registry (Canonical Index)](#0-4-section-registry-canonical-index)
-- [1. Product Overview (User-Facing Contract)](#1-product-overview-user-facing-contract)
-  - [1.1 What Exacta App Studio Is](#11-what-exacta-app-studio-is)
-  - [1.2 Core Design Philosophy (Flow-First, Autonomous)](#12-core-design-philosophy-flow-first-autonomous)
-  - [1.3 What the Operator Sees (and Does NOT See)](#13-what-the-operator-sees-and-does-not-see)
-  - [1.4 Lovable-Style Interaction Model](#14-lovable-style-interaction-model)
-  - [1.5 Execution & Isolation Tradeoffs](#15-execution--isolation-tradeoffs)
-- [2. Product Operating Model (Default Mode)](#2-product-operating-model-default-mode)
-  - [2.1 System Boot State Machine](#21-system-boot-state-machine)
-- [3. Terminology - Concept Glossary](#3-terminology---concept-glossary)
-- [4. User Experience Model (Visible Surface)](#4-user-experience-model-visible-surface)
-  - [4.1 Operator Surface vs System Surface](#41-operator-surface-vs-system-surface)
-  - [4.2 Chat-First Interaction](#42-chat-first-interaction)
-- [5. Non-Goals - Explicit Exclusions](#5-non-goals---explicit-exclusions)
-- [6. Autonomous Execution Model](#6-autonomous-execution-model)
-  - [6.1 Continuous Execution Loop](#61-continuous-execution-loop)
-  - [6.1.1 Internal Cognitive Pipeline (Non-Authoritative)](#611-internal-cognitive-pipeline)
-  - [6.2 Cycle Boundaries - Safe Interruption Points](#62-cycle-boundaries---safe-interruption-points)
-  - [6.3 Failure Handling - Silent Self-Healing](#63-failure-handling---silent-self-healing)
-  - [6.4 Concurrency Rules (Single-Goal Model)](#64-concurrency-rules-single-goal-model)
-  - [6.5 Determinism Scope](#65-determinism-scope)
-- [7. Context Handling - AI Isolation (Hidden)](#7-context-handling---ai-isolation-hidden)
-  - [7.1 Implicit Context Assembly](#71-implicit-context-assembly)
-  - [7.2 Progressive Context Mode](#72-progressive-context-mode)
-  - [7.2.1 Progressive Context Expansion (Iterative Discovery)](#721-progressive-context-expansion-iterative-discovery)
-  - [7.3 Context Discovery & Sharding (Smart Hybrid Search)](#73-context-discovery--sharding-smart-hybrid-search)
-  - [7.3.1 Hybrid Search Examples](#731-hybrid-search-examples)
-  - [7.3.2 Search Performance Requirements](#732-search-performance-requirements)
-  - [7.3.3 Relevance Scoring Algorithm](#733-relevance-scoring-algorithm)
-  - [7.3.4 Search Failure Recovery](#734-search-failure-recovery)
-  - [7.4 Memory Injection Firewall](#74-memory-injection-firewall)
-- [8. Memory Model (Internal System Law)](#8-memory-model-internal-system-law)
-  - [8.1 World Model Hard Containment Rule](#81-world-model-hard-containment-rule)
-  - [8.2 AI Memory Prohibition Rule (Hard)](#82-ai-memory-prohibition-rule-hard)
-  - [8.3 Memory Visibility Rules (Read Authority Matrix)](#83-memory-visibility-rules-read-authority-matrix)
-  - [8.4 Memory Migration Rule](#84-memory-migration-rule)
-  - [8.5 Memory Corruption Rule](#85-memory-corruption-rule)
-- [9. Change Application - Recovery Model](#9-change-application---recovery-model)
-  - [9.1 Failure Recovery Guarantees (Explicit)](#91-failure-recovery-guarantees-explicit)
-  - [9.2 Cold Start Memory Rule](#92-cold-start-memory-rule)
-  - [9.3 Transactional State Commit Protocol](#93-transactional-state-commit-protocol)
-- [10. System Architecture Overview](#10-system-architecture-overview)
-- [11. Guardian - Policy Enforcement (System Constitution)](#11-guardian---policy-enforcement-system-constitution)
-  - [11.1 Policy Engine Minimal Formalism (V1)](#111-policy-engine-minimal-formalism-v1)
-  - [11.1.1 Policy Profile (Formal Definition)](#1111-policy-profile-formal-definition)
-  - [11.2 Guardian Integrity Attestation](#112-guardian-integrity-attestation)
-  - [11.2.1 Root of Trust Definition (Implementation)](#1121-root-of-trust-definition-implementation)
-  - [11.3 Capability Authority](#113-capability-authority)
-  - [11.3.1 Action Identity Tags](#1131-action-identity-tags)
-  - [11.4 Internal Resource Governor (Hidden)](#114-internal-resource-governor-hidden)
-- [12. Sandbox - Isolation Model](#12-sandbox---isolation-model)
-  - [12.1 Unified Sandbox Boundary (Canonical)](#121-unified-sandbox-boundary-canonical)
-  - [12.2 Filesystem Safety - System Paths Protection](#122-filesystem-safety---system-paths-protection)
-- [13. IPC - Inter-Process Security](#13-ipc---inter-process-security)
-  - [13.1 IPC Handshake Protocol](#131-ipc-handshake-protocol)
-- [14. Indexing - Consistency Model](#14-indexing---consistency-model)
-  - [14.1 Index-File Consistency](#141-index-file-consistency)
-  - [14.2 Index Root Attestation](#142-index-root-attestation)
-  - [14.3 Project Knowledge Graph Architecture (Canonical)](#143-project-knowledge-graph-architecture-canonical)
-  - [14.4 Index Lifecycle & Build Protocol](#144-index-lifecycle--build-protocol)
-  - [14.5 Index Staleness & Revalidation](#145-index-staleness--revalidation)
-  - [14.6 Embedding Index Specifications](#146-embedding-index-specifications)
-- [15. Failure Taxonomy - Recovery Rules](#15-failure-taxonomy---recovery-rules)
-  - [15.1 State Machine Priority](#151-state-machine-priority)
-- [16. Testing - Validation (Engineering Discipline)](#16-testing---validation-engineering-discipline)
-  - [16.1 Sandbox Escape Test Suite (Mandatory)](#161-sandbox-escape-test-suite-mandatory)
-  - [16.2 Package Manager Allowlist](#162-package-manager-allowlist)
-  - [16.2.1 CLI Coding Agent Allowlist](#1621-cli-coding-agent-allowlist)
-  - [16.3 Release Gating Rule](#163-release-gating-rule)
-- [17. Release - Update - Upgrade Model](#17-release---update---upgrade-model)
-- [18. Offline - Network Behavior](#18-offline---network-behavior)
-- [19. Telemetry - Logging - Diagnostics (Local-Only)](#19-telemetry---logging---diagnostics-local-only)
-  - [19.1 No Crash Dump Uploads](#191-no-crash-dump-uploads)
-- [20. Operator Model - Authority Limits](#20-operator-model---authority-limits)
-- [21. Internal Stability Controls (Hidden)](#21-internal-stability-controls-hidden)
-  - [21.1 System Heuristics Engine (Hidden)](#211-system-heuristics-engine-hidden)
-- [22. Security Model Summary](#22-security-model-summary)
-  - [22.1 Hard Invariants](#221-hard-invariants)
-  - [22.2 SHELL_EXEC Security Model](#222-shell_exec-security-model)
-  - [22.3 Blast Radius Control](#223-blast-radius-control)
-- [23. Legal, Licensing - Trust Stance](#23-legal-licensing---trust-stance)
-- [24. Background Recovery - Crash Semantics](#24-background-recovery---crash-semantics)
-  - [24.1 State Artifact Classes (Taxonomy)](#241-state-artifact-classes-taxonomy)
-  - [24.2 Environment Snapshot Schema (Determinism Anchor)](#242-environment-snapshot-schema-determinism-anchor)
-- [25. Supply Chain Trust Boundary](#25-supply-chain-trust-boundary)
-- [26. AI Provider Trust Model](#26-ai-provider-trust-model)
-  - [26.1 AI Provider Management](#261-ai-provider-management)
-  - [26.1.1 Recognized Provider Ecosystem](#2611-recognized-provider-ecosystem)
-  - [26.2 AI Routing Interface (Non-Authoritative)](#262-ai-routing-interface-non-authoritative)
-  - [26.3 Provider Registry (Canonical Schema)](#263-provider-registry-canonical-schema)
-  - [26.4 CLI Agent Orchestration (Tier 5)](#264-cli-agent-orchestration-tier-5)
-  - [26.5 Live Model Discovery Protocol](#265-live-model-discovery-protocol)
-  - [26.6 Provider Health, Fallback, and Scoring](#266-provider-health-fallback-and-scoring)
-  - [26.7 Provider Budget & Cost Enforcement](#267-provider-budget--cost-enforcement)
-  - [26.8 Provider Failure Taxonomy](#268-provider-failure-taxonomy)
-  - [26.9 Credential Handling Protocol](#269-credential-handling-protocol)
-- [27. Visibility Model](#27-visibility-model)
-- [28. Getting Started](#28-getting-started)
-  - [28.1 UI Visibility Mandate (Settings Icon)](#281-ui-visibility-mandate-settings-icon)
-- [29. Features](#29-features)
-- [30. Build Export Model](#30-build-export-model)
-- [Appendix A - Engineering Schemas](#appendix-a---engineering-schemas)
-  - [A.1 RiskRule Schema](#a1-riskrule-schema)
-  - [A.2 Action Schema](#a2-action-schema)
-  - [A.3 BudgetState Schema](#a3-budgetstate-schema)
-  - [A.4 Capability Enum](#a4-capability-enum)
-  - [A.5 Command Class to Capability Mapping](#a5-command-class-to-capability-mapping)
-- [Appendix B - Invariant Index](#appendix-b---invariant-index)
-- [Appendix C - Change Log](#appendix-c---change-log)
+- [0. Canonical Authority - Scope](about:blank#0-canonical-authority---scope)
+    - [0-1 Canonical Authority Statement](about:blank#0-1-canonical-authority-statement)
+    - [0-2 Authority Boundary (Product Contract vs System Constitution)](about:blank#0-2-authority-boundary-product-contract-vs-system-constitution)
+    - [0-3 Normative Language - Interpretation Rules](about:blank#0-3-normative-language---interpretation-rules)
+    - [0-4 Section Registry (Canonical Index)](about:blank#0-4-section-registry-canonical-index)
+- [1. Product Overview (User-Facing Contract)](about:blank#1-product-overview-user-facing-contract)
+    - [1.1 What Exacta App Studio Is](about:blank#11-what-exacta-app-studio-is)
+    - [1.2 Core Design Philosophy (Flow-First, Autonomous)](about:blank#12-core-design-philosophy-flow-first-autonomous)
+    - [1.3 What the Operator Sees (and Does NOT See)](about:blank#13-what-the-operator-sees-and-does-not-see)
+    - [1.4 Lovable-Style Interaction Model](about:blank#14-lovable-style-interaction-model)
+    - [1.5 Execution & Isolation Tradeoffs](about:blank#15-execution--isolation-tradeoffs)
+- [2. Product Operating Model (Default Mode)](about:blank#2-product-operating-model-default-mode)
+    - [2.1 System Boot State Machine](about:blank#21-system-boot-state-machine)
+- [3. Terminology - Concept Glossary](about:blank#3-terminology---concept-glossary)
+- [4. User Experience Model (Visible Surface)](about:blank#4-user-experience-model-visible-surface)
+    - [4.1 Operator Surface vs System Surface](about:blank#41-operator-surface-vs-system-surface)
+    - [4.2 Chat-First Interaction](about:blank#42-chat-first-interaction)
+- [5. Non-Goals - Explicit Exclusions](about:blank#5-non-goals---explicit-exclusions)
+- [6. Autonomous Execution Model](about:blank#6-autonomous-execution-model)
+    - [6.1 Continuous Execution Loop](about:blank#61-continuous-execution-loop)
+    - [6.1.1 Internal Cognitive Pipeline (Non-Authoritative)](about:blank#611-internal-cognitive-pipeline)
+    - [6.2 Cycle Boundaries - Safe Interruption Points](about:blank#62-cycle-boundaries---safe-interruption-points)
+    - [6.3 Failure Handling - Silent Self-Healing](about:blank#63-failure-handling---silent-self-healing)
+    - [6.4 Concurrency Rules (Single-Goal Model)](about:blank#64-concurrency-rules-single-goal-model)
+    - [6.5 Determinism Scope](about:blank#65-determinism-scope)
+- [7. Context Handling - AI Isolation (Hidden)](about:blank#7-context-handling---ai-isolation-hidden)
+    - [7.1 Implicit Context Assembly](about:blank#71-implicit-context-assembly)
+    - [7.2 Progressive Context Mode](about:blank#72-progressive-context-mode)
+    - [7.2.1 Progressive Context Expansion (Iterative Discovery)](about:blank#721-progressive-context-expansion-iterative-discovery)
+    - [7.3 Context Discovery & Sharding (Smart Hybrid Search)](about:blank#73-context-discovery--sharding-smart-hybrid-search)
+    - [7.3.1 Hybrid Search Examples](about:blank#731-hybrid-search-examples)
+    - [7.3.2 Search Performance Requirements](about:blank#732-search-performance-requirements)
+    - [7.3.3 Relevance Scoring Algorithm](about:blank#733-relevance-scoring-algorithm)
+    - [7.3.4 Search Failure Recovery](about:blank#734-search-failure-recovery)
+    - [7.4 Memory Injection Firewall](about:blank#74-memory-injection-firewall)
+- [8. Memory Model (Internal System Law)](about:blank#8-memory-model-internal-system-law)
+    - [8.1 World Model Hard Containment Rule](about:blank#81-world-model-hard-containment-rule)
+    - [8.2 AI Memory Prohibition Rule (Hard)](about:blank#82-ai-memory-prohibition-rule-hard)
+    - [8.3 Memory Visibility Rules (Read Authority Matrix)](about:blank#83-memory-visibility-rules-read-authority-matrix)
+    - [8.4 Memory Migration Rule](about:blank#84-memory-migration-rule)
+    - [8.5 Memory Corruption Rule](about:blank#85-memory-corruption-rule)
+- [9. Change Application - Recovery Model](about:blank#9-change-application---recovery-model)
+    - [9.1 Failure Recovery Guarantees (Explicit)](about:blank#91-failure-recovery-guarantees-explicit)
+    - [9.2 Cold Start Memory Rule](about:blank#92-cold-start-memory-rule)
+    - [9.3 Transactional State Commit Protocol](about:blank#93-transactional-state-commit-protocol)
+- [10. System Architecture Overview](about:blank#10-system-architecture-overview)
+- [11. Guardian - Policy Enforcement (System Constitution)](about:blank#11-guardian---policy-enforcement-system-constitution)
+    - [11.1 Policy Engine Minimal Formalism (V1)](about:blank#111-policy-engine-minimal-formalism-v1)
+    - [11.1.1 Policy Profile (Formal Definition)](about:blank#1111-policy-profile-formal-definition)
+    - [11.2 Guardian Integrity Attestation](about:blank#112-guardian-integrity-attestation)
+    - [11.2.1 Root of Trust Definition (Implementation)](about:blank#1121-root-of-trust-definition-implementation)
+    - [11.3 Capability Authority](about:blank#113-capability-authority)
+    - [11.3.1 Action Identity Tags](about:blank#1131-action-identity-tags)
+    - [11.4 Internal Resource Governor (Hidden)](about:blank#114-internal-resource-governor-hidden)
+- [12. Sandbox - Isolation Model](about:blank#12-sandbox---isolation-model)
+    - [12.1 Unified Sandbox Boundary (Canonical)](about:blank#121-unified-sandbox-boundary-canonical)
+    - [12.2 Filesystem Safety - System Paths Protection](about:blank#122-filesystem-safety---system-paths-protection)
+- [13. IPC - Inter-Process Security](about:blank#13-ipc---inter-process-security)
+    - [13.1 IPC Handshake Protocol](about:blank#131-ipc-handshake-protocol)
+- [14. Indexing - Consistency Model](about:blank#14-indexing---consistency-model)
+    - [14.1 Index-File Consistency](about:blank#141-index-file-consistency)
+    - [14.2 Index Root Attestation](about:blank#142-index-root-attestation)
+    - [14.3 Project Knowledge Graph Architecture (Canonical)](about:blank#143-project-knowledge-graph-architecture-canonical)
+    - [14.4 Index Lifecycle & Build Protocol](about:blank#144-index-lifecycle--build-protocol)
+    - [14.5 Index Staleness & Revalidation](about:blank#145-index-staleness--revalidation)
+    - [14.6 Embedding Index Specifications](about:blank#146-embedding-index-specifications)
+- [15. Failure Taxonomy - Recovery Rules](about:blank#15-failure-taxonomy---recovery-rules)
+    - [15.1 State Machine Priority](about:blank#151-state-machine-priority)
+- [16. Testing - Validation (Engineering Discipline)](about:blank#16-testing---validation-engineering-discipline)
+    - [16.1 Sandbox Escape Test Suite (Mandatory)](about:blank#161-sandbox-escape-test-suite-mandatory)
+    - [16.2 Package Manager Allowlist](about:blank#162-package-manager-allowlist)
+    - [16.2.1 CLI Coding Agent Allowlist](about:blank#1621-cli-coding-agent-allowlist)
+    - [16.3 Release Gating Rule](about:blank#163-release-gating-rule)
+- [17. Release - Update - Upgrade Model](about:blank#17-release---update---upgrade-model)
+- [18. Offline - Network Behavior](about:blank#18-offline---network-behavior)
+- [19. Telemetry - Logging - Diagnostics (Local-Only)](about:blank#19-telemetry---logging---diagnostics-local-only)
+    - [19.1 No Crash Dump Uploads](about:blank#191-no-crash-dump-uploads)
+- [20. Operator Model - Authority Limits](about:blank#20-operator-model---authority-limits)
+- [21. Internal Stability Controls (Hidden)](about:blank#21-internal-stability-controls-hidden)
+    - [21.1 System Heuristics Engine (Hidden)](about:blank#211-system-heuristics-engine-hidden)
+- [22. Security Model Summary](about:blank#22-security-model-summary)
+    - [22.1 Hard Invariants](about:blank#221-hard-invariants)
+    - [22.2 SHELL_EXEC Security Model](about:blank#222-shell_exec-security-model)
+    - [22.3 Blast Radius Control](about:blank#223-blast-radius-control)
+- [23. Legal, Licensing - Trust Stance](about:blank#23-legal-licensing---trust-stance)
+- [24. Background Recovery - Crash Semantics](about:blank#24-background-recovery---crash-semantics)
+    - [24.1 State Artifact Classes (Taxonomy)](about:blank#241-state-artifact-classes-taxonomy)
+    - [24.2 Environment Snapshot Schema (Determinism Anchor)](about:blank#242-environment-snapshot-schema-determinism-anchor)
+- [25. Supply Chain Trust Boundary](about:blank#25-supply-chain-trust-boundary)
+- [26. AI Provider Trust Model](about:blank#26-ai-provider-trust-model)
+    - [26.1 AI Provider Management](about:blank#261-ai-provider-management)
+    - [26.1.1 Recognized Provider Ecosystem](about:blank#2611-recognized-provider-ecosystem)
+    - [26.2 AI Routing Interface (Non-Authoritative)](about:blank#262-ai-routing-interface-non-authoritative)
+    - [26.3 Provider Registry (Canonical Schema)](about:blank#263-provider-registry-canonical-schema)
+    - [26.4 CLI Agent Orchestration (Tier 5)](about:blank#264-cli-agent-orchestration-tier-5)
+    - [26.5 Live Model Discovery Protocol](about:blank#265-live-model-discovery-protocol)
+    - [26.6 Provider Health, Fallback, and Scoring](about:blank#266-provider-health-fallback-and-scoring)
+    - [26.7 Provider Budget & Cost Enforcement](about:blank#267-provider-budget--cost-enforcement)
+    - [26.8 Provider Failure Taxonomy](about:blank#268-provider-failure-taxonomy)
+    - [26.9 Credential Handling Protocol](about:blank#269-credential-handling-protocol)
+- [27. Visibility Model](about:blank#27-visibility-model)
+- [28. Getting Started](about:blank#28-getting-started)
+    - [28.1 UI Visibility Mandate (Settings Icon)](about:blank#281-ui-visibility-mandate-settings-icon)
+- [29. Features](about:blank#29-features)
+- [30. Build Export Model](about:blank#30-build-export-model)
+- [Appendix A - Engineering Schemas](about:blank#appendix-a---engineering-schemas)
+    - [A.1 RiskRule Schema](about:blank#a1-riskrule-schema)
+    - [A.2 Action Schema](about:blank#a2-action-schema)
+    - [A.3 BudgetState Schema](about:blank#a3-budgetstate-schema)
+    - [A.4 Capability Enum](about:blank#a4-capability-enum)
+    - [A.5 Risk Class Enum](about:blank#a5-command-class-to-capability-mapping)
+    - [A.6 Goal Schema](about:blank#appendix-b---invariant-index)
+- [Appendix B - Invariant Index](about:blank#appendix-c---change-log)
+- [Appendix C - Change Log](about:blank#appendix-c---change-log)
 
 ```
 TOC AUTHORITY RULE:
@@ -176,7 +181,7 @@ The content of this section is defined in the document prologue. This section se
 
 This document contains two distinct authority layers:
 
-1. **Operator-Facing Product Contract:** Defines what the Operator sees and interacts with (the "Lovable" experience).
+1. **Operator-Facing Product Contract:** Defines what the Operator sees and interacts with (the “Lovable” experience).
 2. **System Constitution (Internal, Binding):** Defines core security, architecture, and safety invariants (Guardian, Policy Engine, Memory Model, IPC, Tokens, Sandbox, etc.).
 
 Unless explicitly marked as USER-FACING, all mechanisms described are internal constitutional laws. They are NOT visible, configurable, or negotiable by the Operator or AI agents. The Product Contract NEVER overrides the System Constitution.
@@ -210,7 +215,7 @@ Autonomous execution SHALL NOT begin unless at least one AI cognition source is 
 
 Exacta App Studio DOES NOT implement new compilers, linkers, or packagers.
 
-To ensure a **"Full Stack App Builder" (Batteries Included)** experience, Exacta App Studio **BUNDLES** a **Standard Portable Toolchain** (containing .NET SDK, Node.js, and WiX Toolset) within its installer. This ensures immediate, offline-capable application building without requiring manual user setup.
+To ensure a **“Full Stack App Builder” (Batteries Included)** experience, Exacta App Studio **BUNDLES** a **Standard Portable Toolchain** (containing .NET SDK, Node.js, and WiX Toolset) within its installer. This ensures immediate, offline-capable application building without requiring manual user setup.
 
 However, architecturally, Exacta remains an **Orchestrator**. It does not link these tools as libraries; it executes the bundled binaries as sandboxed subprocesses, identical to how it would execute manually installed tools.
 
@@ -248,7 +253,7 @@ All .exe and .msi artifacts are produced exclusively by these toolchains execute
 - Subprocess terminates within 100ms of startup (typical EDR injection time)
 - Windows Event Log shows antivirus events (Event ID 1006-1008 for Windows Defender)
 - File access patterns show characteristic EDR scanning delays (>50ms per file operation)
-- Network connections blocked despite NET\_\* capability being granted
+- Network connections blocked despite NET_* capability being granted
 
 Determinism guarantees apply only to:
 
@@ -259,7 +264,7 @@ Execution order, checkpoint timing, file state, toolchain behavior, and recovery
 AI output content is explicitly non-deterministic.
 
 **Deep Autonomy Declaration:**
-Exacta embraces **System-Centric Autonomy**, not AI-Centric Autonomy. "Deep Autonomy" means the _System_ handles more complexity (heuristics, routing, verification, recovery) so the _AI_ can focus purely on reasoning. Autonomy increases system effectiveness; it does NOT increase AI authority.
+Exacta embraces **System-Centric Autonomy**, not AI-Centric Autonomy. “Deep Autonomy” means the *System* handles more complexity (heuristics, routing, verification, recovery) so the *AI* can focus purely on reasoning. Autonomy increases system effectiveness; it does NOT increase AI authority.
 
 ### 1.3 What the Operator Sees (and Does NOT See)
 
@@ -289,7 +294,7 @@ Interaction is chat-first and goal-oriented:
 Notes:
 
 - No file-tree or diff-first UI in default mode.
-- "Revert and edit" UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
+- “Revert and edit” UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
 
 ### 1.5 Execution & Isolation Tradeoffs
 
@@ -297,7 +302,7 @@ This boundary includes:
 
 - **Filesystem access** (project root jail with MAX_PATH considerations, symlink rules, atomic writes, system-path denylist, no UNC paths)
 - **Process execution** (System sandboxing (Standard): Job Objects, standard User Mode isolation, and basic network allowlisting. Logs are **diagnostic only** and SHALL NOT be interpreted as replay, causality proof, or deterministic execution history. Subprocess lifetime, enforce memory and CPU usage limits, and enable coordinated termination)
-- **Network access** (explicitly gated by capability tokens; network isolation is an operator-configured policy and may rely on OS-level controls outside Exacta's runtime)
+- **Network access** (explicitly gated by capability tokens; network isolation is an operator-configured policy and may rely on OS-level controls outside Exacta’s runtime)
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) are executed under OS-level process controls. Windows Job Objects are used for:
@@ -306,7 +311,7 @@ This boundary includes:
 - memory usage limits
 - CPU usage limits and accounting
 
-Network blocking is enforced by Exacta's **bundled WFP Callout Driver** (Guardian). Credential stripping, PATH enforcement, and environment scrubbing utilize OS primitives (AppContainer, Job Objects) orchestrated by Core.
+Network blocking is enforced by Exacta’s **bundled WFP Callout Driver** (Guardian). Credential stripping, PATH enforcement, and environment scrubbing utilize OS primitives (AppContainer, Job Objects) orchestrated by Core.
 
 **Failure Rule:** If required isolation primitives cannot be established, the action will be denied and the system will halt autonomous execution and require operator review before proceeding.
 
@@ -328,8 +333,8 @@ Any detected sandbox violation will:
 Exacta App Studio supports single-goal execution by default. Multiple concurrent goals are not supported. Within a single goal, subprocesses may run concurrently when safe and permitted by policy.
 
 - **Job Object Grouping:** Subprocesses for a goal may be grouped to allow coordinated termination.
-- **Resource Limits:** Concurrent subprocesses share the goal's resource budget (CPU, memory, time).
-- **Failure Propagation:** If a subprocess fails, the goal cycle is marked failed and the system halts for operator review.
+- **Resource Limits:** Concurrent subprocesses share the goal’s resource budget (CPU, memory, time).
+- **Failure Propagation:** If a subprocess experiences an **infrastructure failure** (Job Object crash, sandbox violation, security breach), the goal cycle is marked failed and the system halts for operator review. **Logical failures** (build errors, compilation issues) trigger silent retry per Section 6.3.
 
 **Non-Goals:**
 
@@ -374,15 +379,15 @@ NO_AI_PROVIDER
 - No valid AI provider or local model available
 - Autonomous execution DISABLED
 - Allowed:
-  - UI interaction
-  - Project open/load
-  - Index rebuild
-  - Manual operator inspection
+    - UI interaction
+    - Project open/load
+    - Index rebuild
+    - Manual operator inspection
 - Forbidden:
-  - PERCEIVE
-  - DECIDE
-  - ACT
-  - Any capability token issuance
+    - PERCEIVE
+    - DECIDE
+    - ACT
+    - Any capability token issuance
 
 READY
 
@@ -416,20 +421,29 @@ SANDBOX_BREACH
 
 ### Transition Rules
 
-BOOT → ATTEST  
-ATTEST → READY (if Guardian attests AND AI provider/local model exists)  
-ATTEST → NO_AI_PROVIDER (if Guardian attests AND no AI provider/local model exists)  
-ANY → SAFE_MODE (on corruption, missing sandbox primitive, or policy failure)  
+BOOT → ATTEST
+
+ATTEST → READY (if Guardian attests AND AI provider/local model exists)
+
+ATTEST → NO_AI_PROVIDER (if Guardian attests AND no AI provider/local model exists)
+
+NO_AI_PROVIDER → READY (when valid AI provider or local model is configured and Guardian validates credentials)
+
+ANY → SAFE_MODE (on corruption, missing sandbox primitive, or policy failure)
+
 ANY → OP_PRESERVE (on Guardian failure or invariant violation)
 ANY → SANDBOX_BREACH (on detected sandbox boundary violation)
 SANDBOX_BREACH → OP_PRESERVE (only after Guardian-authorized forensic review complete)
 
-**Invariant:**  
+SAFE_MODE → READY (after index rebuild complete AND Guardian verification passes)
+
+**Invariant:**
+
 **INV-BOOT-1: No Execution Before READY** — PERCEIVE, DECIDE, ACT, capability issuance, or subprocess execution SHALL NOT occur unless system state is READY.
 
 Exacta App Studio operates exclusively as a **permanent auto-apply, flow-first, autonomous builder**.
 
-There are no operator-selectable system profiles or "governed modes" in the standard product experience. Governance is an internal, non-visible system function.
+There are no operator-selectable system profiles or “governed modes” in the standard product experience. Governance is an internal, non-visible system function.
 
 The default autonomous mode (operator-facing) prioritizes:
 
@@ -466,26 +480,26 @@ It is a Windows desktop application that builds complete desktop applications (o
 
 ## 3. Terminology - Concept Glossary
 
-| Term                         | Definition                                                                                                        | Also Called                      |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| **Operator**                 | Human user with administrative privileges (INV-TERM-1)                                                            | User, Administrator              |
-| **Core**                     | Exacta App Studio runtime (runtime-protected; not modifiable by AI or user workflows)                             | Core Runtime, System             |
-| **Guardian**                 | Elevated security process enforcing policy and sandbox                                                            | Security Guardian, Policy Engine |
-| **GOAL-BOUND**               | Budget, capabilities, and execution scope that apply only to a single goal_id and reset when a new goal is issued | Goal-Scoped                      |
-| **AI Agent**                 | Untrusted decision proposer (generates plans/code)                                                                | AI, Agent                        |
-| **Goal**                     | Operator-defined objective with success criteria                                                                  | Task, Objective                  |
-| **Cycle**                    | One complete Perceive→Decide→Act→Observe→Checkpoint loop                                                          | Loop, Iteration                  |
-| **Checkpoint**               | Internal system state snapshot for recovery                                                                       | Recovery Point                   |
-| **Scope Root**               | Project directory jail boundary                                                                                   | Project Root, Jail               |
-| **Capability Token**         | Permission grant for specific actions                                                                             | Token, Permission                |
-| **Progressive Context Mode** | Multi-cycle execution for large codebases                                                                         | Context Sharding                 |
-| **World Model**              | AI's understanding of project state                                                                               | Context Model                    |
-| **Blast Radius**             | Potential scope of change impact across codebase                                                                  | Impact Scope                     |
-| **Safe Mode**                | Restricted execution mode with network disabled                                                                   | Restricted Mode, Offline Mode    |
-| **Shard**                    | Subset of dependency graph processed in one cycle                                                                 | Context Partition                |
-| **Progress Digest**          | Core-generated summary of goal execution status                                                                   | Execution Summary                |
-| **Never-Send Rule**          | Hard pattern list (e.g. .env, \*.key) that must strictly be redacted from all AI context                          | Secret Redaction                 |
-| **Admin Hold**               | System state waiting for explicit Operator approval before proceeding                                             | Operator Block, Hold             |
+| Term | Definition | Also Called |
+| --- | --- | --- |
+| **Operator** | Human user with administrative privileges (INV-TERM-1) | User, Administrator |
+| **Core** | Exacta App Studio runtime (runtime-protected; not modifiable by AI or user workflows) | Core Runtime, System |
+| **Guardian** | Elevated security process enforcing policy and sandbox | Security Guardian, Policy Engine |
+| **GOAL-BOUND** | Budget, capabilities, and execution scope that apply only to a single goal_id and reset when a new goal is issued | Goal-Scoped |
+| **AI Agent** | Untrusted decision proposer (generates plans/code) | AI, Agent |
+| **Goal** | Operator-defined objective with success criteria | Task, Objective |
+| **Cycle** | One complete Perceive→Decide→Act→Observe→Checkpoint loop | Loop, Iteration |
+| **Checkpoint** | Internal system state snapshot for recovery | Recovery Point |
+| **Scope Root** | Project directory jail boundary | Project Root, Jail |
+| **Capability Token** | Permission grant for specific actions | Token, Permission |
+| **Progressive Context Mode** | Multi-cycle execution for large codebases | Context Sharding |
+| **World Model** | AI’s understanding of project state | Context Model |
+| **Blast Radius** | Potential scope of change impact across codebase | Impact Scope |
+| **Safe Mode** | Restricted execution mode with network disabled | Restricted Mode, Offline Mode |
+| **Shard** | Subset of dependency graph processed in one cycle | Context Partition |
+| **Progress Digest** | Core-generated summary of goal execution status | Execution Summary |
+| **Never-Send Rule** | Hard pattern list (e.g. .env, *.key) that must strictly be redacted from all AI context | Secret Redaction |
+| **Admin Hold** | System state waiting for explicit Operator approval before proceeding | Operator Block, Hold |
 
 **What makes it unique:**
 
@@ -495,8 +509,7 @@ It is a Windows desktop application that builds complete desktop applications (o
 - **Runtime scope:** The runtime is designed to resist casual modification, but the product prioritizes iterative workspace edits. The system does not surface mechanisms to edit the runtime during normal use. Note: core hardening remains an engineering goal, but auto-apply behavior means operator-visible immutability claims are reduced compared to a policy-first system.
 - **Structured semantic indexing:** Context selection and refactoring safety are driven by AST + dependency graph indexing, not embedding-based memory
 
-**Invariant:**
-**INV-TERM-1: Operator is sole human authority term** — The term "Operator" SHALL be used to refer to the human user in all constitutional contexts to distinguish authority from "User" (product consumer) or "AI" (agent).
+**Invariant:INV-TERM-1: Operator is sole human authority term** — The term “Operator” SHALL be used to refer to the human user in all constitutional contexts to distinguish authority from “User” (product consumer) or “AI” (agent).
 
 ## 4. User Experience Model (Visible Surface)
 
@@ -524,7 +537,7 @@ System Surface (hidden by default; available only in debug/administrative builds
 ### 4.2 Chat-First Interaction
 
 - Conversational goal setting and refinement
-- Task-based progress updates (e.g., "Building login page...", "Adding database...")
+- Task-based progress updates (e.g., “Building login page…”, “Adding database…”)
 - Emergency stop at any time
 - Clarification requests only when system is truly stuck (not technical errors)
 
@@ -540,7 +553,7 @@ Exacta App Studio is **intentionally not designed** for the following use cases:
 - ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
 - ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
-These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain trust rules in Section 25). **Note:** "deterministic" in the sense of replayability is _not_ claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
+These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain trust rules in Section 25). **Note:** “deterministic” in the sense of replayability is *not* claimed for build/tool outputs; determinism here means “single-platform Windows focus” only.
 
 ## 6. Autonomous Execution Model
 
@@ -611,16 +624,15 @@ CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
 ### 6.1.1 Internal Cognitive Pipeline (Non-Authoritative)
 
-To improve decision quality, the DECIDE phase employs a multi-stage cognitive pipeline. This is an internal implementation detail of the "AI Agent" and does not imply multi-agent authority.
+To improve decision quality, the DECIDE phase employs a multi-stage cognitive pipeline. This is an internal implementation detail of the “AI Agent” and does not imply multi-agent authority.
 
 **Pipeline Stages:**
 
-1.  **Planner:** Decomposes the goal into high-level steps.
-2.  **Specialist:** specific domain analysis (e.g., Security, Architecture).
-3.  **Synthesizer:** Merges insights into a single `Decision` object.
+1. **Planner:** Decomposes the goal into high-level steps.
+2. **Specialist:** specific domain analysis (e.g., Security, Architecture).
+3. **Synthesizer:** Merges insights into a single `Decision` object.
 
-**Invariant:**
-**INV-AI-PIPE-1: Single Decision Authority** — Only the final `Decision` object from the Synthesizer is visible to Core. Intermediate thoughts, sub-plans, or "chats" between internal stages are discarded and SHALL NOT be acted upon.
+**Invariant:INV-AI-PIPE-1: Single Decision Authority** — Only the final `Decision` object from the Synthesizer is visible to Core. Intermediate thoughts, sub-plans, or “chats” between internal stages are discarded and SHALL NOT be acted upon.
 
 ### 6.2 Cycle Boundaries - Safe Interruption Points
 
@@ -638,14 +650,14 @@ Exacta operates with a **self-healing execution model**. Most errors are handled
 
 **Silent Recovery Strategies:**
 
-| Failure Type      | Silent Recovery Action                                    |
-| ----------------- | --------------------------------------------------------- |
-| Build failure     | Analyze error, modify approach, retry (up to 20 attempts) |
-| AI provider error | Retry with backoff, switch to alternate provider          |
-| Soft budget limit | Throttle operations, use more efficient approach          |
-| File conflict     | Auto-resolve or try different file structure              |
-| Network timeout   | Retry with exponential backoff                            |
-| Runaway pattern   | Reset approach, try simpler solution                      |
+| Failure Type | Silent Recovery Action |
+| --- | --- |
+| Build failure | Analyze error, modify approach, retry (up to 20 attempts) |
+| AI provider error | Retry with backoff, switch to alternate provider |
+| Soft budget limit | Throttle operations, use more efficient approach |
+| File conflict | Auto-resolve or try different file structure |
+| Network timeout | Retry with exponential backoff |
+| Runaway pattern | Reset approach, try simpler solution |
 
 **Recovery Escalation:**
 
@@ -671,7 +683,7 @@ When the system must ask for help, it uses conversational language:
 
 - Error codes (BUDGET-EXHAUSTED, POLICY-VIOLATION, etc.)
 - Stack traces or technical diagnostics
-- "System halted" or "Operator review required" messages
+- “System halted” or “Operator review required” messages
 - Recovery workflow prompts
 
 **AI Provider Failure Handling:**
@@ -681,9 +693,10 @@ If AI provider is unavailable or returns errors:
 1. Retry up to 5 times with exponential backoff (1s, 2s, 4s, 8s, 16s)
 2. If configured, automatically switch to alternate provider
 3. If Ollama is available, fall back to local model
-4. Only after all options exhausted, display: "Having trouble connecting. Check your internet or AI settings."
-
-   > **Note:** Provider retries SHALL NOT occur while in SAFE_MODE or NETWORK-DENY. Only local models are permitted in these states.
+4. Only after all options exhausted, display: “Having trouble connecting. Check your internet or AI settings.”
+    
+    > Note: Provider retries SHALL NOT occur while in SAFE_MODE or NETWORK-DENY. Only local models are permitted in these states.
+    > 
 
 ### 6.4 Concurrency Rules (Single-Goal Model)
 
@@ -726,24 +739,22 @@ Context assembly steps:
 
 The system SHALL NOT front-load context based on assumptions. It MUST use a **Step-by-Step** expansion protocol:
 
-1.  **Initial Load:** Load `Top-K` results from the initial query.
-2.  **Analysis:** AI processes the initial context and determines if information is missing.
-3.  **Expansion Request:** AI emits a specific search query for missing symbols or concepts.
-4.  **Secondary Load:** System retrieves the targeted files and appends them to the context.
+1. **Initial Load:** Load `Top-K` results from the initial query.
+2. **Analysis:** AI processes the initial context and determines if information is missing.
+3. **Expansion Request:** AI emits a specific search query for missing symbols or concepts.
+4. **Secondary Load:** System retrieves the targeted files and appends them to the context.
 
-**Invariant:**
-**INV-CTX-PROGRESSIVE-1: Just-in-Time Loading** — Context expansion SHALL ONLY occur in response to explicit AI signals or direct dependency traversals. Speculative "just in case" loading of directory trees is prohibited.
+**Invariant:INV-CTX-PROGRESSIVE-1: Just-in-Time Loading** — Context expansion SHALL ONLY occur in response to explicit AI signals or direct dependency traversals. Speculative “just in case” loading of directory trees is prohibited.
 
 **Progressive Graph Probing (Context Discovery Mode)**
 
-When Hybrid Search confidence is low, the system enters "Graph Probe Mode":
+When Hybrid Search confidence is low, the system enters “Graph Probe Mode”:
 
-1.  **Probe:** System traverses 1 hop from known instructions on the Knowledge Graph.
-2.  **Limit:** Max 3 probes per cycle.
-3.  **Depth:** Max 2 edges deep.
+1. **Probe:** System traverses 1 hop from known instructions on the Knowledge Graph.
+2. **Limit:** Max 3 probes per cycle.
+3. **Depth:** Max 2 edges deep.
 
-**Invariant:**
-**INV-GRAPH-PROBE-1: Minimal Side-Effect Discovery** — Graph probing SHALL be used only for symbol resolution and side-effect discovery. It SHALL NOT be used for open-ended exploration.
+**Invariant:INV-GRAPH-PROBE-1: Minimal Side-Effect Discovery** — Graph probing SHALL be used only for symbol resolution and side-effect discovery. It SHALL NOT be used for open-ended exploration.
 
 ### 7.3 Context Discovery & Sharding (Smart Hybrid Search)
 
@@ -753,32 +764,30 @@ Exacta SHALL uses a **search-first, lazy-loading** protocol to discover relevant
 
 **Hybrid Search Protocol:**
 
-1.  **Intent Extraction:** Core parses the Goal for keywords ("dark mode"), entities ("SettingsIcon"), and semantic intent ("feature addition").
-2.  **Hybrid Index Query:** Core queries the **Multi-Modal Index** (see Section 14.3) using:
+1. **Intent Extraction:** Core parses the Goal for keywords (“dark mode”), entities (“SettingsIcon”), and semantic intent (“feature addition”).
+2. **Hybrid Index Query:** Core queries the **Multi-Modal Index** (see Section 14.3) using:
     - **Text Search:** Exact keyword matches.
     - **Semantic Search:** Vector embedding similarity (Concept Matching).
     - **Structural Search:** AST-based symbol lookup (Class/Function definitions).
-3.  **Surfacing:** Results are ranked by confidence.
-4.  **Lazy Loading:**
-    - The system loads _only_ the Top-K (default: 5) most relevant files.
+3. **Surfacing:** Results are ranked by confidence.
+4. **Lazy Loading:**
+    - The system loads *only* the Top-K (default: 5) most relevant files.
     - It expands this set via **Dependency Closure** (imports/exports) up to the token budget.
 
-**Invariant:**
-**INV-CTX-SMART-1: Minimal Context Loading** — The system SHALL NOT load files into AI context unless they are explicitly identified via Hybrid Search relevance or strict Dependency Closure. "Dump-all" context loading is forbidden.
+**Invariant:INV-CTX-SMART-1: Minimal Context Loading** — The system SHALL NOT load files into AI context unless they are explicitly identified via Hybrid Search relevance or strict Dependency Closure. “Dump-all” context loading is forbidden.
 
 ### 7.3.1 Hybrid Search Examples
 
 The Hybrid Search strategy adapts to the query type:
 
-- **Scenario A: Feature Addition ("Add a 'Save' button")**
-  - _Semantic Search_ finds `ISavable` interface and `persistence.ts`.
-  - _Text Search_ finds "Button" components.
-  - _Result:_ Context includes UI components and backend interfaces.
-
-- **Scenario B: Bug Fix ("Fix null pointer in UserAuth")**
-  - _Structural Search_ locates `class UserAuth`.
-  - _Dependency Closure_ pulls in `IUserProvider` and `AuthUtils`.
-  - _Result:_ Precise, localized context without UI noise.
+- **Scenario A: Feature Addition (“Add a ‘Save’ button”)**
+    - *Semantic Search* finds `ISavable` interface and `persistence.ts`.
+    - *Text Search* finds “Button” components.
+    - *Result:* Context includes UI components and backend interfaces.
+- **Scenario B: Bug Fix (“Fix null pointer in UserAuth”)**
+    - *Structural Search* locates `class UserAuth`.
+    - *Dependency Closure* pulls in `IUserProvider` and `AuthUtils`.
+    - *Result:* Precise, localized context without UI noise.
 
 ### 7.3.2 Search Performance Requirements
 
@@ -790,36 +799,43 @@ To maintain flow, context discovery MUST be near-instant:
 
 ### 7.3.3 Relevance Scoring Algorithm
 
-The relevance score $S$ for a file $f$ is calculated as:
+The relevance score *S* for a file *f* is calculated as:
 
-$$ S(f) = (w_t \cdot \text{TextScore}) + (w_s \cdot \text{SemanticScore}) + (w_g \cdot \text{GraphScore}) $$
+*S*(*f*) = (*wt* ⋅ TextScore) + (*ws* ⋅ SemanticScore) + (*wg* ⋅ GraphScore)
 
 Where:
 
-- $w_t = 0.3$ (Exact matches)
-- $w_s = 0.5$ (Concept matches)
-- $w_g = 0.2$ (Dependency centrality)
+- *w* = 0.3 (Exact matches)
+    
+    *t*
+    
+- *w* = 0.5 (Concept matches)
+    
+    *s*
+    
+- *w* = 0.2 (Dependency centrality)
+    
+    *g*
+    
 
 ### 7.3.4 Search Failure Recovery
 
-If Hybrid Search returns zero relevant results ($S < \text{Threshold}$):
+If Hybrid Search returns zero relevant results (*S* < Threshold):
 
-1.  **Fallback:** The system SHALL fall back to a **Directory Walk** of the immediate parent folder.
-2.  **Alert:** The system SHALL log a "Context Miss" event.
-3.  **Prompt:** The AI SHALL be prompted to "Clarify the request or provide a specific filename."
+1. **Fallback:** The system SHALL fall back to a **Directory Walk** of the immediate parent folder.
+2. **Alert:** The system SHALL log a “Context Miss” event.
+3. **Prompt:** The AI SHALL be prompted to “Clarify the request or provide a specific filename.”
 
-**Invariant:**
-**INV-SEARCH-FAIL-1: No Silent Failures** — If context discovery yields low confidence, the system MUST explicitly inform the process/Operator rather than hallucinating context.
+**Invariant:INV-SEARCH-FAIL-1: No Silent Failures** — If context discovery yields low confidence, the system MUST explicitly inform the process/Operator rather than hallucinating context.
 
 ### 7.3.5 Context Philosophy: Dependency Closure
 
 Exacta prioritizes **Dependency Closure** over **Speculative Relevance**.
 
 - **Rule:** If a file is referenced by an import, it is relevant. If it is semantically similar but topologically disconnected, it is secondary.
-- **Anti-Pattern:** "RAG-first" reasoning where the AI guesses code locations based on embeddings alone.
+- **Anti-Pattern:** “RAG-first” reasoning where the AI guesses code locations based on embeddings alone.
 
-**Invariant:**
-**INV-CTX-3: Topological Precedence** — Graph distance (imports) always outweighs Embedding distance (similarity) for code retrieval.
+**Invariant:INV-CTX-3: Topological Precedence** — Graph distance (imports) always outweighs Embedding distance (similarity) for code retrieval.
 
 ### 7.4 Memory Injection Firewall
 
@@ -830,7 +846,8 @@ Before any data is injected into an AI context window, Core SHALL apply a memory
 - Redacts file paths outside dependency-closed scope
 - Normalizes injected context ordering to reduce inference of execution history. This does NOT prevent historical inference from file contents themselves.
 
-**Invariant:**  
+**Invariant:**
+
 **INV-MEM-CTX-1: Operational Non-Observability** — AI context SHALL NOT allow reconstruction of system state, policy behavior, user identity, or prior execution history beyond the last N redacted outcomes.
 
 **INV-MEM-FW-2: Semantic Neutralization**
@@ -884,20 +901,20 @@ The AI Agent SHALL NOT:
 - Persist embeddings, summaries, vector indexes, or compressed representations of project data
 - Maintain cross-session recall
 - Store prior goal context in any external system
-- Use provider-side "memory" or "conversation history" features
+- Use provider-side “memory” or “conversation history” features
 
 Any detected persistent provider-side memory behavior will be treated as a security concern, flagged in local logs, and submitted for operator review.
 
 ### 8.3 Memory Visibility Rules (Read Authority Matrix)
 
-| Memory Layer  | AI Agent              | Core Runtime       | Guardian  |
-| ------------- | --------------------- | ------------------ | --------- |
-| Project Index | ⚠️ Redacted (Context) | ✅ Full            | ⚠️ Verify |
-| Goal Memory   | ⚠️ Redacted           | ✅ Full            | ✅ Full   |
-| Plan Trace    | ⚠️ Summary only       | ✅ Full            | ✅ Full   |
-| Execution Log | ❌ None               | ⚠️ Append-only     | ✅ Full   |
-| Checkpoints   | ❌ None               | ⚠️ Write + Restore | ✅ Full   |
-| Secrets/Keys  | ❌ None               | ❌ None            | ✅ Full   |
+| Memory Layer | AI Agent | Core Runtime | Guardian |
+| --- | --- | --- | --- |
+| Project Index | ⚠️ Redacted (Context) | ✅ Full | ⚠️ Verify |
+| Goal Memory | ⚠️ Redacted | ✅ Full | ✅ Full |
+| Plan Trace | ⚠️ Summary only | ✅ Full | ✅ Full |
+| Execution Log | ❌ None | ⚠️ Append-only | ✅ Full |
+| Checkpoints | ❌ None | ⚠️ Write + Restore | ✅ Full |
+| Secrets/Keys | ❌ None | ❌ None | ✅ Full |
 
 **Note:** Core has append-only access to the Execution Log (for recording safe-boundary timestamps per Section 6.2) and write access to Checkpoints (for commit protocol per Section 9.3). Core cannot read, modify, or delete historical log entries.
 
@@ -934,7 +951,8 @@ System SHALL:
 3. Preserve all memory artifacts
 4. Require Operator operational review
 
-**Invariant:**  
+**Invariant:**
+
 **INV-MEM-7: Corruption Fails Closed** — System SHALL NEVER attempt auto-repair or regeneration of corrupted memory.
 
 **Invariant:**
@@ -1011,10 +1029,10 @@ This section summarizes the runtime components and authority boundaries:
 
 Communication flows:
 
-- UI ↔ Core (local IPC)
-- Core ↔ Guardian (authenticated IPC)
-- Core ↔ Indexer (in-process or local IPC)
-- Core ↔ External toolchains (sandboxed subprocesses under Job Objects)
+- UI ↔︎ Core (local IPC)
+- Core ↔︎ Guardian (authenticated IPC)
+- Core ↔︎ Indexer (in-process or local IPC)
+- Core ↔︎ External toolchains (sandboxed subprocesses under Job Objects)
 
 Authority rules:
 
@@ -1034,8 +1052,8 @@ All privileged actions MUST transit Core → Guardian IPC.
 
 **Guardian Operational Modes:**
 
-- **Setup / Upgrade Mode:** Runs as NT AUTHORITY\SYSTEM with SeDebugPrivilege. Used only for installation and signed system updates.
-- **Runtime Mode:** Runs as NT AUTHORITY\SYSTEM (Windows Service) with High Integrity Level. Guardian SHALL NOT run as Standard User or Medium Integrity.
+- **Setup / Upgrade Mode:** Runs as NT AUTHORITYwith SeDebugPrivilege. Used only for installation and signed system updates.
+- **Runtime Mode:** Runs as NT AUTHORITY(Windows Service) with High Integrity Level. Guardian SHALL NOT run as Standard User or Medium Integrity.
 
 **Privilege Requirements:**
 
@@ -1061,7 +1079,7 @@ This is the minimal formal description of how policy decisions are made.
 
 **Policy language (simple, declarative rules):**
 
-Rules are evaluated as _pure predicates_ over the input snapshot.
+Rules are evaluated as *pure predicates* over the input snapshot.
 
 ```tsx
 Rule {
@@ -1100,7 +1118,7 @@ Predicates:
 **Override precedence:**
 
 - **Non-overridable:** global invariants, sandbox boundary, system path protection, and capability enforcement.
-- **Operator overrides (allowed):** only by switching to a pre-defined, signed _policy profile_ (e.g., “More permissive shell allowlist”), never by ad-hoc runtime editing.
+- **Operator overrides (allowed):** only by switching to a pre-defined, signed *policy profile* (e.g., “More permissive shell allowlist”), never by ad-hoc runtime editing.
 - **Most restrictive wins:** When multiple rules apply, the final decision is the minimum in this order: `DENY` > `ALLOW_WITH_LIMITS` > `ALLOW`.
 
 **Determinism requirement:** Policy evaluation is deterministic for a given `(goal, action, state, policy_version)` snapshot, and the snapshot is logged with the decision.
@@ -1140,8 +1158,7 @@ Rules:
 - AI SHALL NOT generate, modify, or select profiles
 - Only one profile may be active per goal
 
-**Invariant:**
-**INV-POLICY-1: Signed Policy Profiles Only** — The system SHALL NOT enforce any policy profile that is not Guardian-signed and Operator-approved.
+**Invariant:INV-POLICY-1: Signed Policy Profiles Only** — The system SHALL NOT enforce any policy profile that is not Guardian-signed and Operator-approved.
 
 ### 11.2 Guardian Integrity Attestation
 
@@ -1160,8 +1177,7 @@ If attestation fails:
 - System enters Safe Mode
 - Operational Preservation Mode is enabled
 
-**Invariant:**
-**INV-OP-PRES-1: Operational Preservation Mode semantics** — If Guardian attestation fails, the system SHALL strictly enforce Operational Preservation Mode (freeze + evidence retain) until Operator recovery.
+**Invariant:INV-OP-PRES-1: Operational Preservation Mode semantics** — If Guardian attestation fails, the system SHALL strictly enforce Operational Preservation Mode (freeze + evidence retain) until Operator recovery.
 
 **Root Rotation Policy:** The trusted root certificate may only be updated via a Guardian-controlled, dual-signed upgrade package containing both the current valid root and the new root. Root changes require explicit Operator approval and are recorded as a CRITICAL security event in the operational log.
 
@@ -1180,17 +1196,16 @@ If attestation fails:
 
 To ensure `Guardian_Secret` is not security theater, it SHALL be anchored as follows:
 
-1.  **Generation:** At install time, `Guardian_Secret` is generated via `CryptGenRandom`.
-2.  **Encryption:** It is encrypted using Windows DPAPI (Machine Scope) + a locally managed secondary secret.
-3.  **Storage:** The encrypted blob is stored in a DACL-locked file accessible ONLY by the **Guardian Service Identity** (SYSTEM or High-Integrity User Account).
-4.  **TPM Extension (Optional):** If a TPM 2.0 is available, the secret is wrapped using a TPM-resident key hierarchy to prevent export.
+1. **Generation:** At install time, `Guardian_Secret` is generated via `CryptGenRandom`.
+2. **Encryption:** It is encrypted using Windows DPAPI (Machine Scope) + a locally managed secondary secret.
+3. **Storage:** The encrypted blob is stored in a DACL-locked file accessible ONLY by the **Guardian Service Identity** (SYSTEM or High-Integrity User Account).
+4. **TPM Extension (Optional):** If a TPM 2.0 is available, the secret is wrapped using a TPM-resident key hierarchy to prevent export.
 
-**Invariant:**
-**INV-ROOT-1: Hardware-Anchored Trust** — The Guardian Signing Key SHALL NEVER exist in plaintext on disk. It usually lives in ephemeral memory of the Guardian Service, protected by OS-enforced isolation.
+**Invariant:INV-ROOT-1: Hardware-Anchored Trust** — The Guardian Signing Key SHALL NEVER exist in plaintext on disk. It usually lives in ephemeral memory of the Guardian Service, protected by OS-enforced isolation.
 
 ### 11.3 Capability Authority
 
-Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC (medium risk), PACKAGE_EXEC, SIGN_EXEC, CLI_AGENT_EXEC (medium risk), NET_AI_ONLY, NET_DOCS_ONLY, NET_REGISTRY, SHELL_EXEC (optional, high risk), PROCESS_EXEC, PROCESS_KILL
+Issues and validates per-action capability tokens: FS_READ, FS_WRITE, BUILD_EXEC (medium risk), PACKAGE_EXEC, SIGN_EXEC, CLI_AGENT_EXEC (medium risk), NET_AI_ONLY, NET_DOCS_ONLY, NET_REGISTRY, SHELL_EXEC (optional, CRITICAL risk), PROCESS_EXEC, PROCESS_KILL
 
 **Capability Token Lifecycle (summary)**
 
@@ -1207,8 +1222,7 @@ Every capability token issued is bound to an `action_tag`.
 - **Purpose:** Traces every file modification back to the specific AI Decision that requested it.
 - **Storage:** Logged in the Execution Trace and optionally as xattributes on modified files (if OS supported).
 
-**Invariant:**
-**INV-ID-1: No Cryptographic Authority for AI** — Action Tags are for diagnostic attribution only. They DO NOT grant trust, bypass policy, or serve as cryptographic signatures for the AI agent.
+**Invariant:INV-ID-1: No Cryptographic Authority for AI** — Action Tags are for diagnostic attribution only. They DO NOT grant trust, bypass policy, or serve as cryptographic signatures for the AI agent.
 
 ### 11.4 Internal Resource Governor (Hidden)
 
@@ -1218,14 +1232,14 @@ The system maintains internal soft limits for operational stability. These limit
 
 **Internal Soft Limits (default values):**
 
-| Resource        | Soft Limit | Behavior When Reached                  |
-| --------------- | ---------- | -------------------------------------- |
-| Tokens per goal | 1,000,000  | Throttle AI calls, use smaller context |
-| Files per cycle | 100        | Batch into multiple cycles silently    |
-| Lines per cycle | 5,000      | Split changes across cycles            |
-| Build attempts  | 20         | Try simpler approach                   |
-| Time per goal   | 60 min     | Continue with periodic checkpoints     |
-| Network calls   | 500        | Queue and batch requests               |
+| Resource | Soft Limit | Behavior When Reached |
+| --- | --- | --- |
+| Tokens per goal | 1,000,000 | Throttle AI calls, use smaller context |
+| Files per cycle | 100 | Batch into multiple cycles silently |
+| Lines per cycle | 5,000 | Split changes across cycles |
+| Build attempts | 20 | Try simpler approach |
+| Time per goal | 60 min | Continue with periodic checkpoints |
+| Network calls | 500 | Queue and batch requests |
 
 **Soft Limit Behavior:**
 
@@ -1270,26 +1284,37 @@ This boundary includes:
 
 **AI Provider Connectivity Exception**
 
-- If Operator configures AI provider credentials during setup, Guardian may issue a narrow NET*AI_ONLY token scoped to recognized provider endpoints (and authorized local runtime ports) for Core-to-provider API calls. This token is distinct from general NET*\* tokens. Package manager calls are governed by distinct NET_REGISTRY tokens.
+- If Operator configures AI provider credentials during setup, Guardian may issue a narrow NET*AI_ONLY token scoped to recognized provider endpoints (and authorized local runtime ports) for Core-to-provider API calls. This token is distinct from general NET*tokens. Package manager calls are governed by distinct NET_REGISTRY tokens.
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) run inside a Windows Job Object with:
 
 - No breakaway allowed (JOB_OBJECT_LIMIT_BREAKAWAY_OK disabled)
-- CPU usage restricted via Job Object quotas (e.g. `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION`); no specific affinity masking to avoid single-core issues.
+- CPU usage restricted via Job Object quotas (e.g. `JOBOBJECT_CPU_RATE_CONTROL_INFORMATION`); no specific affinity masking to avoid single-core issues.
 - Memory limit enforced (default: 2GB per subprocess)
 - Process lifetime limited (default: 5 minutes per command)
-- Network access disabled by default unless NET\_\* token explicitly granted.
+- Network access disabled by default unless NET_* token explicitly granted.
 
 **Network Enforcement Mechanism (Implementation):**
-Exacta uses the **Windows Filtering Platform (WFP)** via a bundled callout driver (or User-Mode WFP API where sufficient) to enforce per-process network rules.
+Exacta uses the **Windows Filtering Platform (WFP)** to enforce per-process network rules:
 
-**Implementation Tier Note:**
-WFP Callout Driver enforcement is OPTIONAL in Community builds. If unavailable, Guardian SHALL fall back to User-Mode WFP API with reduced network isolation guarantees.
+**TIER 1 (Preferred): WFP Callout Driver**
+
+- Kernel-level enforcement
+- Guaranteed isolation
+- Required for Professional/Enterprise builds
+
+**TIER 2 (Fallback): User-Mode WFP API**
+
+- User-space enforcement
+- Best-effort isolation
+- Allowed for Community builds
+
+**If NEITHER available**: System operates in NETWORK-DENY mode per INV-NET-FAIL-1.
 
 - **Fail-Closed:** If the WFP filter cannot attach to the Job Object, the subprocess SHALL NOT start.
 - **Rule Scope:** Rules are bound to the `JobObjectId`.
-- **Conflict Handling:** Exacta rules are "block-first". They do not override external Admin firewalls, but they prevent Exacta subprocesses from bypassing Exacta policy.
+- **Conflict Handling:** Exacta rules are “block-first”. They do not override external Admin firewalls, but they prevent Exacta subprocesses from bypassing Exacta policy.
 
 **Failure Rule:** If a Windows Job Object cannot be created or attached, the action MUST be DENIED and the system MUST enter Safe Mode. No subprocess may execute outside a Job Object.
 
@@ -1298,19 +1323,50 @@ If Core detects it is already running within a Job Object:
 
 1. Log JOB-OBJECT-NESTED warning
 2. Attempt to apply required limits within nested context
-3. If enforcement cannot be guaranteed, enter Safe Mode
+3. If enforcement cannot be guaranteed (defined as: inability to set CPU limits via JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, inability to set memory limits via JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, or inability to enforce breakaway prevention via JOB_OBJECT_LIMIT_BREAKAWAY_OK flag), enter Safe Mode
 
 **WFP Callout Driver Lifecycle:**
 
 - **Install/Uninstall:** Driver is installed/removed ONLY by the MSI installer (requires Admin).
 - **Load:** Loaded at system boot or service start.
 - **Fail-State:** If the driver is not loaded or fails to attach:
-  1. Guardian detects failure via heartbeat.
-  2. System enters `NETWORK-DENY` mode (ALL external traffic blocked).
-  3. Operator is notified to repair installation.
+    1. Guardian detects failure via heartbeat.
+    2. System enters `NETWORK-DENY` mode (ALL external traffic blocked).
+    3. Operator is notified to repair installation.
 
-**Invariant:**
-**INV-NET-FAIL-1: Driver Dependency** — If the Windows Filtering Platform (WFP) callout driver is unavailable, Exacta SHALL operate in NETWORK-DENY mode for all subprocesses.
+**Invariant:INV-NET-FAIL-1: Network Enforcement Dependency** — If BOTH the WFP callout driver AND User-Mode WFP API are unavailable, Exacta SHALL operate in NETWORK-DENY mode for all subprocesses.
+
+**Build Edition Tiers:**
+
+Exacta App Studio is distributed in multiple editions with different feature sets:
+
+**Community Edition (Free):**
+
+- WFP User-Mode API network enforcement (best-effort isolation)
+- Standard Job Object sandboxing
+- All core features (autonomous building, AI providers, export)
+- 50 checkpoint retention limit
+- Standard policy profiles
+
+**Professional Edition:**
+
+- WFP Callout Driver enforcement (kernel-level network isolation)
+- Enhanced Guardian attestation (TPM 2.0 integration)
+- Increased checkpoint retention (200 checkpoints)
+- Custom policy profile creation
+- Priority support
+
+**Enterprise Edition:**
+
+- All Professional features
+- Signed custom CLI agent registry
+- Organizational policy management
+- Audit log export and archival
+- Offline activation and airgapped deployment support
+
+**Edition Detection:**
+
+Guardian determines the active edition via license validation during attestation (Section 11.2). Missing or invalid licenses default to Community Edition.
 
 **Authority Model:**
 
@@ -1350,18 +1406,17 @@ The following paths trigger SYSTEM-LEVEL classification:
 
 To prevent local privilege escalation (LPE) or unauthorized connection by same-user processes:
 
-1.  **Core** creates a Named Pipe with `FILE_FLAG_FIRST_PIPE_INSTANCE` and a randomized name.
-2.  **Core** applies a Security Descriptor (SD) allowing only `SYSTEM` (Guardian) and `Owner` (Self).
-3.  **Core** sends a connection request to Guardian via a control channel, passing the pipe name.
-4.  **Guardian** connects to the pipe.
-5.  **Handshake:**
+1. **Core** creates a Named Pipe with `FILE_FLAG_FIRST_PIPE_INSTANCE` and a randomized name.
+2. **Core** applies a Security Descriptor (SD) allowing only `SYSTEM` (Guardian) and `Owner` (Self).
+3. **Core** sends a connection request to Guardian via a control channel, passing the pipe name.
+4. **Guardian** connects to the pipe.
+5. **Handshake:**
     - Guardian sends a 256-bit random `Challenge`.
     - Core signs `Challenge` with its ephemeral session key.
     - Guardian verifies signature.
-6.  **Token Issuance:** Only after handshake does Guardian begin accepting policy requests.
+6. **Token Issuance:** Only after handshake does Guardian begin accepting policy requests.
 
-**Invariant:**
-**INV-IPC-2: Handshake-Guarded Channels** — No IPC channel SHALL be considered trusted until a cryptographic challenge-response handshake is completed.
+**Invariant:INV-IPC-2: Handshake-Guarded Channels** — No IPC channel SHALL be considered trusted until a cryptographic challenge-response handshake is completed.
 
 **Replay Protection:**
 To prevent replay attacks by malicious local processes:
@@ -1370,8 +1425,7 @@ To prevent replay attacks by malicious local processes:
 - Sessions MUST expire after 24 hours or 10,000 requests.
 - Guardian tracks last-seen sequence; non-monotonic requests trigger `OP_PRESERVE`.
 
-**Invariant:**
-**INV-IPC-3: Replay Prevention** — All IPC messages SHALL be strictly monotonic within a session. Replays or gaps trigger immediate session termination.
+**Invariant:INV-IPC-3: Replay Prevention** — All IPC messages SHALL be strictly monotonic within a session. Replays or gaps trigger immediate session termination.
 
 **IPC Threat Model:**
 
@@ -1396,21 +1450,22 @@ Before each cycle:
 - If mismatch exists, index is invalidated and rebuilt from disk
 - AI context injection is BLOCKED until rebuild completes
 
-**Invariant:**  
+**Invariant:**
+
 **INV-MEM-11: No Unverified Index Exposure** — AI SHALL NOT receive Project Index data that has not passed Guardian verification in the current cycle.
 
 ### 14.1 Index-File Consistency
 
-**Problem:** The Project Index (in-memory code structure) can drift from the actual file system if external tools or the Operator modify files outside Exacta's control.
+**Problem:** The Project Index (in-memory code structure) can drift from the actual file system if external tools or the Operator modify files outside Exacta’s control.
 
 **Detection Mechanism:**
 
 - **Pre-Cycle Fingerprint Check** — Before each cycle, Guardian computes SHA-256 hashes of all files in scope_root and compares against Project Index fingerprints. To mitigate TOCTOU vulnerabilities, hashes are recomputed immediately before action execution if drift is detected.
 - **Drift Classification & Prevention:**
-  - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
-  - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, records a drift escalation event and switches to conservative execution mode (minimal context loading, no FS_MUTATE, no PACKAGE_EXEC) until stability is restored
-  - **High drift** (>20 files or >2000 lines): System enters Safe Mode, rebuilds index from filesystem ground truth, and resumes autonomous execution only after Guardian verifies index integrity
-- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth. If rebuild cannot complete before action execution, Core will enter Safe Mode, rebuild index from filesystem ground truth, and resume autonomous execution only after Guardian verifies index integrity and filesystem ground truth. The system SHALL record a diagnostic event and surface a generic task-level message (e.g. "Refreshing project understanding due to large external changes").
+    - **Low drift** (1-5 files changed, <500 lines): System warns, updates index, continues
+    - **Medium drift** (6-20 files changed, 500-2000 lines): System warns, updates index, records a drift escalation event and switches to conservative execution mode (minimal context loading, no shell-based FS_MUTATE, no PACKAGE_EXEC) until stability is restored. Core-mediated file writes during build processes remain permitted.
+    - **High drift** (>20 files or >2000 lines): System enters Safe Mode, rebuilds index from filesystem ground truth, Guardian verifies index integrity and filesystem ground truth, then system transitions SAFE_MODE → READY, and autonomous execution resumes
+- **Reconciliation** — Detected drift triggers automatic index rebuild from file system ground truth. If rebuild cannot complete before action execution, Core will enter Safe Mode, rebuild index from filesystem ground truth, and resume autonomous execution only after Guardian verifies index integrity and filesystem ground truth. The system SHALL record a diagnostic event and surface a generic task-level message (e.g. “Refreshing project understanding due to large external changes”).
 
 **Invariant:**
 
@@ -1425,7 +1480,8 @@ Each committed Project Index snapshot MUST include:
 - index_hash = SHA256(all indexed file contents + dependency graph)
 - guardian_signature = HMAC(Guardian_Secret, index_hash)
 
-**Invariant:**  
+**Invariant:**
+
 **INV-MEM-17: Signed Index Root** — AI context injection and execution SHALL NOT proceed unless the current Project Index snapshot is Guardian-signed.
 
 ### 14.3 Project Knowledge Graph Architecture (Canonical)
@@ -1448,25 +1504,23 @@ Exacta formalizes the Project Index as a directed Knowledge Graph.
 
 **Index Components:**
 
-1.  **AST Index:** Structural map of Classes, Functions, Methods, Exports, and Imports (parsed via Tree-sitter or equivalent).
-2.  **Embedding Index:** Vector database storing semantic embeddings of code snippets and documentation (for conceptual retrieval).
-3.  **Dependency Graph:** Directed graph of strict file-to-file dependencies (imports/references).
+1. **AST Index:** Structural map of Classes, Functions, Methods, Exports, and Imports (parsed via Tree-sitter or equivalent).
+2. **Embedding Index:** Vector database storing semantic embeddings of code snippets and documentation (for conceptual retrieval).
+3. **Dependency Graph:** Directed graph of strict file-to-file dependencies (imports/references).
 
-**Invariant:**
-**INV-INDEX-HYBRID-1: Multi-Modal Indexing** — The Project Index SHALL maintain synchronized Structural (AST), Semantic (Embedding), and Dependency representations to enable precision context discovery.
+**Invariant:INV-INDEX-HYBRID-1: Multi-Modal Indexing** — The Project Index SHALL maintain synchronized Structural (AST), Semantic (Embedding), and Dependency representations to enable precision context discovery.
 
 ### 14.4 Index Lifecycle & Build Protocol
 
 The Project Index is NOT a static artifact. It follows a strict lifecycle:
 
-1.  **Cold Boot:** On project open, Core checks for a `index.lock` file.
-    - _If missing:_ Triggers full background indexing.
-    - _If present:_ Verifies signature and loads into memory.
-2.  **Incremental Build:** File watchers trigger partial re-indexing of changed files.
-3.  **Compaction:** Periodically (every 100 changes), the index performs garbage collection.
+1. **Cold Boot:** On project open, Core checks for a `index.lock` file.
+    - *If missing:* Triggers full background indexing.
+    - *If present:* Verifies signature and loads into memory.
+2. **Incremental Build:** File watchers trigger partial re-indexing of changed files.
+3. **Compaction:** Periodically (every 100 changes), the index performs garbage collection.
 
-**Invariant:**
-**INV-INDEX-BUILD-1: Non-Blocking Availability** — Indexing operations SHALL run in a low-priority background thread (WFP Tier 3). Providing stale results is preferred over blocking the UI, provided the staleness is within the window defined in 14.5. Exception: Freshness guarantees in §14.5 take precedence over non-blocking behavior for AI context injection only. UI responsiveness SHALL remain non-blocking.
+**Invariant:INV-INDEX-BUILD-1: Non-Blocking Availability** — Indexing operations SHALL run in a low-priority background thread (WFP Tier 3). Providing stale results is preferred over blocking the UI, provided the staleness is within the window defined in 14.5. Exception: Freshness guarantees in §14.5 take precedence over non-blocking behavior for AI context injection only. UI responsiveness SHALL remain non-blocking.
 
 ### 14.5 Index Staleness & Revalidation
 
@@ -1474,10 +1528,9 @@ To ensure AI trust, the index MUST track its own freshness:
 
 - **Dirty Bit Tracking:** Every file node maintains a `last_indexed_hash` vs `current_fs_hash`.
 - **Staleness Window:** 2 seconds.
-- **Revalidation:** If a query hits a "Dirty" node, the system MUST block for up to 500ms to re-index that specific node on demand.
+- **Revalidation:** If a query hits a “Dirty” node, the system MUST block for up to 500ms to re-index that specific node on demand.
 
-**Invariant:**
-**INV-INDEX-FRESH-1: Stale Read Bound** — The system SHALL NOT return index results older than 2 seconds. If the index falls behind by >2s, it MUST flag itself as "Degraded" and record a diagnostic event and surface a generic task-level message (e.g. "Refreshing project understanding…").
+**Invariant:INV-INDEX-FRESH-1: Stale Read Bound** — The system SHALL NOT return index results older than 2 seconds. If the index falls behind by >2s, it MUST flag itself as “Degraded” and record a diagnostic event and surface a generic task-level message (e.g. “Refreshing project understanding…”).
 
 ### 14.6 Embedding Index Specifications
 
@@ -1486,59 +1539,58 @@ To standardize semantic search, Exacta defines the embedding contract:
 - **Model:** Any local or provider embedding model meeting dimensional and latency constraints (reference model: `text-embedding-3-small` or equivalent).
 - **Dimensions:** 1536.
 - **Chunking Strategy:**
-  - _Code:_ Function/Class boundaries (via AST).
-  - _Text:_ Paragraphs (max 512 tokens).
+    - *Code:* Function/Class boundaries (via AST).
+    - *Text:* Paragraphs (max 512 tokens).
 - **Vector Database:** Local HNSW index (e.g., USearch or SQLite-VSS).
 
-**Invariant:**
-**INV-EMBED-1: Semantic Consistency** — All embeddings MUST be generated using the same model version within a single index. Mixed-model indices are FORBIDDEN.
+**Invariant:INV-EMBED-1: Semantic Consistency** — All embeddings MUST be generated using the same model version within a single index. Mixed-model indices are FORBIDDEN.
 
 ## 15. Failure Taxonomy - Recovery Rules
 
 The following table defines internal failure classifications and their **silent recovery** behaviors. These are NOT exposed to operators.
 
-| Error Code           | Description                      | Silent Recovery                               |
-| -------------------- | -------------------------------- | --------------------------------------------- |
-| AGENT-RUNAWAY        | Same file modified 3x in 5 loops | Reset approach, try different file structure  |
-| BUDGET-SOFT-LIMIT    | Internal soft limit reached      | Throttle operations, continue                 |
-| POLICY-VIOLATION     | Action denied by Policy Engine   | Adjust action parameters, retry               |
-| CAPABILITY-MISSING   | Action lacks required token      | Request token automatically, retry            |
-| SCOPE-BOUNDARY       | Path outside scope_root          | Adjust paths, use allowed locations           |
-| BUILD-FAILURE        | Compilation or build error       | Analyze error, fix code, retry (up to 20x)    |
-| PROVIDER-ERROR       | AI provider returned error       | Retry with backoff, switch provider           |
-| PROVIDER-UNAVAILABLE | No healthy AI providers          | Try Ollama local, then ask for settings check |
-| MODEL-NOT-FOUND      | Selected model missing           | Use alternate model automatically             |
-| NETWORK-TIMEOUT      | Request timed out                | Retry with exponential backoff                |
+| Error Code | Description | Silent Recovery |
+| --- | --- | --- |
+| AGENT-RUNAWAY | Same file modified 3x in 5 loops | Reset approach, try different file structure |
+| BUDGET-SOFT-LIMIT | Internal soft limit reached | Throttle operations, continue |
+| POLICY-VIOLATION | Action denied by Policy Engine | Adjust action parameters, retry |
+| CAPABILITY-MISSING | Action lacks required token | Request token automatically, retry |
+| SCOPE-BOUNDARY | Path outside scope_root | Adjust paths, use allowed locations |
+| BUILD-FAILURE | Compilation or build error | Analyze error, fix code, retry (up to 20x) |
+| PROVIDER-ERROR | AI provider returned error | Retry with backoff, switch provider |
+| PROVIDER-UNAVAILABLE | No healthy AI providers | Try Ollama local, then ask for settings check |
+| MODEL-NOT-FOUND | Selected model missing | Use alternate model automatically |
+| NETWORK-TIMEOUT | Request timed out | Retry with exponential backoff |
 
 **Critical Failures (Rare - May Require Operator):**
 
 These failures cannot be self-healed and may result in a conversational request:
 
-| Error Code          | Description                       | Operator Message                          |
-| ------------------- | --------------------------------- | ----------------------------------------- |
-| SANDBOX-BREACH      | Security boundary violation       | System pauses for safety review (rare)    |
-| CORRUPTION-DETECTED | Data integrity failure            | "Something went wrong. Restarting..."     |
-| NO-AI-AVAILABLE     | No AI providers after all retries | "Please check your AI provider settings." |
+| Error Code | Description | Operator Message |
+| --- | --- | --- |
+| SANDBOX-BREACH | Security boundary violation | System pauses for safety review (rare) |
+| CORRUPTION-DETECTED | Data integrity failure | “Something went wrong. Restarting…” |
+| NO-AI-AVAILABLE | No AI providers after all retries | “Please check your AI provider settings.” |
 
 **Recovery Philosophy:**
 
 1. **Default:** Silent self-healing with automatic strategy adjustment
 2. **Escalation:** Try progressively simpler approaches
 3. **Last Resort:** Conversational clarification request (not technical error)
-4. **Never:** Display error codes, halt messages, or require "operator review"
+4. **Never:** Display error codes, halt messages, or require “operator review”
 
 ### 15.1 State Machine Priority
 
 **SYSTEM LAW:** The following priority order defines the system state during failure cascades:
 
-1.  **SANDBOX_BREACH** (Highest Priority) - Overrides all other states. Triggers immediate HALT and Evidence Preservation.
-2.  **OP_PRESERVE** (Operational Preservation Mode) - System is frozen for forensic review.
-3.  **SAFE_MODE** (Restricted Recovery) - Network/Execution disabled, recovery tools only.
-4.  **READY** (Normal Operation) - Standard autonomous loops permitted.
+1. **SANDBOX_BREACH** (Highest Priority) - Overrides all other states. Triggers immediate HALT and Evidence Preservation.
+2. **OP_PRESERVE** (Operational Preservation Mode) - System is frozen for forensic review.
+3. **SAFE_MODE** (Restricted Recovery) - Network/Execution disabled, recovery tools only.
+4. **READY** (Normal Operation) - Standard autonomous loops permitted.
 
 **Transition Logic:** A higher-priority state ALWAYS preempts a lower-priority state. A lower-priority state CANNOT override a higher-priority blocking state without Guardian authorization.
 
-**UI Visibility Rule:** State transitions are internal system mechanics. The operator UI SHALL NOT display state names, transition events, or "mode" indicators. Progress is shown only as task-based messages.
+**UI Visibility Rule:** State transitions are internal system mechanics. The operator UI SHALL NOT display state names, transition events, or “mode” indicators. Progress is shown only as task-based messages.
 
 ## 16. Testing - Validation (Engineering Discipline)
 
@@ -1561,29 +1613,29 @@ These failures cannot be self-healed and may result in a conversational request:
 
 The system MUST maintain an automated test group validating sandbox enforcement:
 
-| Test ID    | Attempt                                  | Expected Result           |
-| ---------- | ---------------------------------------- | ------------------------- |
-| SBX-001    | Shell `cd ..` escape attempt             | DENY + SANDBOX-BREACH     |
-| SBX-002    | Symlink to system path                   | DENY                      |
-| SBX-003    | Network call without NET token           | DENY                      |
-| SBX-004    | Diff targeting `.exacta/`                | DENY                      |
-| SBX-005    | Job Object breakaway attempt             | HALT                      |
-| SBX-006    | Credential in shell output               | REDACT + HALT             |
-| SBX-007    | Package manager outside allowlist        | DENY                      |
-| OLLAMA-001 | Ollama API call without NET_LOCAL token  | DENY                      |
-| OLLAMA-002 | Ollama endpoint spoofing (non-localhost) | DENY + INCIDENT           |
-| AI-001     | Core calls provider directly             | DENY                      |
-| AI-002     | CLI writes file without FS_WRITE         | DENY                      |
-| AI-003     | Provider returns unsigned model          | DENY                      |
-| AI-004     | Timeout triggers fallback                | SWITCH                    |
-| AI-005     | Spoofed model discovery                  | INCIDENT                  |
-| CLI-001    | CLI agent without CLI_AGENT_EXEC token   | DENY                      |
-| CLI-002    | CLI agent with modified hash             | DENY + SECURITY_VIOLATION |
-| CLI-003    | CLI agent unauthorized argument          | DENY                      |
-| CLI-004    | CLI agent filesystem escape attempt      | HALT + SANDBOX_BREACH     |
-| CLI-005    | CLI agent unauthorized network call      | HALT + NETWORK_VIOLATION  |
-| CLI-006    | CLI agent exceeds memory limit           | KILL + LOG                |
-| CLI-007    | CLI agent exceeds runtime limit          | KILL + LOG                |
+| Test ID | Attempt | Expected Result |
+| --- | --- | --- |
+| SBX-001 | Shell `cd ..` escape attempt | DENY + SANDBOX-BREACH |
+| SBX-002 | Symlink to system path | DENY |
+| SBX-003 | Network call without NET token | DENY |
+| SBX-004 | Diff targeting `.exacta/` | DENY |
+| SBX-005 | Job Object breakaway attempt | HALT |
+| SBX-006 | Credential in shell output | REDACT + HALT |
+| SBX-007 | Package manager outside allowlist | DENY |
+| OLLAMA-001 | Ollama API call without NET_LOCAL token | DENY |
+| OLLAMA-002 | Ollama endpoint spoofing (non-localhost) | DENY + INCIDENT |
+| AI-001 | Core calls provider directly | DENY |
+| AI-002 | CLI writes file without FS_WRITE | DENY |
+| AI-003 | Provider returns unsigned model | DENY |
+| AI-004 | Timeout triggers fallback | SWITCH |
+| AI-005 | Spoofed model discovery | INCIDENT |
+| CLI-001 | CLI agent without CLI_AGENT_EXEC token | DENY |
+| CLI-002 | CLI agent with modified hash | DENY + SECURITY_VIOLATION |
+| CLI-003 | CLI agent unauthorized argument | DENY |
+| CLI-004 | CLI agent filesystem escape attempt | HALT + SANDBOX_BREACH |
+| CLI-005 | CLI agent unauthorized network call | HALT + NETWORK_VIOLATION |
+| CLI-006 | CLI agent exceeds memory limit | KILL + LOG |
+| CLI-007 | CLI agent exceeds runtime limit | KILL + LOG |
 
 **Credential Detection Patterns (Minimum Set):**
 
@@ -1627,16 +1679,16 @@ The following CLI agents are recognized and may be enabled by Operator approval:
 
 **Tier 5 - CLI Coding Agents:**
 
-| Agent            | Binary Name                        | Hash Verification | Risk Classification |
-| ---------------- | ---------------------------------- | ----------------- | ------------------- |
-| **Aider**        | `aider`, `aider.exe`               | Required          | MEDIUM              |
-| **GPT Engineer** | `gpt-engineer`, `gpt-engineer.cmd` | Required          | MEDIUM              |
-| **Goose CLI**    | `goose`, `goose.exe`               | Required          | MEDIUM              |
-| **OpenCode**     | `opencode`, `opencode.exe`         | Required          | MEDIUM              |
-| **Blackbox CLI** | `blackbox`, `blackbox.exe`         | Required          | MEDIUM              |
-| **Crush CLI**    | `crush`, `crush.exe`               | Required          | MEDIUM              |
-| **Codex CLI**    | `codex`, `codex.exe`               | Required          | MEDIUM              |
-| **Gemini CLI**   | `gemini`, `gemini.exe`             | Required          | MEDIUM              |
+| Agent | Binary Name | Hash Verification | Risk Classification |
+| --- | --- | --- | --- |
+| **Aider** | `aider`, `aider.exe` | Required | MEDIUM |
+| **GPT Engineer** | `gpt-engineer`, `gpt-engineer.cmd` | Required | MEDIUM |
+| **Goose CLI** | `goose`, `goose.exe` | Required | MEDIUM |
+| **OpenCode** | `opencode`, `opencode.exe` | Required | MEDIUM |
+| **Blackbox CLI** | `blackbox`, `blackbox.exe` | Required | MEDIUM |
+| **Crush CLI** | `crush`, `crush.exe` | Required | MEDIUM |
+| **Codex CLI** | `codex`, `codex.exe` | Required | MEDIUM |
+| **Gemini CLI** | `gemini`, `gemini.exe` | Required | MEDIUM |
 
 **Security Controls:**
 
@@ -1714,10 +1766,10 @@ A release build MUST NOT be signed or distributed unless:
 
 - Updates are opt-in, not mandatory
 - Old versions continue to work (no kill switch)
-- Security-critical updates clearly flagged (but still user's choice)
+- Security-critical updates clearly flagged (but still user’s choice)
 
 **Toolchain Lifecycle:**
-Exacta's bundled Standard Portable Toolchain (Node, .NET, WiX) is version-locked to the Exacta App Studio release. Updating Exacta automatically updates these bundled tools to compatible, security-patched versions.
+Exacta’s bundled Standard Portable Toolchain (Node, .NET, WiX) is version-locked to the Exacta App Studio release. Updating Exacta automatically updates these bundled tools to compatible, security-patched versions.
 
 ## 18. Offline - Network Behavior
 
@@ -1726,9 +1778,9 @@ Exacta's bundled Standard Portable Toolchain (Node, .NET, WiX) is version-locked
 If Operator configures cloud AI provider credentials at setup, Guardian issues a narrowly scoped NET_AI_ONLY token for Core→provider traffic for the duration specified by policy. This does NOT enable network access for arbitrary subprocesses or package managers.
 
 - System can operate **fully offline** after initial setup
-- AI API calls require network (operator's own API keys)
+- AI API calls require network (operator’s own API keys)
 - Documentation lookups fall back to **bundled offline cache** when network unavailable
-- Operator can proceed with **warnings** if offline (e.g., "Latest dependency versions unavailable, using cached metadata")
+- Operator can proceed with **warnings** if offline (e.g., “Latest dependency versions unavailable, using cached metadata”)
 
 **What works offline:**
 
@@ -1753,7 +1805,7 @@ During autonomous execution (goal-driven loops), network access is **disabled by
 
 **Offline Enforcement Rule:**
 
-When offline mode is active, all NET\_\* capability tokens are treated as DENY regardless of goal configuration or policy profile.
+When offline mode is active, all NET_* capability tokens are treated as DENY regardless of goal configuration or policy profile.
 
 **Network Policy Hierarchy:**
 
@@ -1761,7 +1813,7 @@ When offline mode is active, all NET\_\* capability tokens are treated as DENY r
 The following precedence rules MUST be enforced:
 
 1. **Offline mode** → All network DENY (highest priority)
-2. **No NET\_\* token** → Network disabled for subprocesses (default)
+2. **No NET_* token** → Network disabled for subprocesses (default)
 3. **NET_AI_ONLY token** → Only AI provider endpoints allowed
 4. **NET_DOCS_ONLY token** → Only documentation sources allowed
 5. **Explicit user override** → Network enabled per user command in UI
@@ -1789,7 +1841,7 @@ No metrics are transmitted off-device under any condition.
 
 **Local-Only Diagnostics:**
 
-- ✅ All diagnostics stored locally on user's machine
+- ✅ All diagnostics stored locally on user’s machine
 - ✅ Crash dumps, error logs, performance metrics remain on-device
 - ✅ **All health metrics are local-only and never transmitted** (latency, error rate, call counts, and uptime are computed on-device)
 - ❌ **No outbound telemetry** — Zero data transmitted to external servers
@@ -1824,7 +1876,7 @@ Crash dumps and error diagnostics are stored locally only and are never transmit
 - ❌ No automatic crash reporting to external servers
 - ❌ No Windows Error Reporting (WER) integration enabled by Exacta
 - ❌ No minidump or full dump uploads
-- ✅ All crash data remains exclusively on Operator's machine
+- ✅ All crash data remains exclusively on Operator’s machine
 - ✅ Optional manual export for support tickets (Operator-initiated only)
 
 **Crash Dump Retention:**
@@ -1859,19 +1911,19 @@ The following are explicitly NOT shown to operators:
 - ❌ Token counters or usage meters
 - ❌ File count limits or warnings
 - ❌ Time remaining indicators
-- ❌ "Approaching limit" warnings
+- ❌ “Approaching limit” warnings
 - ❌ Budget exhaustion messages
 - ❌ Retry count displays
 
 **Internal Soft Limits (for stability, not exposed):**
 
-| Resource      | Internal Limit | Behavior                  |
-| ------------- | -------------- | ------------------------- |
-| Tokens/goal   | 1,000,000      | Throttle, smaller context |
-| Files/cycle   | 100            | Batch silently            |
-| Lines/cycle   | 5,000          | Split across cycles       |
-| Time/goal     | 60 min         | Auto-checkpoint           |
-| Build retries | 20             | Try simpler approach      |
+| Resource | Internal Limit | Behavior |
+| --- | --- | --- |
+| Tokens/goal | 1,000,000 | Throttle, smaller context |
+| Files/cycle | 100 | Batch silently |
+| Lines/cycle | 5,000 | Split across cycles |
+| Time/goal | 60 min | Auto-checkpoint |
+| Build retries | 20 | Try simpler approach |
 
 **Why No Visible Limits:**
 
@@ -1886,17 +1938,15 @@ The system maintains a deterministic heuristics engine to optimize execution wit
 
 **Learned Heuristics:**
 
-- **Build Failure Patterns:** "If Error X occurs, try Strategy Y first."
-- **Toolchain Latency:** "Don't use Tool Z during high load."
-- **Recovery Success Rates:** "Strategy A has 90% success for this error type."
+- **Build Failure Patterns:** “If Error X occurs, try Strategy Y first.”
+- **Toolchain Latency:** “Don’t use Tool Z during high load.”
+- **Recovery Success Rates:** “Strategy A has 90% success for this error type.”
 
 **Storage:** Heuristics are stored in `Guardian-owned` operational memory.
 
-**Invariant:**
-**INV-HEUR-1: Non-Cognitive Learning Only** — The Heuristics Engine SHALL NOT contain project code, user goals, or AI context. It is limited strictly to operational metadata (error codes, timings, success/fail booleans).
+**Invariant:INV-HEUR-1: Non-Cognitive Learning Only** — The Heuristics Engine SHALL NOT contain project code, user goals, or AI context. It is limited strictly to operational metadata (error codes, timings, success/fail booleans).
 
-**Invariant:**
-**INV-HEUR-2: Bounded Weight Adjustment** — Heuristic weight adjustments SHALL be bounded within Guardian-defined min/max ranges and SHALL NOT exceed ±25% of baseline values per 24 hours.
+**Invariant:INV-HEUR-2: Bounded Weight Adjustment** — Heuristic weight adjustments SHALL be bounded within Guardian-defined min/max ranges and SHALL NOT exceed ±25% of baseline values per 24 hours.
 
 ---
 
@@ -1906,16 +1956,15 @@ The system maintains a deterministic heuristics engine to optimize execution wit
 
 ### 22.1 Hard Invariants
 
-**PLATFORM ASSUMPTION:**
-**PLAT-ASSUMP-1: SYSTEM Service Requirement** — Exacta App Studio Guardian MUST run as NT AUTHORITY\SYSTEM (Windows Service) to enforce sandbox boundaries (Job Objects, WFP Callout Driver, Global Namespace). If Guardian cannot acquire SYSTEM privileges:
+**PLATFORM ASSUMPTION:PLAT-ASSUMP-1: SYSTEM Service Requirement** — Exacta App Studio Guardian MUST run as NT AUTHORITY(Windows Service) to enforce sandbox boundaries (Job Objects, WFP Callout Driver, Global Namespace). If Guardian cannot acquire SYSTEM privileges:
 
 1. System SHALL enter SAFE_MODE
 2. Autonomous execution DISABLED
-3. Operator notified: "Installation requires Administrator approval to install Guardian Service"
+3. Operator notified: “Installation requires Administrator approval to install Guardian Service”
 
 **Privilege Validation:** On startup, Guardian SHALL verify:
 
-- `whoami /user` returns `S-1-5-18` (NT AUTHORITY\SYSTEM)
+- `whoami /user` returns `S-1-5-18` (NT AUTHORITY)
 - `whoami /priv` includes `SeDebugPrivilege` (Enabled)
 - Process Integrity Level >= High (16384)
 
@@ -1939,7 +1988,7 @@ Resource management is fully automatic and not visible or configurable in the UI
 
 **INV-A5: System Recovery (Internal System Function — Not Exposed in UI)** — Advanced modes provide checkpoint-backed rollback. Default mode focuses on forward progress with system recovery on critical failures.
 
-**INV-A6: Local-Only Execution** — All processing occurs on the operator's machine. External network communication is restricted to operator-authorized AI providers and explicitly allowlisted documentation endpoints via NET\_\* capability tokens.
+**INV-A6: Local-Only Execution** — All processing occurs on the operator’s machine. External network communication is restricted to operator-authorized AI providers and explicitly allowlisted documentation endpoints via NET_* capability tokens.
 
 **INV-A7: No External Telemetry** — No usage data, error reports, or analytics transmitted externally.
 
@@ -1961,20 +2010,20 @@ Resource management is fully automatic and not visible or configurable in the UI
 
 Every shell command is classified before execution:
 
-| Class     | Examples                     | Default Policy                         |
-| --------- | ---------------------------- | -------------------------------------- |
-| READ      | `dir`, `ls`, `dotnet --info` | Allowed                                |
-| BUILD     | `dotnet build`, `msbuild`    | Allowed                                |
-| FS_MUTATE | `del`, `rm`, `move`, `copy`  | Restricted                             |
-| SYSTEM    | `reg`, `sc`, `taskkill`      | Restricted (CRITICAL risk class only)  |
-| NETWORK   | `curl`, `wget`, `ping`       | Blocked (unless NET\_\* token present) |
+| Class | Examples | Default Policy |
+| --- | --- | --- |
+| READ | `dir`, `ls`, `dotnet --info` | Allowed |
+| BUILD | `dotnet build`, `msbuild` | Allowed |
+| FS_MUTATE | `del`, `rm`, `move`, `copy` | Restricted |
+| SYSTEM | `reg`, `sc`, `taskkill` | Restricted (CRITICAL risk class only) |
+| NETWORK | `curl`, `wget`, `ping` | Blocked (unless NET_* token present) |
 
 **Enforcement Rules:**
 
 - Commands are **parsed before execution**
 - All paths must be inside `scope_root` (jail enforced)
 - Network tools blocked unless `NET_AI_ONLY` or `NET_DOCS_ONLY` token present
-- All NETWORK class commands require a NET\_\* capability token. No generic NETWORK token exists.
+- All NETWORK class commands require a NET_* capability token. No generic NETWORK token exists.
 - SYSTEM class requires goal `risk_class: CRITICAL`
 - Unknown commands default to DENY
 
@@ -2008,7 +2057,7 @@ Every autonomous cycle enforces:
 - Operator is responsible for accepting third-party license terms during installation
 
 **Bundled Third-Party Runtimes:**
-The "Standard Portable Toolchain" includes redistributed binaries for:
+The “Standard Portable Toolchain” includes redistributed binaries for:
 
 - **.NET SDK** (Microsoft, MIT/Apache 2.0)
 - **Node.js** (OpenJS Foundation, MIT)
@@ -2078,13 +2127,13 @@ locale: string
 timezone: string
 }
 
-**Invariant:**  
+**Invariant:**
+
 **INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered reproducible unless a valid EnvironmentSnapshot is present and hash-anchored.
 
 **Note:** snapshot presence improves investigatory ability; it does not create a general deterministic replay guarantee for toolchains or networked fetches.
 
-**Invariant:**
-**INV-DET-2: Toolchain Drift Lock** — If critical toolchain verions (dotnet, node, python) differ from the EnvironmentSnapshot, execution SHALL HALT. Override requires Operator `ALLOW_WITH_DRIFT` acknowledgement.
+**Invariant:INV-DET-2: Toolchain Drift Lock** — If critical toolchain verions (dotnet, node, python) differ from the EnvironmentSnapshot, execution SHALL HALT. Override requires Operator `ALLOW_WITH_DRIFT` acknowledgement.
 
 ## 25. Supply Chain Trust Boundary
 
@@ -2131,7 +2180,8 @@ Providers may retain, log, or train on submitted prompts according to their own 
 Exacta App Studio CANNOT technically prevent AI providers from retaining or training on submitted data.
 Use of cloud AI providers SHALL be treated as a data disclosure event governed by the provider’s terms.
 
-**Invariant:**  
+**Invariant:**
+
 **INV-MEM-14: Provider Memory Boundary** — System guarantees apply only to local memory, state, and execution layers, not to third-party AI services.
 
 **Local Model Runtime Classification**
@@ -2145,7 +2195,7 @@ They MUST:
 
 - Run under Job Object enforcement
 - Be hash-verified if binary-based
-- Be capability-gated (PROCESS*EXEC + NET*\* if networked)
+- Be capability-gated (PROCESS*EXEC + NET*if networked)
 - Be subject to budget limits
 
 ### 26.1 AI Provider Management
@@ -2155,9 +2205,9 @@ They MUST:
 **Credential Authority:** The Operator is solely responsible for providing valid API credentials (keys/endpoints). These are entered during setup or via administrative configuration.
 
 **UI Visibility Mandate:**
-The Application Settings UI (accessible via the "Settings" icon) SHALL populate its provider configuration interfaces directly from the **Recognized Provider Ecosystem** (Section 26.1.1). Operators MUST be able to discover, select, and configure credentials for any recognized provider interactively. Custom/Generic provider configuration is also supported for advanced users.
+The Application Settings UI (accessible via the “Settings” icon) SHALL populate its provider configuration interfaces directly from the **Recognized Provider Ecosystem** (Section 26.1.1). Operators MUST be able to discover, select, and configure credentials for any recognized provider interactively. Custom/Generic provider configuration is also supported for advanced users.
 
-**Note:** The System selects the _model_ (logic); The Operator provides the _keys_ (access).
+**Note:** The System selects the *model* (logic); The Operator provides the *keys* (access).
 
 **Mandatory Cognition Rule**
 
@@ -2168,7 +2218,8 @@ Exacta App Studio SHALL NOT enter READY state unless at least at least one valid
 
 If neither exists, the system MUST enter NO_AI_PROVIDER state and operate in UI-only, non-autonomous mode.
 
-**Invariant:**  
+**Invariant:**
+
 **INV-AI-BOOT-1: No Cognition, No Autonomy** — Autonomous execution SHALL NOT be permitted without a valid AI cognition source.
 
 ### 26.1.1 Recognized Provider Ecosystem
@@ -2177,67 +2228,69 @@ The following providers, runtimes, and agents are recognized by the Exacta ecosy
 
 **1. TIER 1 - Premium Cloud AI Providers (API Key Required)**
 
-| Provider          | Endpoint                          | Models                                                                               |
-| ----------------- | --------------------------------- | ------------------------------------------------------------------------------------ |
-| **OpenAI**        | api.openai.com                    | gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-preview, o1-mini                                |
-| **Anthropic**     | api.anthropic.com                 | claude-sonnet-4-20250514, claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus         |
-| **Google Gemini** | generativelanguage.googleapis.com | gemini-1.5-pro, gemini-1.5-flash, gemini-ultra                                       |
-| **Mistral AI**    | api.mistral.ai                    | mistral-large, mistral-medium, mistral-small, codestral, mixtral-8x7b, mixtral-8x22b |
-| **Cohere**        | api.cohere.ai                     | command-r-plus, command-r, command, command-light                                    |
-| **OpenRouter**    | openrouter.ai/api                 | Gateway to 100+ models (OpenAI, Anthropic, Meta, Mistral, etc.)                      |
+| Provider | Endpoint | Models |
+| --- | --- | --- |
+| **OpenAI** | api.openai.com | gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-preview, o1-mini |
+| **Anthropic** | api.anthropic.com | claude-sonnet-4-20250514, claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus |
+| **Google Gemini** | generativelanguage.googleapis.com | gemini-1.5-pro, gemini-1.5-flash, gemini-ultra |
+| **Mistral AI** | api.mistral.ai | mistral-large, mistral-medium, mistral-small, codestral, mixtral-8x7b, mixtral-8x22b |
+| **Cohere** | api.cohere.ai | command-r-plus, command-r, command, command-light |
+| **OpenRouter** | openrouter.ai/api | Gateway to 100+ models (OpenAI, Anthropic, Meta, Mistral, etc.) |
 
 **2. TIER 2 - Enterprise Cloud Platforms**
 
-| Provider             | Endpoint                           | Models                                                            |
-| -------------------- | ---------------------------------- | ----------------------------------------------------------------- |
-| **Azure OpenAI**     | {deployment}.openai.azure.com      | Enterprise GPT-4, GPT-3.5, embeddings (configured per deployment) |
-| **Amazon Bedrock**   | bedrock.{region}.amazonaws.com     | Claude, Llama, Mistral, Titan (via AWS)                           |
-| **Google Vertex AI** | {region}-aiplatform.googleapis.com | Gemini, PaLM 2, Codey (via Google Cloud)                          |
+| Provider | Endpoint | Models |
+| --- | --- | --- |
+| **Azure OpenAI** | {deployment}.openai.azure.com | Enterprise GPT-4, GPT-3.5, embeddings (configured per deployment) |
+| **Amazon Bedrock** | bedrock.{region}.amazonaws.com | Claude, Llama, Mistral, Titan (via AWS) |
+| **Google Vertex AI** | {region}-aiplatform.googleapis.com | Gemini, PaLM 2, Codey (via Google Cloud) |
 
 **3. TIER 3 - Specialized AI Providers**
 
-| Provider          | Endpoint          | Models                                                |
-| ----------------- | ----------------- | ----------------------------------------------------- |
-| **AI21 Labs**     | api.ai21.com      | jurassic-2-ultra, jurassic-2-mid, jamba               |
-| **Writer**        | api.writer.com    | palmyra-x, palmyra-med, palmyra-fin (domain-specific) |
-| **Reka AI**       | api.reka.ai       | reka-core, reka-flash, reka-edge                      |
-| **Perplexity AI** | api.perplexity.ai | pplx-70b-online, pplx-7b-online (search-augmented)    |
-| **xAI (Grok)**    | api.x.ai          | grok-1, grok-2                                        |
-| **Inflection AI** | api.inflection.ai | pi (conversational AI)                                |
-| **01.AI**         | api.01.ai         | yi-34b, yi-6b (Chinese/English bilingual)             |
+| Provider | Endpoint | Models |
+| --- | --- | --- |
+| **AI21 Labs** | api.ai21.com | jurassic-2-ultra, jurassic-2-mid, jamba |
+| **Writer** | api.writer.com | palmyra-x, palmyra-med, palmyra-fin (domain-specific) |
+| **Reka AI** | api.reka.ai | reka-core, reka-flash, reka-edge |
+| **Perplexity AI** | api.perplexity.ai | pplx-70b-online, pplx-7b-online (search-augmented) |
+| **xAI (Grok)** | api.x.ai | grok-1, grok-2 |
+| **Inflection AI** | api.inflection.ai | pi (conversational AI) |
+| **01.AI** | api.01.ai | yi-34b, yi-6b (Chinese/English bilingual) |
 
 **4. TIER 4 - Model Hosting Platforms (Open Source & Serverless)**
 
-| Provider                  | Endpoint                     | Models                                                     |
-| ------------------------- | ---------------------------- | ---------------------------------------------------------- |
-| **Together AI**           | api.together.xyz             | 50+ open-source models with serverless inference           |
-| **Replicate**             | api.replicate.com            | Run any open-source model via API                          |
-| **Anyscale Endpoints**    | api.endpoints.anyscale.com   | Llama 2, Mistral, CodeLlama hosted inference               |
-| **HuggingFace Inference** | api-inference.huggingface.co | Serverless access to 10,000+ models                        |
-| **Fireworks AI**          | api.fireworks.ai             | Fast inference for Llama, Mistral, Mixtral                 |
-| **DeepInfra**             | api.deepinfra.com            | Llama 2, Mistral, CodeLlama, WizardCoder (budget-friendly) |
-| **Lepton AI**             | api.lepton.ai                | Optimized inference for open models                        |
-| **Groq**                  | api.groq.com                 | Ultra-fast LPU inference (Llama 3, Mixtral, Gemma)         |
-| **Monster API**           | api.monsterapi.ai            | Cost-optimized inference for open models                   |
-| **Novita AI**             | api.novita.ai                | Open model hosting with pay-per-use                        |
+| Provider | Endpoint | Models |
+| --- | --- | --- |
+| **Together AI** | api.together.xyz | 50+ open-source models with serverless inference |
+| **Replicate** | api.replicate.com | Run any open-source model via API |
+| **Anyscale Endpoints** | api.endpoints.anyscale.com | Llama 2, Mistral, CodeLlama hosted inference |
+| **HuggingFace Inference** | api-inference.huggingface.co | Serverless access to 10,000+ models |
+| **Fireworks AI** | api.fireworks.ai | Fast inference for Llama, Mistral, Mixtral |
+| **DeepInfra** | api.deepinfra.com | Llama 2, Mistral, CodeLlama, WizardCoder (budget-friendly) |
+| **Lepton AI** | api.lepton.ai | Optimized inference for open models |
+| **Groq** | api.groq.com | Ultra-fast LPU inference (Llama 3, Mixtral, Gemma) |
+| **Monster API** | api.monsterapi.ai | Cost-optimized inference for open models |
+| **Novita AI** | api.novita.ai | Open model hosting with pay-per-use |
 
-**5. TIER 5 - CLI-Based Coding Agents**
+**5. TIER 5 - CLI-Based Coding Agents (Local Wrappers)**
 
-| Agent            | Install Method                      | Purpose                                    |
-| ---------------- | ----------------------------------- | ------------------------------------------ |
-| **Aider**        | `pip install aider-chat`            | Git-aware code editing and refactoring     |
-| **GPT Engineer** | `npm install -g gpt-engineer`       | Full-stack project generation from scratch |
-| **Goose CLI**    | `pip install goose-ai`              | Interactive coding assistant               |
-| **OpenCode**     | Custom installation                 | Repository-aware AI assistant              |
-| **Blackbox CLI** | `npm install -g @blackbox/cli`      | Code search and generation                 |
-| **Crush CLI**    | Custom installation                 | Terminal-based coding agent                |
-| **Codex CLI**    | `pip install codex-cli`             | OpenAI Codex wrapper                       |
-| **Gemini CLI**   | `npm install -g @google/gemini-cli` | Google Gemini terminal interface           |
+*Note: CLI agents are LOCAL WRAPPERS for Tier 1-3 cloud providers. They use the same credentials as their parent providers but execute locally as sandboxed subprocesses.*
+
+| Agent | Install Method | Purpose |
+| --- | --- | --- |
+| **Aider** | `pip install aider-chat` | Git-aware code editing and refactoring |
+| **GPT Engineer** | `npm install -g gpt-engineer` | Full-stack project generation from scratch |
+| **Goose CLI** | `pip install goose-ai` | Interactive coding assistant |
+| **OpenCode** | Custom installation | Repository-aware AI assistant |
+| **Blackbox CLI** | `npm install -g @blackbox/cli` | Code search and generation |
+| **Crush CLI** | Custom installation | Terminal-based coding agent |
+| **Codex CLI** | `pip install codex-cli` | OpenAI Codex wrapper |
+| **Gemini CLI** | `npm install -g @google/gemini-cli` | Google Gemini terminal interface |
 
 **6. Local AI Runtime (Offline/Private)**
 
-| Runtime    | Endpoint        | Notes                                                   |
-| ---------- | --------------- | ------------------------------------------------------- |
+| Runtime | Endpoint | Notes |
+| --- | --- | --- |
 | **Ollama** | localhost:11434 | ONLY supported local runtime. 100% offline and private. |
 
 **Ollama is the exclusive local model option.** Other local runtimes (LM Studio, LocalAI, llama.cpp server, etc.) are NOT supported to ensure consistent behavior and simplified troubleshooting.
@@ -2312,7 +2365,8 @@ Guardian SHALL enforce:
 - Budget accounting
 - Network capability validation
 
-**Invariant:**  
+**Invariant:**
+
 **INV-AI-ROUTER-1: Guardian-Mediated AI Only** — No component SHALL communicate directly with any AI provider or model runtime without Guardian mediation.
 
 ### 26.3 Provider Registry (Canonical Schema)
@@ -2328,6 +2382,10 @@ No provider, CLI agent, or local runtime may be used unless registered, signed, 
 ProviderRecord {
   provider_id: UUID
   token_id: UUID,  // Reserved
+  parent_provider_id?: UUID  // For CLI_AGENT type: links to parent cloud provider (e.g., Gemini CLI → Google Gemini)
+  // Parent linkage established via CLI agent detection (Section 26.4) or explicit Operator configuration
+  // CLI agent inherits parent's credentials, network policy, and health state
+  // If parent is DISABLED or DEGRADED, CLI agent is automatically marked UNAVAILABLE
   type: 'CLOUD_API' | 'ENTERPRISE_CLOUD' | 'MODEL_HOSTING' | 'CLI_AGENT' | 'LOCAL_RUNTIME'
   tier: 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4' | 'TIER_5' | 'LOCAL'
   name: string
@@ -2373,8 +2431,7 @@ ProviderRecord {
 - Disabled providers SHALL NOT be selected
 - Registry state MUST be snapshotted in EnvironmentSnapshot
 
-**Invariant:**
-**INV-AI-REG-1: Signed Provider Registry Only** — AI provider, CLI agent, or local runtime selection SHALL NOT occur unless the ProviderRecord is Guardian-signed and enabled.
+**Invariant:INV-AI-REG-1: Signed Provider Registry Only** — AI provider, CLI agent, or local runtime selection SHALL NOT occur unless the ProviderRecord is Guardian-signed and enabled.
 
 ### 26.2 AI Routing Interface (Non-Authoritative)
 
@@ -2403,32 +2460,39 @@ CLIAgentType =
   | 'API_WRAPPER'        // e.g., Codex CLI, Gemini CLI (provider wrappers)
 ```
 
+**Parent Provider Linkage:**
+
+Every CLI agent MUST be linked to a parent cloud provider (Tier 1-3) via the `parent_provider_id` field in ProviderRecord (Section 26.3). This linkage establishes:
+
+- **Credential Inheritance:** CLI agent uses parent provider's API credentials
+- **Network Policy:** CLI agent inherits parent's endpoint allowlist
+- **Health Cascading:** If parent is DISABLED or DEGRADED, CLI agent is automatically marked UNAVAILABLE
+
+Example: Aider (CLI agent) → OpenAI (parent provider)
+
 **Security Requirements:**
 
 All CLI agents MUST:
 
 1. **Binary Verification:**
-   - Hash verification against known-good signatures
-   - Guardian maintains signed registry of trusted CLI agent hashes
-   - Modified binaries are rejected with SECURITY_VIOLATION
-
+    - Hash verification against known-good signatures
+    - Guardian maintains signed registry of trusted CLI agent hashes
+    - Modified binaries are rejected with SECURITY_VIOLATION
 2. **Sandbox Execution:**
-   - Execute within Windows Job Object (same as build tools)
-   - Filesystem jail enforced (project root only)
-   - Network access restricted to AI provider endpoints (NET_AI_ONLY)
-   - Memory limit: 2GB default (configurable via policy)
-   - CPU limit: 50% default (configurable via policy)
-   - Runtime limit: 300 seconds default (configurable via policy)
-
+    - Execute within Windows Job Object (same as build tools)
+    - Filesystem jail enforced (project root only)
+    - Network access restricted to AI provider endpoints (NET_AI_ONLY)
+    - Memory limit: 2GB default (configurable via policy)
+    - CPU limit: 50% default (configurable via policy)
+    - Runtime limit: 300 seconds default (configurable via policy)
 3. **Argument Whitelisting:**
-   - Only pre-approved arguments allowed
-   - Guardian validates all CLI invocations
-   - Unknown arguments trigger DENY
-
+    - Only pre-approved arguments allowed
+    - Guardian validates all CLI invocations
+    - Unknown arguments trigger DENY
 4. **Capability Tokens:**
-   - Requires: CLI_AGENT_EXEC
-   - May require: FS_WRITE, NET_AI_ONLY
-   - Subject to standard capability validation
+    - Requires: CLI_AGENT_EXEC
+    - May require: FS_WRITE, NET_AI_ONLY
+    - Subject to standard capability validation
 
 **Detection & Registration:**
 
@@ -2570,13 +2634,13 @@ Guardian.issueToken({
 
 **Failure Handling:**
 
-| Error Code                     | Description                                   | Recovery                                  |
-| ------------------------------ | --------------------------------------------- | ----------------------------------------- |
-| CLI_AGENT_NOT_FOUND            | Executable not in PATH                        | Prompt for installation or manual path    |
-| CLI_AGENT_HASH_MISMATCH        | Binary modified or untrusted version          | Reject execution, require reinstall       |
-| CLI_AGENT_TIMEOUT              | Execution exceeded time limit                 | Kill Job Object, log incident             |
-| CLI_AGENT_NETWORK_VIOLATION    | Attempted connection to unauthorized endpoint | Immediate termination, SECURITY_VIOLATION |
-| CLI_AGENT_FILESYSTEM_VIOLATION | Attempted access outside project root         | Immediate termination, SECURITY_VIOLATION |
+| Error Code | Description | Recovery |
+| --- | --- | --- |
+| CLI_AGENT_NOT_FOUND | Executable not in PATH | Prompt for installation or manual path |
+| CLI_AGENT_HASH_MISMATCH | Binary modified or untrusted version | Reject execution, require reinstall |
+| CLI_AGENT_TIMEOUT | Execution exceeded time limit | Kill Job Object, log incident |
+| CLI_AGENT_NETWORK_VIOLATION | Attempted connection to unauthorized endpoint | Immediate termination, SECURITY_VIOLATION |
+| CLI_AGENT_FILESYSTEM_VIOLATION | Attempted access outside project root | Immediate termination, SECURITY_VIOLATION |
 
 **Invariants:**
 
@@ -2598,8 +2662,8 @@ Exacta SHALL maintain a Guardian-signed, live inventory of available models.
 
 1. Guardian issues DISCOVERY token (read-only; implies NET_AI_ONLY + NET_LOCAL access)
 2. Core queries:
-   - CLOUD_API → GET /v1/models (OpenAI-compatible)
-   - LOCAL_RUNTIME (Ollama) → GET http://localhost:11434/api/tags
+    - CLOUD_API → GET /v1/models (OpenAI-compatible)
+    - LOCAL_RUNTIME (Ollama) → GET http://localhost:11434/api/tags
 3. Guardian validates schema and signs ModelRecord set
 4. Registry is updated atomically
 
@@ -2620,8 +2684,7 @@ ModelRecord {
 - Cache TTL = 24h
 - Forced refresh requires Operator approval
 
-**Invariant:**
-**INV-MODEL-1: Signed Model Inventory** — No model SHALL be selected unless its ModelRecord is Guardian-signed and current.
+**Invariant:INV-MODEL-1: Signed Model Inventory** — No model SHALL be selected unless its ModelRecord is Guardian-signed and current.
 
 ### 26.6 Provider Health, Fallback, and Scoring
 
@@ -2637,28 +2700,35 @@ Health Metrics:
 
 ### Utility-Based Routing Function
 
-The "Routing Score" is replaced by a formal **Utility Function**:
+The “Routing Score” is replaced by a formal **Utility Function**:
 
-$$ U(p) = \alpha \cdot \text{Quality}(p) - \beta \cdot \text{Cost}(p) - \gamma \cdot \text{Latency}(p) + \delta \cdot \text{Health}(p) $$
+*U*(*p*) = *α* ⋅ Quality(*p*) − *β* ⋅ Cost(*p*) − *γ* ⋅ Latency(*p*) + *δ* ⋅ Health(*p*)
 
 Where:
 
-- $\alpha, \beta, \gamma, \delta$ are dynamic weights tuned by the System Heuristics Engine.
+- *α*, *β*, *γ*, *δ* are dynamic weights tuned by the System Heuristics Engine.
 - **AI Visibility:** ❌ NONE. The AI cannot see or influence routing weights.
+
+**Baseline Weight Values (Default):**
+
+- *α* (Quality) = 0.4
+- *β* (Cost) = 0.3
+- *γ* (Latency) = 0.2
+- *δ* (Health) = 0.1
+
+These weights MAY be adjusted by the System Heuristics Engine within the bounds defined by INV-HEUR-2 (±25% per 24-hour period).
 
 ### Selection Rules
 
 1. Filter:
-   - enabled = true
-   - capability match
-   - health != UNAVAILABLE
-
+    - enabled = true
+    - capability match
+    - health != UNAVAILABLE
 2. Sort by score DESC
 3. Select highest score
 4. On failure → mark DEGRADED and retry next provider
 
-**Invariant:**
-**INV-ROUTE-1: Deterministic Provider Selection** — For identical `(registry, health_state, budget_state, goal)` snapshots, routing decisions SHALL be deterministic.
+**Invariant:INV-ROUTE-1: Deterministic Provider Selection** — For identical `(registry, health_state, budget_state, goal)` snapshots, routing decisions SHALL be deterministic.
 
 ### 26.7 Provider Budget & Cost Enforcement
 
@@ -2676,17 +2746,18 @@ Tracked:
 - Budget exceed → AI-BUDGET-EXCEEDED
 - Guardian MAY downgrade to lower-cost providers automatically
 
-**Invariant:**  
+**Invariant:**
+
 **INV-AI-BUDGET-1: Cognition Is Metered** — AI providers and CLI runtimes SHALL be budget-governed equivalently to build and shell execution.
 
 ### 26.8 Provider Failure Taxonomy
 
-| Error Code              | Description                  | Recovery             |
-| ----------------------- | ---------------------------- | -------------------- |
-| PROVIDER-UNAVAILABLE    | All providers unreachable    | Enter NO_AI_PROVIDER |
-| MODEL-NOT-FOUND         | Selected model missing       | Refresh registry     |
-| AI-BUDGET-EXCEEDED      | Provider budget hit          | Downgrade or halt    |
-| PROVIDER-SCHEMA-INVALID | Malformed discovery response | DENY + INCIDENT      |
+| Error Code | Description | Recovery |
+| --- | --- | --- |
+| PROVIDER-UNAVAILABLE | All providers unreachable | Enter NO_AI_PROVIDER |
+| MODEL-NOT-FOUND | Selected model missing | Refresh registry |
+| AI-BUDGET-EXCEEDED | Provider budget hit | Downgrade or halt |
+| PROVIDER-SCHEMA-INVALID | Malformed discovery response | DENY + INCIDENT |
 
 ### 26.9 Credential Handling Protocol
 
@@ -2694,17 +2765,26 @@ Tracked:
 
 To prevent credential leakage and MITM attacks:
 
-1.  **Storage:** Credentials (API Keys) are stored ONLY in Guardian-protected storage (DPAPI).
-2.  **Transmission:**
-    - Core constructs the _logical_ request (prompt, params) but NOT the auth headers.
+1. **Storage:** Credentials (API Keys) are stored ONLY in Guardian-protected storage (DPAPI).
+2. **Transmission:**
+    - Core constructs the *logical* request (prompt, params) but NOT the auth headers.
     - Core transmits logical request to Guardian AI Router via authenticated IPC.
     - Guardian retrieves secrets, constructs the raw HTTP request, and terminates TLS.
     - Guardian performs the actual network I/O.
-    - Logs contain only the _logical_ request/response (redacted).
-3.  **Isolation:** Raw API keys NEVER enter the Core process memory space.
+    - Logs contain only the *logical* request/response (redacted).
+3. **Isolation:** Raw API keys NEVER enter the Core process memory space.
 
-**Invariant:**
-**INV-CRED-1: Guardian-Isolated Credentials** — Core Runtime SHALL NOT possess raw provider credentials. All provider authentication is injected by Guardian at the network edge.
+**Invariant:INV-CRED-1: Guardian-Isolated Credentials** — Core Runtime SHALL NOT possess raw provider credentials. All provider authentication is injected by Guardian at the network edge.
+
+**Exception:** CLI agents (Tier 5 providers) MAY receive credentials via Guardian-managed proxy or environment variable injection as specified below, but MUST be scoped to subprocess lifetime and logged.
+
+**CLI Agent Credential Exception:**
+
+CLI agents (Tier 5 providers) operate differently than direct API calls:
+
+1. **Guardian-Managed Proxy Mode (Preferred):** Guardian SHALL expose a local HTTP proxy server (bound to 127.0.0.1:random_port) that intercepts CLI agent API calls, injects credentials, and forwards requests to the actual provider endpoint. CLI agents are configured to use this proxy via environment variables (e.g., `HTTPS_PROXY=`[`](http://127.0.0.1:PORT)[http://127.0.0.1:PORT`](http://127.0.0.1:PORT`)).
+2. **Environment Variable Mode (Fallback):** If proxy mode is unavailable, Guardian MAY inject credentials as environment variables (e.g., `OPENAI_API_KEY`) into the CLI agent subprocess environment. This is logged as SECURITY_NOTICE and requires explicit Operator approval via policy profile.
+3. **Credential Scope:** CLI agent credentials are scoped to the subprocess Job Object lifetime and automatically revoked on process termination.
 
 ---
 
@@ -2718,21 +2798,21 @@ By default, Exacta operates with a minimalist visibility model. Advanced visibil
 
 1. **Install & Launch:** No external compilers needed (standard toolchains bundled).
 2. **Select AI Power:**
-   - **Local:** Select "Use Ollama" (zero configuration, free).
-   - **Cloud:** Enter API Key for OpenAI/Anthropic/Gemini.
+    - **Local:** Select “Use Ollama” (zero configuration, free).
+    - **Cloud:** Enter API Key for OpenAI/Anthropic/Gemini.
 3. **Create Project:** Choose a folder.
 4. **Chat & Build:** Describe your app; Exacta builds it autonomously.
-5. **Export:** Click "Export Build" to get a standalone EXE/MSI.
+5. **Export:** Click “Export Build” to get a standalone EXE/MSI.
 
 ## 28.1 UI Visibility Mandate (Settings Icon)
 
-The "Settings" icon in the UI SHALL provide a dedicated **"AI Providers"** panel. This panel MUST:
+The “Settings” icon in the UI SHALL provide a dedicated **“AI Providers”** panel. This panel MUST:
 
 1. List all providers from the **Recognized Provider Ecosystem** (Section 26.1.1).
 2. Allow one-click selection of Cloud or Local providers.
 3. Automatically configure base URLs for known providers.
 4. Provide secure input fields for API Keys (write-only, DPAPI-backed).
-5. Display live "Health Check" status for configured providers.
+5. Display live “Health Check” status for configured providers.
 
 ## 29. Features
 
@@ -2758,14 +2838,13 @@ The system SHALL support exporting the current project state as:
 
 **Export Flow:**
 
-1. Operator clicks "Export".
+1. Operator clicks “Export”.
 2. Guardian validates project integrity (no active errors).
 3. Core executes `build_release` capability (if allowed).
 4. System packages artifacts to user-selected output folder.
 5. Exacta metadata (`.exacta/`) is STRIPPED from export.
 
-**Invariant:**
-**INV-EXPORT-1: Clean Export** — Exported artifacts SHALL NOT contain Exacta internal state, indices, history, or Guardian enforcement hooks. They are standard, standalone software.
+**Invariant:INV-EXPORT-1: Clean Export** — Exported artifacts SHALL NOT contain Exacta internal state, indices, history, or Guardian enforcement hooks. They are standard, standalone software.
 
 ## Appendix A - Engineering Schemas
 
@@ -2897,7 +2976,19 @@ enum Capability {
 }
 ```
 
-### A.5 Risk Class Enum
+### A.5 Command Class to Capability Mapping
+
+```tsx
+const COMMAND_CLASS_CAPABILITY_MAP: Record<CommandClass, Capability[]> = {
+  READ: [FS_READ],
+  BUILD: [BUILD_EXEC, FS_READ, FS_WRITE],
+  FS_MUTATE: [FS_WRITE],
+  SYSTEM: [SHELL_EXEC], // Requires CRITICAL risk_class
+  NETWORK: [NET_AI_ONLY, NET_DOCS_ONLY, NET_REGISTRY], // At least one required
+};
+```
+
+### A.6 Risk Class Enum
 
 ```tsx
 enum RiskClass {
@@ -2923,103 +3014,104 @@ Goal {
 
 ## Appendix B - Invariant Index
 
-This index MUST enumerate all INV-\* identifiers defined in this document. Missing entries constitute a SPEC VIOLATION.
+This index MUST enumerate all INV-* identifiers defined in this document. Missing entries constitute a SPEC VIOLATION.
 
-| Invariant ID          | Description                                         | Section |
-| --------------------- | --------------------------------------------------- | ------- |
-| INV-A1                | System Authority Supremacy                          | 22.1    |
-| PLAT-ASSUMP-1         | Administrative Privilege Requirement                | 22.1    |
-| INV-A2                | Capability-Scoped Actions Only                      | 22.1    |
-| INV-A3                | System Resource Protection                          | 22.1    |
-| INV-A4                | Checkpoint Before Action (Internal)                 | 22.1    |
-| INV-A5                | System Recovery (Internal)                          | 22.1    |
-| INV-A6                | Local-Only Execution                                | 22.1    |
-| INV-A7                | No External Telemetry                               | 22.1    |
-| INV-A8                | Human Kill Switch Always Available                  | 22.1    |
-| INV-CORE-1            | Immutable Core Runtime                              | 22.1    |
-| INV-CORE-2            | Controlled Upgrade Only                             | 22.1    |
-| INV-CTX-FAST-1        | Risk Escalation (Fast Mode)                         | 7.2     |
-| INV-DET-1             | Snapshot Completeness                               | 24.2    |
-| INV-GLOBAL-14         | External Toolchain Orchestration Only               | 22.1    |
-| INV-INDEX-1           | Index Follows File System                           | 14.1    |
-| INV-IPC-1             | Authenticated IPC Only                              | 13      |
-| INV-ITC-3             | No Upward Authority Flow                            | 22.1    |
-| INV-MEM-0             | System-Owned Memory Authority                       | 22.1    |
-| INV-MEM-1             | Atomic State Commit                                 | 8.5     |
-| INV-MEM-4             | World Model Isolation                               | 8.1     |
-| INV-MEM-7             | Corruption Fails Closed                             | 8.5     |
-| INV-MEM-9             | No Operational Perception                           | 7.4     |
-| INV-MEM-11            | No Unverified Index Exposure                        | 14      |
-| INV-MEM-13            | Goal Isolation                                      | 22.1    |
-| INV-MEM-14            | Provider Memory Boundary                            | 26      |
-| INV-MEM-15            | No Execution Trace in Context                       | 7.4     |
-| INV-MEM-17            | Signed Index Root                                   | 14.2    |
-| INV-MEM-CS-1          | AI No Reconstruction                                | 9.2     |
-| INV-MEM-CTX-1         | Operational Non-Observability                       | 7.4     |
-| INV-MEM-DIGEST-1      | Core-Only Digest Authority                          | 22.1    |
-| INV-MEM-FW-2          | Semantic Neutralization                             | 7.4     |
-| INV-NET-HIER-1        | Network policy hierarchy enforcement                | 18      |
-| INV-OP-PRES-1         | Operational Preservation Mode semantics             | 11.2    |
-| INV-SANDBOX-1         | Guardian-Owned Sandbox Boundary                     | 12.1    |
-| INV-SANDBOX-BREACH    | Sandbox violation triggers halt and operator review | 12.1    |
-| INV-POLICY-1          | Signed Policy Profiles Only                         | 11.1.1  |
-| INV-TERM-1            | Operator is sole human authority term               | 3       |
-| INV-BOOT-1            | No Execution Before READY                           | 2.1     |
-| INV-AI-BOOT-1         | No Cognition, No Autonomy                           | 26.1    |
-| INV-AI-ROUTER-1       | Guardian-Mediated AI Only                           | 26.2    |
-| INV-AI-REG-1          | Signed Provider Registry Only                       | 26.3    |
-| INV-MODEL-1           | Signed Model Inventory                              | 26.5    |
-| INV-ROUTE-1           | Deterministic Provider Selection                    | 26.6    |
-| INV-AI-BUDGET-1       | Cognition Is Metered                                | 26.7    |
-| INV-CTX-SMART-1       | Minimal Context Loading                             | 7.3     |
-| INV-INDEX-HYBRID-1    | Multi-Modal Indexing                                | 14.3    |
-| INV-ROOT-1            | Hardware-Anchored Trust                             | 11.2.1  |
-| INV-IPC-2             | Handshake-Guarded Channels                          | 13.1    |
-| INV-IPC-3             | Replay Prevention                                   | 13.1    |
-| INV-DET-2             | Toolchain Drift Lock                                | 24.2    |
-| INV-NET-FAIL-1        | Driver Dependency                                   | 12.1    |
-| INV-CRED-1            | Guardian-Isolated Credentials                       | 26.9    |
-| INV-EXPORT-1          | Clean Export                                        | 30      |
-| INV-CLI-1             | Sandboxed Execution Only (CLI Agents)               | 26.4    |
-| INV-CLI-2             | Hash Verification Required (CLI Agents)             | 26.4    |
-| INV-CLI-3             | Argument Validation (CLI Agents)                    | 26.4    |
-| INV-CLI-4             | Network Isolation (CLI Agents)                      | 26.4    |
-| INV-CTX-PROGRESSIVE-1 | Just-in-Time Loading                                | 7.2.1   |
-| INV-SEARCH-FAIL-1     | No Silent Failures                                  | 7.3.4   |
-| INV-INDEX-BUILD-1     | Non-Blocking Availability                           | 14.4    |
-| INV-INDEX-FRESH-1     | Stale Read Bound                                    | 14.5    |
-| INV-EMBED-1           | Semantic Consistency                                | 14.6    |
-| INV-AI-PIPE-1         | Single Decision Authority                           | 6.1.1   |
-| INV-HEUR-1            | Non-Cognitive Learning Only                         | 21.1    |
-| INV-GRAPH-PROBE-1     | Minimal Side-Effect Discovery                       | 7.2.1   |
-| INV-ID-1              | No Cryptographic Authority for AI                   | 11.3.1  |
+| Invariant ID | Description | Section |
+| --- | --- | --- |
+| INV-A1 | System Authority Supremacy | 22.1 |
+| PLAT-ASSUMP-1 | Administrative Privilege Requirement | 22.1 |
+| INV-A2 | Capability-Scoped Actions Only | 22.1 |
+| INV-A3 | System Resource Protection | 22.1 |
+| INV-A4 | Checkpoint Before Action (Internal) | 22.1 |
+| INV-A5 | System Recovery (Internal) | 22.1 |
+| INV-A6 | Local-Only Execution | 22.1 |
+| INV-A7 | No External Telemetry | 22.1 |
+| INV-A8 | Human Kill Switch Always Available | 22.1 |
+| INV-CORE-1 | Immutable Core Runtime | 22.1 |
+| INV-CORE-2 | Controlled Upgrade Only | 22.1 |
+| INV-CTX-FAST-1 | Risk Escalation (Fast Mode) | 7.2 |
+| INV-DET-1 | Snapshot Completeness | 24.2 |
+| INV-GLOBAL-14 | External Toolchain Orchestration Only | 22.1 |
+| INV-INDEX-1 | Index Follows File System | 14.1 |
+| INV-IPC-1 | Authenticated IPC Only | 13 |
+| INV-ITC-3 | No Upward Authority Flow | 22.1 |
+| INV-MEM-0 | System-Owned Memory Authority | 22.1 |
+| INV-MEM-1 | Atomic State Commit | 8.5 |
+| INV-MEM-4 | World Model Isolation | 8.1 |
+| INV-MEM-7 | Corruption Fails Closed | 8.5 |
+| INV-MEM-9 | No Operational Perception | 7.4 |
+| INV-MEM-11 | No Unverified Index Exposure | 14 |
+| INV-MEM-13 | Goal Isolation | 22.1 |
+| INV-MEM-14 | Provider Memory Boundary | 26 |
+| INV-MEM-15 | No Execution Trace in Context | 7.4 |
+| INV-MEM-17 | Signed Index Root | 14.2 |
+| INV-MEM-CS-1 | AI No Reconstruction | 9.2 |
+| INV-MEM-CTX-1 | Operational Non-Observability | 7.4 |
+| INV-MEM-DIGEST-1 | Core-Only Digest Authority | 22.1 |
+| INV-MEM-FW-2 | Semantic Neutralization | 7.4 |
+| INV-NET-HIER-1 | Network policy hierarchy enforcement | 18 |
+| INV-OP-PRES-1 | Operational Preservation Mode semantics | 11.2 |
+| INV-SANDBOX-1 | Guardian-Owned Sandbox Boundary | 12.1 |
+| INV-SANDBOX-BREACH | Sandbox violation triggers halt and operator review | 12.1 |
+| INV-POLICY-1 | Signed Policy Profiles Only | 11.1.1 |
+| INV-TERM-1 | Operator is sole human authority term | 3 |
+| INV-BOOT-1 | No Execution Before READY | 2.1 |
+| INV-AI-BOOT-1 | No Cognition, No Autonomy | 26.1 |
+| INV-AI-ROUTER-1 | Guardian-Mediated AI Only | 26.2 |
+| INV-AI-REG-1 | Signed Provider Registry Only | 26.3 |
+| INV-MODEL-1 | Signed Model Inventory | 26.5 |
+| INV-ROUTE-1 | Deterministic Provider Selection | 26.6 |
+| INV-AI-BUDGET-1 | Cognition Is Metered | 26.7 |
+| INV-CTX-SMART-1 | Minimal Context Loading | 7.3 |
+| INV-INDEX-HYBRID-1 | Multi-Modal Indexing | 14.3 |
+| INV-ROOT-1 | Hardware-Anchored Trust | 11.2.1 |
+| INV-IPC-2 | Handshake-Guarded Channels | 13.1 |
+| INV-IPC-3 | Replay Prevention | 13.1 |
+| INV-DET-2 | Toolchain Drift Lock | 24.2 |
+| INV-NET-FAIL-1 | Driver Dependency | 12.1 |
+| INV-CRED-1 | Guardian-Isolated Credentials | 26.9 |
+| INV-EXPORT-1 | Clean Export | 30 |
+| INV-CLI-1 | Sandboxed Execution Only (CLI Agents) | 26.4 |
+| INV-CLI-2 | Hash Verification Required (CLI Agents) | 26.4 |
+| INV-CLI-3 | Argument Validation (CLI Agents) | 26.4 |
+| INV-CLI-4 | Network Isolation (CLI Agents) | 26.4 |
+| INV-CTX-PROGRESSIVE-1 | Just-in-Time Loading | 7.2.1 |
+| INV-SEARCH-FAIL-1 | No Silent Failures | 7.3.4 |
+| INV-INDEX-BUILD-1 | Non-Blocking Availability | 14.4 |
+| INV-INDEX-FRESH-1 | Stale Read Bound | 14.5 |
+| INV-EMBED-1 | Semantic Consistency | 14.6 |
+| INV-AI-PIPE-1 | Single Decision Authority | 6.1.1 |
+| INV-HEUR-1 | Non-Cognitive Learning Only | 21.1 |
+| INV-GRAPH-PROBE-1 | Minimal Side-Effect Discovery | 7.2.1 |
+| INV-ID-1 | No Cryptographic Authority for AI | 11.3.1 |
+| INV-CTX-3 | Topological Precedence | 7.3.5 |
 
 ## Appendix C - Change Log
 
-| Version | Date       | Change Description                                   |
-| ------- | ---------- | ---------------------------------------------------- |
-| 1.0.0   | 2024-05-22 | Initial Canonical Authority Ratification             |
-| 1.1.0   | 2024-05-23 | Table of Contents & Header Alignment                 |
-| 1.2.0   | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules) |
-| 1.5.0   | 2026-01-20 | Final Spec Rectification (Audit Closure)             |
-| 2.0.0   | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits)   |
-| 2.1.0   | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers)      |
-|         |            | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex)   |
-|         |            | - Added Tier 3: Specialized Providers (7 providers)  |
-|         |            | - Added Tier 4: Model Hosting (10 platforms)         |
-|         |            | - Added Tier 5: CLI Coding Agents (8 agents)         |
-|         |            | - Added CLI_AGENT_EXEC capability                    |
-|         |            | - Added Section 26.4: CLI Agent Orchestration        |
-|         |            | - Added CLI agent security model and sandboxing      |
-|         |            | - Added CLI agent test suite (SBX tests CLI-001-007) |
-|         |            | - Added CLI agent invariants (INV-CLI-1 through 4)   |
-| 2.2.0   | 2026-01-21 | Smart Context & Indexing Upgrade                     |
-|         |            | - Upgraded Section 7.3 to Smart Hybrid Search        |
-|         |            | - Added Section 14.3 Advanced Indexing Architecture  |
-|         |            | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1       |
-| 2.3.0   | 2026-01-21 | Spec Perfection: Full Enhancement                    |
-|         |            | - Added Progressive Context (7.2.1)                  |
-|         |            | - Detailed Search Performance & Recovery (7.3.1-4)   |
-|         |            | - Defined Index Lifecycle & Staleness (14.4-5)       |
-|         |            | - Standardized Embedding Models (14.6)               |
-|         |            | - Added 5 new invariants (Context, Search, Index)    |
+| Version | Date | Change Description |
+| --- | --- | --- |
+| 1.0.0 | 2024-05-22 | Initial Canonical Authority Ratification |
+| 1.1.0 | 2024-05-23 | Table of Contents & Header Alignment |
+| 1.2.0 | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules) |
+| 1.5.0 | 2026-01-20 | Final Spec Rectification (Audit Closure) |
+| 2.0.0 | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits) |
+| 2.1.0 | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers) |
+|  |  | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex) |
+|  |  | - Added Tier 3: Specialized Providers (7 providers) |
+|  |  | - Added Tier 4: Model Hosting (10 platforms) |
+|  |  | - Added Tier 5: CLI Coding Agents (8 agents) |
+|  |  | - Added CLI_AGENT_EXEC capability |
+|  |  | - Added Section 26.4: CLI Agent Orchestration |
+|  |  | - Added CLI agent security model and sandboxing |
+|  |  | - Added CLI agent test suite (SBX tests CLI-001-007) |
+|  |  | - Added CLI agent invariants (INV-CLI-1 through 4) |
+| 2.2.0 | 2026-01-21 | Smart Context & Indexing Upgrade |
+|  |  | - Upgraded Section 7.3 to Smart Hybrid Search |
+|  |  | - Added Section 14.3 Advanced Indexing Architecture |
+|  |  | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1 |
+| 2.3.0 | 2026-01-21 | Spec Perfection: Full Enhancement |
+|  |  | - Added Progressive Context (7.2.1) |
+|  |  | - Detailed Search Performance & Recovery (7.3.1-4) |
+|  |  | - Defined Index Lifecycle & Staleness (14.4-5) |
+|  |  | - Standardized Embedding Models (14.6) |
+|  |  | - Added 5 new invariants (Context, Search, Index) |
