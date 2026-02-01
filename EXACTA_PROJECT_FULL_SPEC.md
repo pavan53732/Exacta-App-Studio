@@ -57,12 +57,14 @@ Determinism is guaranteed ONLY for:
   - [1.3 What the Operator Sees (and Does NOT See)](about:blank#13-what-the-operator-sees-and-does-not-see)
   - [1.4 Lovable-Style Interaction Model](about:blank#14-lovable-style-interaction-model)
   - [1.5 Execution & Isolation Tradeoffs](about:blank#15-execution--isolation-tradeoffs)
+  - [1.6 The Asset Forge (Generative Assets)](about:blank#16-the-asset-forge-generative-assets)
 - [2. Product Operating Model (Default Mode)](about:blank#2-product-operating-model-default-mode)
   - [2.1 System Boot State Machine](about:blank#21-system-boot-state-machine)
 - [3. Terminology - Concept Glossary](about:blank#3-terminology---concept-glossary)
 - [4. User Experience Model (Visible Surface)](about:blank#4-user-experience-model-visible-surface)
   - [4.1 Operator Surface vs System Surface](about:blank#41-operator-surface-vs-system-surface)
   - [4.2 Chat-First Interaction](about:blank#42-chat-first-interaction)
+  - [4.3 UI-to-Core Bridge Protocol (JSON-RPC)](about:blank#43-ui-to-core-bridge-protocol-json-rpc)
 - [5. Non-Goals - Explicit Exclusions](about:blank#5-non-goals---explicit-exclusions)
 - [6. Autonomous Execution Model](about:blank#6-autonomous-execution-model)
   - [6.1 Continuous Execution Loop](about:blank#61-continuous-execution-loop)
@@ -221,48 +223,48 @@ Exacta SHALL ONLY:
 
 - Discover (Bundled or System)
 - Verify
+  - **Discovery Order:** Internal (`%LocalAppData%\Exacta\Toolchain\`) -> System (`PATH`).
+  - **Bundled Manifest (Fixed Versions):**
+    - **Runtime:** .NET 8.0 LTS (Generic).
+    - **Scripting:** Node.js 20 LTS.
+    - **Installer:** WiX Toolset v4.
+    - **Media:** ImageMagick (Portable) for programmatic asset generation.
+  - **Isolation:** Exacta defaults to its **Internal Toolchain** to guarantee build reproducibility, ignoring system-installed versions unless explicitly overridden by the Operator.
 - Sandbox
 - Orchestrate
 
 All .exe and .msi artifacts are produced exclusively by these toolchains executed under Guardian-enforced sandbox controls.
 
-### 1.2 Core Design Philosophy (Flow-First, Autonomous)
+### 1.2 Core Design Philosophy (The Four Pillars)
 
-**Bounded Autonomy** — System runs self-directed loops within strict capability tokens, budget limits, and policy constraints. Operator approves goals, system auto-executes steps, Guardian enforces boundaries.
+The architecture of Exacta App Studio is defined by **four non-negotiable conceptual pillars**. These pillars prioritize security and developer flow over traditional manual controls.
 
-**Policy-Governed Execution** — The system implements a goal-driven execution loop (Goal → Perceive → Decide → Act → Observe → Checkpoint) and records execution traces and checkpoints to support operational review, debugging, and recovery workflows. These traces are intended as operational aids and do not imply deterministic or engineering-grade replayability.
+#### 1. The "Invisible" Builder
 
-**Execution Trace Scope (Internal System Function — Not Exposed in UI):** Trace and checkpoint data are produced for internal use and troubleshooting. Re-executing the same goal may produce different ordering or outcomes due to external factors; Exacta does not promise byte-for-byte replay across runs.
+**Philosophy:** The Operator interacts only with high-level goals. There is no visible file tree, diff review, or manual dependency management in the primary loop. It is a "flow-first" experience where changes are auto-applied by the system.
+**Implication:** The UI surfaces **Goals, Progress, and Results**. The "How" (dependency resolution, build scripts, file edits) is abstracted away. The system is an agentic orchestrator, not just a code editor.
 
-**Non-Deterministic Factors (Examples):**
+#### 2. Guardian Supremacy
 
-- External compilers and build tools (msbuild, dotnet, cl, link)
-- Package managers and registries (NuGet, npm, pip)
-- Timestamped file generation
-- Network-fetched dependencies and external services
-- Third-party antivirus, endpoint protection, and kernel/driver interference
+**Philosophy:** Security is not an afterthought; the **Guardian Service** (runs as `NT AUTHORITY\SYSTEM`) is the elevated, sole policy authority. It manages **Capability Tokens** that grant narrow permissions (like writing a specific file or calling a specific API) only when the Policy Engine allows it.
+**Implication:** Even the Core AI Runtime ("The Brain") is untrusted. It cannot touch the disk, network, or kernel without a signed permission slip from the Guardian.
 
-**Operator Visibility:** If subprocess execution appears blocked or behaves unexpectedly due to local protection software, the system records diagnostic notes and recommends the operator review local logs and allowlists.
+#### 3. Local Sovereignty
 
-**Antivirus Detection Heuristics:**
+**Philosophy:** Despite being AI-powered, execution is **strictly local**. All builds, sandboxing (via Windows Job Objects), and indexing happen on the Operator's PC. Cloud AI is treated exclusively as an **"untrusted cognition source"** (text-in/text-out).
+**Implication:**
 
-- Process creation fails with ERROR_ACCESS_DENIED (0x5)
-- Binary files are quarantined or deleted immediately after creation
-- Subprocess terminates within 100ms of startup (typical EDR injection time)
-- Windows Event Log shows antivirus events (Event ID 1006-1008 for Windows Defender)
-- File access patterns show characteristic EDR scanning delays (>50ms per file operation)
-- Network connections blocked despite NET\_\* capability being granted
+- **Bundled Toolchain:** We include .NET SDK, Node.js, and WiX to ensure offline-capable building.
+- **Antivirus Coexistence:** We actively detect local AV interference (process termination <100ms, access denied 0x5) and guide the user, rather than fighting the kernel.
 
-Determinism guarantees apply only to:
+#### 4. Self-Healing Loops
 
-- Policy rule evaluation
-- Capability token validation
+**Philosophy:** The system uses a **Perceive → Decide → Act → Observe** cycle (OODA Loop). If a build fails, the system doesn't nag the user; it **silently retries** (up to 20 times) with a different approach.
+**Implication:**
 
-Execution order, checkpoint timing, file state, toolchain behavior, and recovery outcomes are best-effort and non-deterministic.
-AI output content is explicitly non-deterministic.
-
-**Deep Autonomy Declaration:**
-Exacta embraces **System-Centric Autonomy**, not AI-Centric Autonomy. “Deep Autonomy” means the _System_ handles more complexity (heuristics, routing, verification, recovery) so the _AI_ can focus purely on reasoning. Autonomy increases system effectiveness; it does NOT increase AI authority.
+- **Best-Effort Execution:** We prioritize forward progress over strict determinism. Re-running a goal may produce a different path to the same solution.
+- **Non-Determinism:** We accept that external compilers, package managers (npm/NuGet), and AI outputs are non-deterministic. Only the **Policy Engine** and **Token Validation** are guaranteed deterministic.
+- **Deep Autonomy:** The _System_ handles complexity (heuristics, routing, verification) so the _AI_ can focus purely on reasoning.
 
 ### 1.3 What the Operator Sees (and Does NOT See)
 
@@ -346,6 +348,14 @@ This sandbox does NOT defend against kernel-level compromise, firmware attacks, 
 
 - Exacta MAY orchestrate Windows signing tools (e.g., `signtool.exe`) as a sandboxed subprocess after packaging.
 - Signing MUST require an explicit capability token and MUST NOT embed private keys in project files, diffs, or checkpoints.
+
+### 1.6 The Asset Forge (Generative Assets)
+
+To maintain the "Invisible Builder" illusion, the System acts as the **Creative Director**. It does not block the Operator for missing assets; it generates them.
+
+1. **Iconography:** The system generates application icons (`.ico`, `.png`) matching the Goal's semantic "vibe" (e.g., "Finance" = Shield/Graph) using procedural generation or local diffusion models + ImageMagick.
+2. **Branding Engine:** The system derives a **Design Token System** (Primary Colors, Typography, Border Radii) from the App Concept.
+3. **The "Asset Forge" Toolchain:** A dedicated, hidden pipeline triggers `ImageMagick` to resize, convert, and bundle these assets into the final binary resources automatically.
 
 ## 2. Product Operating Model (Default Mode)
 
@@ -541,7 +551,22 @@ System Surface (hidden by default; available only in debug/administrative builds
 
 Capability toggles, budget meters, execution traces, error codes, and limit counters exist as internal controls and are NOT visible in the default UI. The system self-heals silently on errors.
 
-## 5. Non-Goals - Explicit Exclusions
+### 4.3 UI-to-Core Bridge Protocol (JSON-RPC)
+
+The UI communicates with the Core effectively as a "Remote" client over a named pipe or websocket. It MUST strictly adhere to the defined JSON-RPC 2.0 schema.
+
+**Key UI Methods:**
+
+- `UI.Init`: Handshake and version check.
+- `UI.SubmitGoal`: Operator sends a new natural language intent.
+- `UI.RenderPreview`: Request the Core to spin up a "Preview Server" for the current artifacts.
+- `UI.UpdateSettings`: Modify `Exacta.toml` configuration.
+
+**Key Core Events (Server-Sent Events):**
+
+- `Core.Progress`: Stream structured progress (Step 1/5, "Compiling...").
+- `Core.StreamToken`: Real-time text streaming of AI thought/code.
+- `Core.ArtifactReady`: Notification that a build has finished.
 
 Exacta App Studio is **intentionally not designed** for the following use cases:
 
@@ -569,6 +594,11 @@ DECIDE (Policy Engine + Budget Check → AI proposes Decision)
 ACT (Capability-Scoped Execution with token validation)
   ↓
 OBSERVE (Result + Drift + Side Effects)
+    *   Exit Codes: 0 = Success, Non-Zero = Fail.
+    *   **Semantic Verification (The "Judge"):**
+        *   For fuzzy goals ("Make it blue"), the **Observe** phase MUST invoke a specialized **Verification Agent**.
+        *   This agent uses **Vision (VLM)** or **DOM Analysis** to compare the actual output against the requested `success_criteria`.
+    *   Diagnostics: Capture StdOut, StdErr, Screenshots.
   ↓
 CHECKPOINT (Advanced: Snapshot + Budget Update | Default: Lightweight State)
   ↓
@@ -1291,9 +1321,13 @@ Exacta uses the **Windows Filtering Platform (WFP)** to enforce per-process netw
 
 **TIER 1 (Preferred): WFP Callout Driver**
 
-- Kernel-level enforcement
-- Guaranteed isolation
-- High-security enforcement mode
+- Kernel-level enforcement.
+- Guaranteed isolation.
+- **Bootstrap Protocol:**
+  1.  App Check: Is `ExactaWfpDriver.sys` loaded?
+  2.  If NO: Prompt User for **Admin Elevation** (UAC) to install.
+  3.  Action: Register Driver via WiX/sc.exe.
+  4.  Fallback: If User denies, degrade to **TIER 2**.
 
 **TIER 2 (Fallback): User-Mode WFP API**
 
@@ -1505,12 +1539,13 @@ To ensure AI trust, the index MUST track its own freshness:
 
 To standardize semantic search, Exacta defines the embedding contract:
 
-- **Model:** Any local or provider embedding model meeting dimensional and latency constraints (reference model: `text-embedding-3-small` or equivalent).
-- **Dimensions:** 1536.
+- **Database Engine:** **SQLite-VSS** (Vector Similarity Search extension for SQLite).
+- **Model:** `text-embedding-3-small` (or compatible local ONNX equivalent).
+- **Dimension:** 1536 float32.
 - **Chunking Strategy:**
-  - _Code:_ Function/Class boundaries (via AST).
-  - _Text:_ Paragraphs (max 512 tokens).
-- **Vector Database:** Local HNSW index (e.g., USearch or SQLite-VSS).
+  - **Code:** AST-based chunking (Function/Class nodes).
+  - **Text:** 512-token max window.
+  - **Overlap:** **50 tokens** (approx 10%) to ensure semantic continuity at boundaries.
 
 **Invariant:INV-EMBED-1: Semantic Consistency** — All embeddings MUST be generated using the same model version within a single index. Mixed-model indices are FORBIDDEN.
 
@@ -2910,6 +2945,8 @@ enum Capability {
   BUILD_EXEC, // Execute build tools (dotnet, npm)
   PACKAGE_EXEC, // Execute package managers (NuGet, npm, pip)
   SIGN_EXEC, // Execute code signing tools
+  NET_CONNECT, // Outbound network access (whitelist-only).
+  ASSET_GEN, // Authority to invoke the Asset Forge (ImageMagick) to generate binary media.
 }
 ```
 
@@ -3025,30 +3062,35 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 
 ## Appendix C - Change Log
 
-| Version | Date       | Change Description                                   |
-| ------- | ---------- | ---------------------------------------------------- |
-| 1.0.0   | 2024-05-22 | Initial Canonical Authority Ratification             |
-| 1.1.0   | 2024-05-23 | Table of Contents & Header Alignment                 |
-| 1.2.0   | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules) |
-| 1.5.0   | 2026-01-20 | Final Spec Rectification (Audit Closure)             |
-| 2.0.0   | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits)   |
-| 2.1.0   | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers)      |
-|         |            | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex)   |
-|         |            | - Added Tier 3: Specialized Providers (7 providers)  |
-|         |            | - Added Tier 4: Model Hosting (10 platforms)         |
-|         |            | - Added Tier 5: CLI Coding Agents (8 agents)         |
-|         |            | - Added CLI_AGENT_EXEC capability                    |
-|         |            | - Added Section 26.4: CLI Agent Orchestration        |
-|         |            | - Added CLI agent security model and sandboxing      |
-|         |            | - Added CLI agent test suite (SBX tests CLI-001-007) |
-|         |            | - Added CLI agent invariants (INV-CLI-1 through 4)   |
-| 2.2.0   | 2026-01-21 | Smart Context & Indexing Upgrade                     |
-|         |            | - Upgraded Section 7.3 to Smart Hybrid Search        |
-|         |            | - Added Section 14.3 Advanced Indexing Architecture  |
-|         |            | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1       |
-| 2.3.0   | 2026-01-21 | Spec Perfection: Full Enhancement                    |
-|         |            | - Added Progressive Context (7.2.1)                  |
-|         |            | - Detailed Search Performance & Recovery (7.3.1-4)   |
-|         |            | - Defined Index Lifecycle & Staleness (14.4-5)       |
-|         |            | - Standardized Embedding Models (14.6)               |
-|         |            | - Added 5 new invariants (Context, Search, Index)    |
+| Version         | Date       | Change Description                                       |
+| --------------- | ---------- | -------------------------------------------------------- |
+| 1.0.0           | 2024-05-22 | Initial Canonical Authority Ratification                 |
+| 1.1.0           | 2024-05-23 | Table of Contents & Header Alignment                     |
+| 1.2.0           | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules)     |
+| 1.5.0           | 2026-01-20 | Final Spec Rectification (Audit Closure)                 |
+| 2.0.0           | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits)       |
+| 2.1.0           | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers)          |
+|                 |            | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex)       |
+|                 |            | - Added Tier 3: Specialized Providers (7 providers)      |
+|                 |            | - Added Tier 4: Model Hosting (10 platforms)             |
+|                 |            | - Added Tier 5: CLI Coding Agents (8 agents)             |
+|                 |            | - Added CLI_AGENT_EXEC capability                        |
+|                 |            | - Added Section 26.4: CLI Agent Orchestration            |
+|                 |            | - Added CLI agent security model and sandboxing          |
+|                 |            | - Added CLI agent test suite (SBX tests CLI-001-007)     |
+|                 |            | - Added CLI agent invariants (INV-CLI-1 through 4)       |
+| 2.2.0           | 2026-01-21 | Smart Context & Indexing Upgrade                         |
+|                 |            | - Upgraded Section 7.3 to Smart Hybrid Search            |
+|                 |            | - Added Section 14.3 Advanced Indexing Architecture      |
+|                 |            | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1           |
+| 2.3.0           | 2026-01-21 | Spec Perfection: Full Enhancement                        |
+|                 |            | - Added Progressive Context (7.2.1)                      |
+|                 |            | - Detailed Search Performance & Recovery (7.3.1-4)       |
+|                 |            | - Defined Index Lifecycle & Staleness (14.4-5)           |
+|                 |            | - Standardized Embedding Models (14.6)                   |
+|                 |            | - Added 5 new invariants (Context, Search, Index)        |
+| 2.4.0 (CURRENT) | 2026-02-01 | Asset Forge & Protocol Expansion                         |
+|                 |            | - Added Section 1.6: The Asset Forge (Generative Assets) |
+|                 |            | - Added Section 4.3: UI-to-Core JSON-RPC Bridge          |
+|                 |            | - Added 'ImageMagick' to Toolchain Manifest (1.1)        |
+|                 |            | - Added 'ASSET_GEN' Capability (Appendix A.4)            |
