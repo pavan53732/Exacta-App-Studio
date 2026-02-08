@@ -231,8 +231,7 @@ The architecture of Exacta App Studio is defined by **four non-negotiable concep
 **Philosophy:** Despite being AI-powered, execution is **strictly local**. All builds, sandboxing (via Windows Job Objects), and indexing happen on the Operator's PC. Cloud AI is treated exclusively as an **"untrusted cognition source"** (text-in/text-out).
 **Implication:**
 
-- **Bundled Toolchain:** We include .NET SDK, Node.js, and WiX to ensure offline-capable building.
-- **Antivirus Coexistence:** We actively detect local AV interference (process termination <100ms, access denied 0x5) and guide the user, rather than fighting the kernel.
+Implementation details related to build tooling and host interference handling are documented in Appendix A.
 
 #### 4. Self-Healing Loops (Flow-First Philosophy)
 
@@ -640,22 +639,14 @@ Exacta operates with a **self-healing execution model**. Most errors are handled
 
 **Silent Recovery Strategies:**
 
-| Failure Type      | Silent Recovery Action                                    |
-| ----------------- | --------------------------------------------------------- |
-| Build failure     | Analyze error, modify approach, retry (up to 20 attempts) |
-| AI provider error | Retry with backoff, switch to alternate provider          |
-| Soft budget limit | Throttle operations, use more efficient approach          |
-| File conflict     | Auto-resolve or try different file structure              |
-| Network timeout   | Retry with exponential backoff                            |
-| Runaway pattern   | Reset approach, try simpler solution                      |
-
-**Recovery Escalation:**
-
-1. **Attempt 1-5:** Retry same approach with minor adjustments
-2. **Attempt 6-10:** Try significantly different approach
-3. **Attempt 11-15:** Simplify the goal scope automatically
-4. **Attempt 16-20:** Switch to minimal viable implementation
-5. **After 20 attempts:** Ask operator for clarification (conversational, not technical error)
+| Failure Type      | Silent Recovery Action                           |
+| ----------------- | ------------------------------------------------ |
+| Build failure     | Analyze error, modify approach, retry            |
+| AI provider error | Retry with backoff, switch to alternate provider |
+| Soft budget limit | Throttle operations, use more efficient approach |
+| File conflict     | Auto-resolve or try different file structure     |
+| Network timeout   | Retry with exponential backoff                   |
+| Runaway pattern   | Reset approach, try simpler solution             |
 
 **Clarification Request Format:**
 
@@ -1254,12 +1245,6 @@ Budget scopes are GOAL-BOUND. Internal counters reset when a new goal_id is issu
 ## 12. Sandbox - Isolation Model
 
 **SECTION ROLE:** Host isolation and sandbox boundaries.
-
-**Comprehensive Operational Logs** — Every goal, decision, action, and file modification is correlated and logged to enable debugging and post-mortem analysis. Logs are diagnostic evidence and correlation aids; they are **not** a formal cryptographic proof of causality or deterministic replayability. See Section 24.1 for determinism anchors and limits.
-
-**Guardian-Enforced Authority** — A cryptographically isolated Guardian component (separate process with elevated privileges) enforces all security boundaries. Guardian owns policy storage, issues capability tokens, and manages system upgrades. Core runtime and AI agent cannot grant themselves additional permissions.
-
-**User as Governor** -> **Operator as Governor** — You set goals and budget preferences. Capabilities are issued exclusively by Guardian. System supervises execution. Emergency stop always available.
 
 ### 12.1 Unified Sandbox Boundary (Canonical)
 
