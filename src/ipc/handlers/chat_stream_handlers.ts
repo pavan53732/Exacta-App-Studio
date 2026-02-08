@@ -458,8 +458,8 @@ ${componentSnippet}
         .returning({ id: messages.id });
       const userMessageId = insertedUserMessage.id;
       const settings = readSettings();
-      // Only Dyad Pro requests have request ids.
-      if (settings.enableDyadPro) {
+      // Only Exacta Pro requests have request ids.
+      if (settings.enableExactaPro) {
         // Generate requestId early so it can be saved with the message
         dyadRequestId = uuidv4();
       }
@@ -576,7 +576,7 @@ ${componentSnippet}
           !mentionedAppsCodebases.length;
 
         const isDeepContextEnabled =
-          isEngineEnabled &&
+          // isEngineEnabled && // UNLOCKED: Allow deep context for local providers
           settings.enableProSmartFilesContextMode &&
           // Anything besides balanced will use deep context.
           settings.proSmartContextOption !== "balanced" &&
@@ -631,7 +631,7 @@ ${componentSnippet}
           }
         }
 
-        // For Dyad Pro + Deep Context, we set to 200 chat turns (+1)
+        // For Exacta Pro + Deep Context, we set to 200 chat turns (+1)
         // this is to enable more cache hits. Practically, users should
         // rarely go over this limit because they will hit the model's
         // context window limit.
@@ -639,7 +639,7 @@ ${componentSnippet}
         // Limit chat history based on maxChatTurnsInContext setting
         // We add 1 because the current prompt counts as a turn.
         const maxChatTurns = isDeepContextEnabled
-          ? 201
+          ? 1001
           : (settings.maxChatTurnsInContext || MAX_CHAT_TURNS_IN_CONTEXT) + 1;
 
         // If we need to limit the context, we take only the most recent turns

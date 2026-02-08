@@ -71,7 +71,7 @@ const config: ForgeConfig = {
     protocols: [
       {
         name: "Exacta App Studio",
-        schemes: ["dyad"],
+        schemes: ["exacta"],
       },
     ],
     icon: "./assets/icon/logo",
@@ -110,12 +110,12 @@ const config: ForgeConfig = {
         ? {
             windowsSign,
             iconUrl:
-              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/pavan53732/Exacta-App-Studio/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           }
         : {
             iconUrl:
-              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/pavan53732/Exacta-App-Studio/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           },
     ),
@@ -127,7 +127,7 @@ const config: ForgeConfig = {
     }),
     new MakerDeb({
       options: {
-        mimeType: ["x-scheme-handler/dyad"],
+        mimeType: ["x-scheme-handler/exacta"],
         icon: "./assets/icon/logo.png",
       },
     }),

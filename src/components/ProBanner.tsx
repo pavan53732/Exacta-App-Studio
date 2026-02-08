@@ -10,7 +10,7 @@ import { ArrowUpRight, KeyRound, Wallet } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { hasDyadProKey } from "@/lib/schemas";
+import { hasExactaProKey } from "@/lib/schemas";
 import { useSettings } from "@/hooks/useSettings";
 
 export function ProBanner() {
@@ -21,7 +21,7 @@ export function ProBanner() {
     return options[Math.floor(Math.random() * options.length)];
   });
 
-  if (settings && hasDyadProKey(settings)) {
+  if (settings && hasExactaProKey(settings)) {
     return null;
   }
 

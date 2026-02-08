@@ -17,12 +17,12 @@ import {
 export function ChatErrorBox({
   onDismiss,
   error,
-  isDyadProEnabled,
+  isExactaProEnabled,
   onStartNewChat,
 }: {
   onDismiss: () => void;
   error: string;
-  isDyadProEnabled: boolean;
+  isExactaProEnabled: boolean;
   onStartNewChat?: () => void;
 }) {
   if (error.includes("doesn't have a free quota tier")) {
@@ -34,7 +34,7 @@ export function ChatErrorBox({
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
             variant="primary"
           >
-            Access with Dyad Pro
+            Access with Exacta Pro
           </ExternalLink>
         </span>{" "}
         or switch to another model.
@@ -45,11 +45,11 @@ export function ChatErrorBox({
   // Important, this needs to come after the "free quota tier" check
   // because it also includes this URL in the error message
   //
-  // Sometimes Dyad Pro can return rate limit errors and we do not want to
-  // show the upgrade to Dyad Pro link in that case because they are
-  // already on the Dyad Pro plan.
+  // Sometimes Exacta Pro can return rate limit errors and we do not want to
+  // show the upgrade to Exacta Pro link in that case because they are
+  // already on the Exacta Pro plan.
   if (
-    !isDyadProEnabled &&
+    !isExactaProEnabled &&
     (error.includes("Resource has been exhausted") ||
       error.includes("https://ai.google.dev/gemini-api/docs/rate-limits") ||
       error.includes("Provider returned error"))
@@ -62,7 +62,7 @@ export function ChatErrorBox({
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
             variant="primary"
           >
-            Upgrade to Dyad Pro
+            Upgrade to Exacta Pro
           </ExternalLink>
 
           <ExternalLink href="https://dyad.sh/docs/help/ai-rate-limit">
@@ -77,19 +77,19 @@ export function ChatErrorBox({
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
-          Looks like you don't have a valid Dyad Pro key.{" "}
+          Looks like you don't have a valid Exacta Pro key.{" "}
           <ExternalLink
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=invalid-pro-key-error"
             variant="primary"
           >
-            Upgrade to Dyad Pro
+            Upgrade to Exacta Pro
           </ExternalLink>{" "}
           today.
         </span>
       </ChatInfoContainer>
     );
   }
-  if (isDyadProEnabled && error.includes("ExceededBudget:")) {
+  if (isExactaProEnabled && error.includes("ExceededBudget:")) {
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
@@ -119,13 +119,13 @@ export function ChatErrorBox({
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         You have used all 5 free Agent messages for today. Please upgrade to
-        Dyad Pro for unlimited access or switch to Build mode.
+        Exacta Pro for unlimited access or switch to Build mode.
         <div className="mt-2 space-y-2 space-x-2">
           <ExternalLink
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-agent-quota-exceeded"
             variant="primary"
           >
-            Upgrade to Dyad Pro
+            Upgrade to Exacta Pro
           </ExternalLink>
         </div>
       </ChatErrorContainer>
@@ -136,17 +136,17 @@ export function ChatErrorBox({
     <ChatErrorContainer onDismiss={onDismiss}>
       {error}
       <div className="mt-2 space-y-2 space-x-2">
-        {!isDyadProEnabled &&
+        {!isExactaProEnabled &&
           error.includes(AI_STREAMING_ERROR_MESSAGE_PREFIX) &&
           !error.includes("TypeError: terminated") && (
             <ExternalLink
               href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=general-error"
               variant="primary"
             >
-              Upgrade to Dyad Pro
+              Upgrade to Exacta Pro
             </ExternalLink>
           )}
-        {isDyadProEnabled && onStartNewChat && (
+        {isExactaProEnabled && onStartNewChat && (
           <Tooltip>
             <TooltipTrigger
               onClick={onStartNewChat}

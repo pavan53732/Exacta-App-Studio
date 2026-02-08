@@ -87,7 +87,7 @@ function buildTestChat(
  */
 function buildTestSettings(
   overrides: {
-    enableDyadPro?: boolean;
+    enableExactaPro?: boolean;
     hasApiKey?: boolean;
     selectedModel?: string;
     enableContextCompaction?: boolean;
@@ -98,10 +98,10 @@ function buildTestSettings(
     enableContextCompaction: overrides.enableContextCompaction ?? true,
   };
 
-  if (overrides.enableDyadPro && overrides.hasApiKey !== false) {
+  if (overrides.enableExactaPro && overrides.hasApiKey !== false) {
     return {
       ...baseSettings,
-      enableDyadPro: true,
+      enableExactaPro: true,
       providerSettings: {
         auto: {
           apiKey: { value: "test-api-key" },
@@ -301,7 +301,7 @@ describe("handleLocalAgentStream", () => {
     it("should send error when Dyad Pro is not enabled", async () => {
       // Arrange
       const { event, getMessagesByChannel } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: false });
+      mockSettings = buildTestSettings({ enableExactaPro: false });
 
       // Act
       await handleLocalAgentStream(
@@ -328,7 +328,7 @@ describe("handleLocalAgentStream", () => {
       // Arrange
       const { event, getMessagesByChannel } = createFakeEvent();
       mockSettings = buildTestSettings({
-        enableDyadPro: true,
+        enableExactaPro: true,
         hasApiKey: false,
       });
 
@@ -354,7 +354,7 @@ describe("handleLocalAgentStream", () => {
     it("should throw error when chat is not found", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = null; // Chat not found
 
       // Act & Assert
@@ -375,7 +375,7 @@ describe("handleLocalAgentStream", () => {
     it("should throw error when chat has no associated app", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = { ...buildTestChat(), app: null } as any;
 
       // Act & Assert
@@ -399,7 +399,7 @@ describe("handleLocalAgentStream", () => {
       // Arrange
       const { event } = createFakeEvent();
       mockSettings = buildTestSettings({
-        enableDyadPro: true,
+        enableExactaPro: true,
         enableContextCompaction: false,
       });
       mockChatData = buildTestChat();
@@ -427,7 +427,7 @@ describe("handleLocalAgentStream", () => {
     it("should accumulate text-delta parts and update database", async () => {
       // Arrange
       const { event, getMessagesByChannel } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat({
         messages: [{ id: 1, role: "user", content: "Hello" }],
       });
@@ -476,7 +476,7 @@ describe("handleLocalAgentStream", () => {
     it("should wrap reasoning content in think tags", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
       mockStreamResult = createFakeStream([
         { type: "reasoning-start" },
@@ -514,7 +514,7 @@ describe("handleLocalAgentStream", () => {
     it("should close thinking block when transitioning to text", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
       // Simulate reasoning-delta without explicit reasoning-end before text
       mockStreamResult = createFakeStream([
@@ -556,7 +556,7 @@ describe("handleLocalAgentStream", () => {
     it("should stop processing stream chunks when abort signal is triggered", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
 
       const abortController = new AbortController();
@@ -604,7 +604,7 @@ describe("handleLocalAgentStream", () => {
     it("should save partial response with cancellation note when aborted", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
 
       const abortController = new AbortController();
@@ -646,7 +646,7 @@ describe("handleLocalAgentStream", () => {
     it("should save commit hash after successful stream", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
       mockStreamResult = createFakeStream([
         { type: "text-delta", text: "Done" },
@@ -675,7 +675,7 @@ describe("handleLocalAgentStream", () => {
     it("should set approval state to approved after completion", async () => {
       // Arrange
       const { event } = createFakeEvent();
-      mockSettings = buildTestSettings({ enableDyadPro: true });
+      mockSettings = buildTestSettings({ enableExactaPro: true });
       mockChatData = buildTestChat();
       mockStreamResult = createFakeStream([
         { type: "text-delta", text: "Done" },

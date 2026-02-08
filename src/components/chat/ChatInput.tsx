@@ -402,7 +402,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         <ChatErrorBox
           onDismiss={dismissError}
           error={error}
-          isDyadProEnabled={settings.enableDyadPro ?? false}
+          isExactaProEnabled={settings.enableExactaPro ?? false}
           onStartNewChat={handleNewChat}
         />
       )}

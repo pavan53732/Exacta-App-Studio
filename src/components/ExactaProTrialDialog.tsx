@@ -3,25 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Check, Zap, Wand2, Cpu } from "lucide-react";
 import { ipc } from "@/ipc/types";
 
-interface DyadProTrialDialogProps {
+interface ExactaProTrialDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function DyadProTrialDialog({
+export function ExactaProTrialDialog({
   isOpen,
   onClose,
-}: DyadProTrialDialogProps) {
+}: ExactaProTrialDialogProps) {
   const handleStartTrial = () => {
     ipc.system.openExternalUrl(
-      "https://academy.dyad.sh/redirect-to-checkout?trialCode=1PRO30&utm_source=dyad-app&utm_medium=app&utm_campaign=setup-dialog-v2",
+      "https://academy.exacta.ai/redirect-to-checkout?trialCode=1PRO30&utm_source=exacta-app&utm_medium=app&utm_campaign=setup-dialog-v2",
     );
     onClose();
   };
 
   const handleLearnMore = () => {
     ipc.system.openExternalUrl(
-      "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=setup-dialog-v2",
+      "https://www.exacta.ai/pro?utm_source=exacta-app&utm_medium=app&utm_campaign=setup-dialog-v2",
     );
   };
 

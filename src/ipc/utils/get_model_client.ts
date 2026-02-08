@@ -80,17 +80,17 @@ export async function getModelClient(
     throw new Error(`Configuration not found for provider: ${model.provider}`);
   }
 
-  // Handle Dyad Pro override
-  if (dyadApiKey && settings.enableDyadPro) {
-    // Check if the selected provider supports Dyad Pro (has a gateway prefix) OR
+  // Handle Exacta Pro override
+  if (false && dyadApiKey && settings.enableExactaPro) { // Force disabled for Self-Hosted Pro
+    // Check if the selected provider supports Exacta Pro (has a gateway prefix) OR
     // we're using local engine.
     // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,
     // so we do a nullish and not a truthy check here.
-    if (providerConfig.gatewayPrefix != null || dyadEngineUrl) {
+    if (providerConfig?.gatewayPrefix != null || dyadEngineUrl) {
       const enableSmartFilesContext = settings.enableProSmartFilesContextMode;
       const provider = createDyadEngine({
         apiKey: dyadApiKey,
-        baseURL: dyadEngineUrl ?? "https://engine.dyad.sh/v1",
+        baseURL: dyadEngineUrl ?? "https://engine.exacta.ai/v1",
         dyadOptions: {
           enableLazyEdits:
             settings.selectedChatMode === "ask"
@@ -104,11 +104,11 @@ export async function getModelClient(
       });
 
       logger.info(
-        `\x1b[1;97;44m Using Dyad Pro API key for model: ${model.name} \x1b[0m`,
+        `\x1b[1;97;44m Using Exacta Pro API key for model: ${model.name} \x1b[0m`,
       );
 
       logger.info(
-        `\x1b[1;30;42m Using Dyad Pro engine: ${dyadEngineUrl ?? "<prod>"} \x1b[0m`,
+        `\x1b[1;30;42m Using Exacta Pro engine: ${dyadEngineUrl ?? "<prod>"} \x1b[0m`,
       );
 
       // Do not use free variant (for openrouter).
@@ -117,7 +117,7 @@ export async function getModelClient(
         model,
         settings,
         provider,
-        modelId: `${providerConfig.gatewayPrefix || ""}${modelName}`,
+        modelId: `${providerConfig?.gatewayPrefix || ""}${modelName}`,
       });
 
       return {
@@ -127,7 +127,7 @@ export async function getModelClient(
       };
     } else {
       logger.warn(
-        `Dyad Pro enabled, but provider ${model.provider} does not have a gateway prefix defined. Falling back to direct provider connection.`,
+        `Exacta Pro enabled, but provider ${model.provider} does not have a gateway prefix defined. Falling back to direct provider connection.`,
       );
       // Fall through to regular provider logic if gateway prefix is missing
     }
@@ -187,7 +187,11 @@ export async function getModelClient(
       "No API keys available for any model supported by the 'auto' provider.",
     );
   }
-  return getRegularModelClient(model, settings, providerConfig);
+  const regular = getRegularModelClient(model, settings, providerConfig);
+  return {
+    ...regular,
+    isSmartContextEnabled: settings.enableProSmartFilesContextMode,
+  };
 }
 
 function getProModelClient({

@@ -36,7 +36,7 @@ import openrouterLogo from "../../assets/ai-logos/openrouter-logo.png";
 import { OnboardingBanner } from "./home/OnboardingBanner";
 import { showError } from "@/lib/toast";
 import { useSettings } from "@/hooks/useSettings";
-import { DyadProTrialDialog } from "./DyadProTrialDialog";
+import { ExactaProTrialDialog } from "./ExactaProTrialDialog";
 
 type NodeInstallStep =
   | "install"
@@ -69,7 +69,7 @@ export function SetupBanner() {
   }, [setNodeSystemInfo, setNodeCheckError]);
   const [showManualConfig, setShowManualConfig] = useState(false);
   const [isSelectingPath, setIsSelectingPath] = useState(false);
-  const [showDyadProTrialDialog, setShowDyadProTrialDialog] = useState(false);
+  const [showExactaProTrialDialog, setShowExactaProTrialDialog] = useState(false);
   const { updateSettings } = useSettings();
 
   // Add handler for manual path selection
@@ -121,7 +121,7 @@ export function SetupBanner() {
   };
   const handleDyadProSetupClick = () => {
     posthog.capture("setup-flow:ai-provider-setup:dyad:click");
-    setShowDyadProTrialDialog(true);
+    setShowExactaProTrialDialog(true);
   };
 
   const handleOtherProvidersClick = () => {
@@ -384,9 +384,9 @@ export function SetupBanner() {
         </Accordion>
       </div>
 
-      <DyadProTrialDialog
-        isOpen={showDyadProTrialDialog}
-        onClose={() => setShowDyadProTrialDialog(false)}
+      <ExactaProTrialDialog
+        isOpen={showExactaProTrialDialog}
+        onClose={() => setShowExactaProTrialDialog(false)}
       />
     </>
   );

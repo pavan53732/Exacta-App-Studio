@@ -13,7 +13,7 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 import { useFreeAgentQuota } from "@/hooks/useFreeAgentQuota";
 import type { ChatMode } from "@/lib/schemas";
-import { isDyadProEnabled } from "@/lib/schemas";
+import { isExactaProEnabled } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 import { detectIsMac } from "@/hooks/useChatModeToggle";
 import { useRouterState } from "@tanstack/react-router";
@@ -39,7 +39,7 @@ export function ChatModeSelector() {
   const currentChatMessages = chatId ? (messagesById.get(chatId) ?? []) : [];
 
   const selectedMode = settings?.selectedChatMode || "build";
-  const isProEnabled = settings ? isDyadProEnabled(settings) : false;
+  const isProEnabled = settings ? isExactaProEnabled(settings) : false;
   const { messagesRemaining, isQuotaExceeded } = useFreeAgentQuota();
 
   const handleModeChange = (value: string) => {

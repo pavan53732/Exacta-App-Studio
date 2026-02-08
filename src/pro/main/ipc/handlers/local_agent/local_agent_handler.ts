@@ -18,7 +18,7 @@ import { db } from "@/db";
 import { chats, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-import { isDyadProEnabled, isBasicAgentMode } from "@/lib/schemas";
+import { isExactaProEnabled, isBasicAgentMode } from "@/lib/schemas";
 import { readSettings } from "@/main/settings";
 import { getDyadAppPath } from "@/paths/paths";
 import { getModelClient } from "@/ipc/utils/get_model_client";
@@ -147,11 +147,11 @@ export async function handleLocalAgentStream(
   // Check Pro status or Basic Agent mode
   // Basic Agent mode allows non-Pro users with quota (quota check is done in chat_stream_handlers)
   // Read-only mode (ask mode) is allowed for all users without Pro
-  if (!readOnly && !isDyadProEnabled(settings) && !isBasicAgentMode(settings)) {
+  if (!readOnly && !isExactaProEnabled(settings) && !isBasicAgentMode(settings)) {
     safeSend(event.sender, "chat:response:error", {
       chatId: req.chatId,
       error:
-        "Agent v2 requires Dyad Pro. Please enable Dyad Pro in Settings → Pro.",
+        "Agent v2 requires Exacta Pro. Please enable Exacta Pro in Settings → Pro.",
     });
     return false;
   }
@@ -250,7 +250,7 @@ export async function handleLocalAgentStream(
       todos: [],
       dyadRequestId,
       fileEditTracker,
-      isDyadPro: isDyadProEnabled(settings),
+      isDyadPro: isExactaProEnabled(settings),
       onXmlStream: (accumulatedXml: string) => {
         // Stream accumulated XML to UI without persisting
         streamingPreview = accumulatedXml;
