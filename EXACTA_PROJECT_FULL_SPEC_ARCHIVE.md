@@ -186,9 +186,11 @@ This document recognizes only sections listed in the Table of Contents as valid 
 
 ## 1. Product Overview (User-Facing Contract)
 
+**SECTION ROLE:** Product contract and Operator-facing guarantees.
+
 ### 1.1 What Exacta App Studio Is
 
-Exacta App Studio is a single-user, local-first Windows desktop application that turns high-level goals into complete applications (source, build, packaging, deployment). Operators express intent conversationally; the system autonomously iterates until success criteria are met or operator halts execution. The UI surfaces only goals, high-level progress, and preview; internal enforcement and policy machinery are hidden and authoritative.
+Exacta App Studio is a single-user, local-first Windows desktop application that turns high-level goals into complete applications (source, build, packaging, deployment). Operators express intent conversationally; the system autonomously iterates until success criteria are met or Operator halts execution.
 
 **Supported Application Types**:
 
@@ -276,7 +278,7 @@ This boundary includes:
 
 - **Filesystem access** (project root jail with MAX_PATH considerations, symlink rules, atomic writes, system-path denylist, no UNC paths)
 - **Process execution** (System sandboxing (Standard): Job Objects, standard User Mode isolation, and basic network allowlisting.
-- **Network access** (explicitly gated by capability tokens; network isolation is an operator-configured policy and may rely on OS-level controls outside Exacta’s runtime)
+- **Network access** (explicitly gated by capability tokens; network isolation is an Operator-configured policy and may rely on OS-level controls outside Exacta’s runtime)
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
 **Default Isolation Mechanism:** All subprocesses (builds, shell commands, packaging tools) are executed under OS-level process controls. Windows Job Objects are used for:
@@ -287,7 +289,7 @@ This boundary includes:
 
 Credential stripping, PATH enforcement, and environment scrubbing utilize OS primitives (AppContainer, Job Objects) orchestrated by Core.
 
-**Failure Rule:** If required isolation primitives cannot be established, the action will be denied and the system will halt autonomous execution and require operator review before proceeding.
+**Failure Rule:** If required isolation primitives cannot be established, the action will be denied and the system will halt autonomous execution and require Operator review before proceeding.
 
 **Authority Model:**
 
@@ -299,7 +301,7 @@ Credential stripping, PATH enforcement, and environment scrubbing utilize OS pri
 Any detected sandbox violation will:
 
 - Immediately halt autonomous execution
-- Log the incident locally and flag for operator review
+- Log the incident locally and flag for Operator review
 - Require Operator intervention before resumption
 
 **Concurrency Handling:**
@@ -308,7 +310,7 @@ Exacta App Studio supports single-goal execution by default. Multiple concurrent
 
 - **Job Object Grouping:** Subprocesses for a goal may be grouped to allow coordinated termination.
 - **Resource Limits:** Concurrent subprocesses share the goal’s resource budget (CPU, memory, time).
-- **Failure Propagation:** If a subprocess experiences an **infrastructure failure** (Job Object crash, sandbox violation, security breach), the goal cycle is marked failed and the system halts for operator review. **Logical failures** (build errors, compilation issues) trigger silent retry per Section 6.3.
+- **Failure Propagation:** If a subprocess experiences an **infrastructure failure** (Job Object crash, sandbox violation, security breach), the goal cycle is marked failed and the system halts for Operator review. **Logical failures** (build errors, compilation issues) trigger silent retry per Section 6.3.
 
 **Non-Goals:**
 
@@ -364,7 +366,7 @@ NO_AI_PROVIDER
   - UI interaction
   - Project open/load
   - Index rebuild
-  - Manual operator inspection
+  - Manual Operator inspection
 - Forbidden:
   - PERCEIVE
   - DECIDE
@@ -423,17 +425,6 @@ SAFE_MODE → READY (after index rebuild complete AND Guardian verification pass
 
 **INV-BOOT-1: No Execution Before READY** — PERCEIVE, DECIDE, ACT, capability issuance, or subprocess execution SHALL NOT occur unless system state is READY.
 
-Exacta App Studio operates exclusively as a **permanent auto-apply, flow-first, autonomous builder**.
-
-There are no operator-selectable system profiles or “governed modes” in the standard product experience. Governance is an internal, non-visible system function.
-
-The default autonomous mode (operator-facing) prioritizes:
-
-- **Immediate Change Application:** Changes are applied to the workspace as they are generated.
-- **Minimal UI Surface:** No context windows, file lists, or dependency trees.
-- **Hidden Internals:** Guardian, Policy Engine, and Checkpoint systems operate invisibly.
-- **Forward Momentum:** Conversational recovery instead of formal transactional control or rollback UIs.
-
 **Context Handling (Implicit & Non-Visible)**
 
 Exacta manages AI context automatically and invisibly.
@@ -454,7 +445,7 @@ The system iterates forward until:
 
 - The goal is satisfied
 - The budget is exhausted
-- The operator halts execution
+- The Operator halts execution
 
 Validation occurs through build success, runtime behavior, and observed outcomes — not through formal file coverage or dependency proofs.
 
@@ -483,17 +474,13 @@ It is a Windows desktop application that builds complete desktop applications (o
 | **Never-Send Rule**          | Hard pattern list (e.g. .env, \*.key) that must strictly be redacted from all AI context                          | Secret Redaction                 |
 | **Admin Hold**               | System state waiting for explicit Operator approval before proceeding                                             | Operator Block, Hold             |
 
-**What makes it unique:**
-
-- Runs entirely locally on your PC (no Docker, no hosted backend, no cloud dependencies)
-- Uses **your AI providers** via API keys or local CLIs (OpenAI-compatible APIs, OpenRouter, Gemini CLI, local models, or any future provider)
-- **Autonomous execution model:** You set a goal, the system runs continuous loops until the goal is satisfied or budget is exhausted
-- **Runtime scope:** The runtime is designed to resist casual modification, but the product prioritizes iterative workspace edits. The system does not surface mechanisms to edit the runtime during normal use. Note: core hardening remains an engineering goal, but auto-apply behavior means operator-visible immutability claims are reduced compared to a policy-first system.
-- **Structured semantic indexing:** Context selection and refactoring safety are driven by AST + dependency graph indexing, not embedding-based memory
-
 **Invariant:INV-TERM-1: Operator is sole human authority term** — The term “Operator” SHALL be used to refer to the human user in all constitutional contexts to distinguish authority from “User” (product consumer) or “AI” (agent).
 
 ## 4. User Experience Model (Visible Surface)
+
+**UI Authority Rule (Canonical):**
+All Operator-visible behavior, controls, omissions, and affordances are defined exclusively in Section 4.
+Any UI-related statement elsewhere in this document is descriptive only and non-authoritative.
 
 ### 4.1 Operator Surface vs System Surface
 
@@ -555,6 +542,8 @@ Exacta App Studio is **intentionally not designed** for the following use cases:
 These are deliberate scope constraints to maintain focus on local-first application development. **Web applications are supported (v2.5.0+)** for local development and optional deployment, but Exacta does not provide hosting services. Desktop app types and toolchains are governed by Supply Chain trust rules in Section 25. **Note:** "deterministic" in the sense of replayability is _not_ claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
 
 ## 6. Autonomous Execution Model
+
+**SECTION ROLE:** Normative autonomous execution behavior.
 
 ### 6.1 Continuous Execution Loop
 
@@ -623,7 +612,7 @@ medium → MEDIUM
 high → HIGH
 CRITICAL is Guardian-only and SHALL NOT be proposed by AI.
 
-### 6.1.1 Internal Cognitive Pipeline (Non-Authoritative)
+### 6.1.1 Internal Cognitive Pipeline (Illustrative Only)
 
 To improve decision quality, the DECIDE phase employs a multi-stage cognitive pipeline. This is an internal implementation detail of the “AI Agent” and does not imply multi-agent authority.
 
@@ -861,6 +850,8 @@ All injected content SHALL be normalized to prevent:
 
 ## 8. Memory Model (Internal System Law)
 
+**SECTION ROLE:** Binding internal memory law.
+
 **Operational Memory (Guardian-owned):** Internal state, checklists, and raw causal logs. Inaccessible to AI.
 **User-Readable Diagnostics (Redacted, Non-Authoritative):** Exported logs and crash summaries for human review. These are derived artifacts and do not grant AI access to internal memory.
 
@@ -1016,6 +1007,9 @@ PHASE 2 — COMMIT
 
 ## 10. System Architecture Overview
 
+This section is descriptive only.
+All authority is defined in Sections 6, 8, 11, and 12.
+
 This section summarizes the runtime components and authority boundaries:
 
 - **Operator UI:** chat + preview + high-level controls
@@ -1046,6 +1040,8 @@ Electron/WinUI/WPF UI components are classified as:
 All privileged actions MUST transit Core → Guardian IPC.
 
 ## 11. Guardian - Policy Enforcement (System Constitution)
+
+**SECTION ROLE:** Ultimate security and policy authority.
 
 **Guardian Operational Modes:**
 
@@ -1257,9 +1253,7 @@ Budget scopes are GOAL-BOUND. Internal counters reset when a new goal_id is issu
 
 ## 12. Sandbox - Isolation Model
 
-**Local-First Architecture** — All execution and state processing occurs locally; external communication is limited to operator-authorized AI provider requests and documentation endpoints. All project data, **persistent state**, execution logs, checkpoints, and indexes are stored on your machine. AI context windows are ephemeral. No cloud dependencies for core functionality.
-
-**Fail-Closed Security** — When in doubt, the system stops. AI cannot escalate privileges, bypass safety boundaries, or exceed budget caps.
+**SECTION ROLE:** Host isolation and sandbox boundaries.
 
 **Comprehensive Operational Logs** — Every goal, decision, action, and file modification is correlated and logged to enable debugging and post-mortem analysis. Logs are diagnostic evidence and correlation aids; they are **not** a formal cryptographic proof of causality or deterministic replayability. See Section 24.1 for determinism anchors and limits.
 
