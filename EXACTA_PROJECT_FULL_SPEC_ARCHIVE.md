@@ -158,8 +158,8 @@ Determinism is guaranteed ONLY for:
   - [A.2 Action Schema](about:blank#a2-action-schema)
   - [A.3 BudgetState Schema](about:blank#a3-budgetstate-schema)
   - [A.4 Capability Enum](about:blank#a4-capability-enum)
-  - [A.5 Risk Class Enum](about:blank#a5-command-class-to-capability-mapping)
-  - [A.6 Goal Schema](about:blank#a6-goal-schema)
+  - [A.5 Risk Class Enum](about:blank#a5-risk-class-enum)
+  - [A.6 Goal Schema (Canonical)](about:blank#a6-goal-schema-canonical)
 - [Appendix B - Invariant Index](about:blank#appendix-b---invariant-index)
 - [Appendix C - Change Log](about:blank#appendix-c---change-log)
 
@@ -2457,11 +2457,6 @@ ProviderRecord {
 
 **Invariant:INV-AI-REG-1: Signed Provider Registry Only** — AI provider, CLI agent, or local runtime selection SHALL NOT occur unless the ProviderRecord is Guardian-signed and enabled.
 
-### 26.2 AI Routing Interface (Non-Authoritative)
-
-AI MAY propose provider preferences, but Guardian SHALL be the sole authority that computes routing utility and selects providers.
-
-**Invariants:**
 
 ### 26.4 CLI Agent Orchestration (Tier 5)
 
@@ -2836,17 +2831,6 @@ The “Settings” icon in the UI SHALL provide a dedicated **“AI Providers”
 4. Provide secure input fields for API Keys (write-only, DPAPI-backed).
 5. Display live “Health Check” status for configured providers.
 
-## 29. Features
-
-**Core Features (Default UI):**
-
-- **Chat-First Creation:** Natural language to working app.
-- **Silent Self-Healing:** Automatic error recovery without nagging.
-- **Live Preview:** Real-time rendered application view.
-- **One-Click Export:** Generate standalone Windows binaries (.exe).
-- **Background Recovery:** System-managed crash recovery and checkpoint-based rollback (no operator-visible undo/redo timeline; external VCS recommended).
-- **Local-First:** Works fully offline with Ollama.
-
 ## 30. Build Export Model
 
 **SYSTEM LAW:** Exacta is a factory, not just an editor.
@@ -2940,20 +2924,6 @@ StructuredDiagnostic {
 Rule: SDF logs are diagnostic only and SHALL NOT be interpreted as deterministic replay artifacts.
 
 ---
-
-## 28. Getting Started
-
-### 28.1 UI Visibility Mandate (Settings Icon)
-
-The Exacta App Studio UI MUST include a visible Settings icon that provides access to:
-
-- AI provider configuration
-- Model selection
-- Budget limits
-- Network policy settings
-- Sandbox configuration
-
-**Invariant**: The Settings icon SHALL be visible and accessible at all times during normal operation.
 
 ---
 
@@ -4792,27 +4762,27 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 |                 |            | - **Appendix A.4**: Web Capability Tokens                   |
 |                 |            | \* NET_LOCALHOST, WEB_DEV_SERVER, WEB_BUILD                 |
 |                 |            | \* WEB_PREVIEW, WEB_DEPLOY, WEB_TEST                        |
-|                 |            | \\\* WEB_PACKAGE_INSTALL (7 new capabilities)               | \r  |
-|                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel     | \r  |
-|                 |            | Railway, Render, Cloudflare Pages, DigitalOcean             | \r  |
-| 2.6.0 (CURRENT) | 2026-02-08 | Observability \u0026 Power User Enhancements                | \r  |
-|                 |            | - **Section 31**: Operator Insight Surface                  | \r  |
-|                 |            | \\\* Read-only observability panel                          | \r  |
-|                 |            | \\\* Action timeline, checkpoint history, changed files     | \r  |
-|                 |            | \\\* Test/build status dashboard, drift detection events    | \r  |
-|                 |            | \\\* 3 new invariants (INV-INSIGHT-1, 2, 3)                 | \r  |
-|                 |            | - **Section 32**: Worked Examples                           | \r  |
-|                 |            | \\\* Example 1: WPF Finance Tracker (desktop app)           | \r  |
-|                 |            | \\\* Example 2: Next.js Dashboard with Auth (web app)       | \r  |
-|                 |            | \\\* Golden path narratives showing PDAO loop execution     | \r  |
-|                 |            | - **Section 34**: Debug / Administrative Mode               | \r  |
-|                 |            | \\\* Enhanced visibility without loosening security         | \r  |
-|                 |            | \\\* File tree panel, Guardian policy logs                  | \r  |
-|                 |            | \\\* Verbose error messages, manual override hooks          | \r  |
-|                 |            | \\\* 3 new invariants (INV-DEBUG-1, 2, 3)                   | \r  |
-|                 |            | - **Web Scope Clarification**: Section 29.2 updated         | \r  |
-|                 |            | \\\* Local-only development (core, no external network)     | \r  |
-|                 |            | \\\* Optional deployment (requires NET_EXTERNAL capability) | \r  |
+|                 |            | \\\* WEB_PACKAGE_INSTALL (7 new capabilities)               |
+|                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel     |
+|                 |            | Railway, Render, Cloudflare Pages, DigitalOcean             |
+| 2.6.0 (CURRENT) | 2026-02-08 | Observability & Power User Enhancements                      |
+|                 |            | - **Section 31**: Operator Insight Surface                  |
+|                 |            | \\\* Read-only observability panel                          |
+|                 |            | \\\* Action timeline, checkpoint history, changed files     |
+|                 |            | \\\* Test/build status dashboard, drift detection events    |
+|                 |            | \\\* 3 new invariants (INV-INSIGHT-1, 2, 3)                 |
+|                 |            | - **Section 32**: Worked Examples                           |
+|                 |            | \\\* Example 1: WPF Finance Tracker (desktop app)           |
+|                 |            | \\\* Example 2: Next.js Dashboard with Auth (web app)       |
+|                 |            | \\\* Golden path narratives showing PDAO loop execution     |
+|                 |            | - **Section 34**: Debug / Administrative Mode               |
+|                 |            | \\\* Enhanced visibility without loosening security         |
+|                 |            | \\\* File tree panel, Guardian policy logs                  |
+|                 |            | \\\* Verbose error messages, manual override hooks          |
+|                 |            | \\\* 3 new invariants (INV-DEBUG-1, 2, 3)                   |
+|                 |            | - **Web Scope Clarification**: Section 29.2 updated         |
+|                 |            | \\\* Local-only development (core, no external network)     |
+|                 |            | \\\* Optional deployment (requires NET_EXTERNAL capability) |
 | 2.7.0 (CURRENT) | 2026-02-08 | Project Lifecycle & Failure Handling                        |
 |                 |            | - **Section 33**: Project Lifecycle Model                   |
 |                 |            | \* 4 lifecycle states (NEW, ACTIVE, PAUSED, ARCHIVED)       |
@@ -4841,4 +4811,3 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 |                 |            | \* Local development supported (localhost sandbox)          |
 |                 |            | \* Optional deployment (requires NET_EXTERNAL capability)   |
 |                 |            | \* No hosted web runtime (Exacta builds but doesn't serve)  |
-| \r              |
