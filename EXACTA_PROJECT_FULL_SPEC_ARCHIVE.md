@@ -82,6 +82,7 @@ Determinism is guaranteed ONLY for:
   - [9.2 Cold Start Memory Rule](about:blank#92-cold-start-memory-rule)
   - [9.3 Transactional State Commit Protocol](about:blank#93-transactional-state-commit-protocol)
 - [10. System Architecture Overview](about:blank#10-system-architecture-overview)
+  - [10.1 System Stack (Implementation Detail)](about:blank#101-system-stack-implementation-detail)
 - [11. Guardian - Policy Enforcement (System Constitution)](about:blank#11-guardian---policy-enforcement-system-constitution)
   - [11.1 Policy Engine Minimal Formalism (V1)](about:blank#111-policy-engine-minimal-formalism-v1)
   - [11.1.1 Policy Profile (Formal Definition)](about:blank#1111-policy-profile-formal-definition)
@@ -233,6 +234,9 @@ Exacta App Studio is a single-user, local-first Windows desktop application that
 5. **Server-Side Rendered (SSR) Applications** — SEO-optimized web apps with server-side rendering
 
 Runs entirely locally on your PC for execution, storage, sandboxing, and policy enforcement.
+
+**System Identity:**
+Exacta is a **native Windows application** built on the **.NET 8** runtime and **WPF** (Windows Presentation Foundation). It is NOT an Electron app or web wrapper. This ensures deep OS integration, zero-latency UI performance, and direct access to low-level Windows primitives (Job Objects, WFP).
 
 AI cognition MAY be provided by either:
 
@@ -1063,6 +1067,24 @@ Electron/WinUI/WPF UI components are classified as:
 - No direct filesystem, network, or provider access
 
 All privileged actions MUST transit Core → Guardian IPC.
+
+### 10.1 System Stack (Implementation Detail)
+
+Exacta App Studio is architected for maximum performance and OS integration on Windows.
+
+- **Runtime**: .NET 8 (High-performance managed runtime)
+- **UI Framework**: WPF (Windows Presentation Foundation) with hardware acceleration
+- **Language**: C# 12 (Core, Guardian, UI)
+- **Database**: SQLite (WAL mode) for Index/Memory
+- **IPC**: Named Pipes (Protobuf-net)
+- **AI Integration**: Semantic Kernel / Native OpenAI Client
+
+This native stack enables:
+
+- **Instant startup** (<2s cold start)
+- **Low memory footprint** (vs. browser-based IDEs)
+- **Direct GPU access** for UI rendering
+- **OS-level security** (Job Objects, Access Tokens)
 
 ## 11. Guardian - Policy Enforcement (System Constitution)
 
