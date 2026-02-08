@@ -1,14 +1,13 @@
 import type React from "react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { ArrowRightLeft, X } from "lucide-react";
+import { ArrowRightLeft } from "lucide-react";
 import { CustomTagState } from "./stateTypes";
 import {
   DyadCard,
   DyadCardHeader,
   DyadExpandIcon,
   DyadStateIndicator,
-  DyadDescription,
   DyadCardContent,
 } from "./DyadCardPrimitives";
 
@@ -33,10 +32,6 @@ export const DyadRename: React.FC<DyadRenameProps> = ({
 
   const aborted = state === "aborted";
   const inProgress = state === "pending";
-
-  const handleCancel = () => {
-    // No editing functionality for rename tags
-  };
 
   const fromFileName = from ? from.split("/").pop() : "";
   const toFileName = to ? to.split("/").pop() : "";

@@ -338,11 +338,11 @@ export const UserSettingsSchema = z
  */
 export type UserSettings = z.infer<typeof UserSettingsSchema>;
 
-export function isExactaProEnabled(settings: UserSettings): boolean {
+export function isExactaProEnabled(_settings: UserSettings): boolean {
   return true;
 }
 
-export function hasExactaProKey(settings: UserSettings): boolean {
+export function hasExactaProKey(_settings: UserSettings): boolean {
   return true;
 }
 

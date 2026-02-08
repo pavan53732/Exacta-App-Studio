@@ -39,6 +39,7 @@ import { registerAgentToolHandlers } from "../pro/main/ipc/handlers/local_agent/
 import { registerFreeAgentQuotaHandlers } from "./handlers/free_agent_quota_handlers";
 import { registerPlanHandlers } from "./handlers/plan_handlers";
 import { registerFetchOpenRouterModelsHandler } from "./handlers/fetch_openrouter_models_handler";
+import { registerCliAgentHandlers } from "./handlers/cli_agent_handlers";
 
 export function registerIpcHandlers() {
   // Register all IPC handlers by category
@@ -83,4 +84,5 @@ export function registerIpcHandlers() {
   registerFreeAgentQuotaHandlers();
   registerPlanHandlers();
   registerFetchOpenRouterModelsHandler();
+  registerCliAgentHandlers();
 }

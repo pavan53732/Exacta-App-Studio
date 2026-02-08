@@ -29,6 +29,7 @@ import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { ToolsMcpSettings } from "@/components/settings/ToolsMcpSettings";
 import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
+import { CliAgentsSettings } from "@/components/settings/CliAgentsSettings";
 import { ZoomSelector } from "@/components/ZoomSelector";
 import { DefaultChatModeSelector } from "@/components/DefaultChatModeSelector";
 import { ContextCompactionSwitch } from "@/components/ContextCompactionSwitch";
@@ -163,6 +164,17 @@ export default function SettingsPage() {
               Tools (MCP)
             </h2>
             <ToolsMcpSettings />
+          </div>
+
+          {/* CLI Agents */}
+          <div
+            id={SECTION_IDS.cliAgents}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
+          >
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              CLI Agents
+            </h2>
+            <CliAgentsSettings />
           </div>
 
           {/* Experiments Section */}

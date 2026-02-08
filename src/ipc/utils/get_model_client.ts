@@ -23,18 +23,12 @@ import {
 } from "../shared/language_model_constants";
 import { getLanguageModelProviders } from "../shared/language_model_helpers";
 import { LanguageModelProvider } from "@/ipc/types";
-import {
-  createDyadEngine,
-  type DyadEngineProvider,
-} from "./llm_engine_provider";
 
 import { LM_STUDIO_BASE_URL } from "./lm_studio_utils";
 import { createOllamaProvider } from "./ollama_provider";
 import { getOllamaApiUrl } from "../handlers/local_model_ollama_handler";
 import { createFallback } from "./fallback_ai_model";
 
-const dyadEngineUrl =
-  process.env.EXACTA_ENGINE_URL || process.env.DYAD_ENGINE_URL;
 
 const AUTO_MODELS = [
   {
@@ -72,7 +66,6 @@ export async function getModelClient(
 }> {
   const allProviders = await getLanguageModelProviders();
 
-  const dyadApiKey = settings.providerSettings?.auto?.apiKey?.value;
 
   // --- Handle specific provider ---
   const providerConfig = allProviders.find((p) => p.id === model.provider);
@@ -81,59 +74,10 @@ export async function getModelClient(
     throw new Error(`Configuration not found for provider: ${model.provider}`);
   }
 
-  // Handle Exacta Pro override
-  if (false && dyadApiKey && settings.enableExactaPro) {
-    // Force disabled for Self-Hosted Pro
-    // Check if the selected provider supports Exacta Pro (has a gateway prefix) OR
-    // we're using local engine.
-    // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,
-    // so we do a nullish and not a truthy check here.
-    if (providerConfig?.gatewayPrefix != null || dyadEngineUrl) {
-      const enableSmartFilesContext = settings.enableProSmartFilesContextMode;
-      const provider = createDyadEngine({
-        apiKey: dyadApiKey,
-        baseURL: dyadEngineUrl ?? "https://engine.exacta.ai/v1",
-        dyadOptions: {
-          enableLazyEdits:
-            settings.selectedChatMode === "ask"
-              ? false
-              : settings.enableProLazyEditsMode &&
-                settings.proLazyEditsMode !== "v2",
-          enableSmartFilesContext,
-          enableWebSearch: settings.enableProWebSearch,
-        },
-        settings,
-      });
+  // NOTE: Exacta Pro override logic was removed here.
+  // It was previously disabled with `if (false && ...)` for Self-Hosted Pro.
+  // The code has been fully removed to eliminate lint errors.
 
-      logger.info(
-        `\x1b[1;97;44m Using Exacta Pro API key for model: ${model.name} \x1b[0m`,
-      );
-
-      logger.info(
-        `\x1b[1;30;42m Using Exacta Pro engine: ${dyadEngineUrl ?? "<prod>"} \x1b[0m`,
-      );
-
-      // Do not use free variant (for openrouter).
-      const modelName = model.name.split(":free")[0];
-      const proModelClient = getProModelClient({
-        model,
-        settings,
-        provider,
-        modelId: `${providerConfig?.gatewayPrefix || ""}${modelName}`,
-      });
-
-      return {
-        modelClient: proModelClient,
-        isEngineEnabled: true,
-        isSmartContextEnabled: enableSmartFilesContext,
-      };
-    } else {
-      logger.warn(
-        `Exacta Pro enabled, but provider ${model.provider} does not have a gateway prefix defined. Falling back to direct provider connection.`,
-      );
-      // Fall through to regular provider logic if gateway prefix is missing
-    }
-  }
   // Handle 'auto' provider by trying each model in AUTO_MODELS until one works
   if (model.provider === "auto") {
     if (model.name === "free") {
@@ -196,53 +140,6 @@ export async function getModelClient(
   };
 }
 
-function getProModelClient({
-  model,
-  settings,
-  provider,
-  modelId,
-}: {
-  model: LargeLanguageModel;
-  settings: UserSettings;
-  provider: DyadEngineProvider;
-  modelId: string;
-}): ModelClient {
-  if (
-    settings.selectedChatMode === "local-agent" &&
-    model.provider === "auto" &&
-    model.name === "auto"
-  ) {
-    return {
-      // We need to do the fallback here (and not server-side)
-      // because GPT-5* models need to use responses API to get
-      // full functionality (e.g. thinking summaries).
-      model: createFallback({
-        models: [
-          // openai requires no prefix.
-          provider.responses(`${GPT_5_2_MODEL_NAME}`, { providerId: "openai" }),
-          provider(`anthropic/${SONNET_4_5}`, { providerId: "anthropic" }),
-          provider(`gemini/${GEMINI_3_FLASH}`, { providerId: "google" }),
-        ],
-      }),
-      // Using openAI as the default provider.
-      // TODO: we should remove this and rely on the provider id passed into the provider().
-      builtinProviderId: "openai",
-    };
-  }
-  if (
-    settings.selectedChatMode === "local-agent" &&
-    model.provider === "openai"
-  ) {
-    return {
-      model: provider.responses(modelId, { providerId: model.provider }),
-      builtinProviderId: model.provider,
-    };
-  }
-  return {
-    model: provider(modelId, { providerId: model.provider }),
-    builtinProviderId: model.provider,
-  };
-}
 
 function getRegularModelClient(
   model: LargeLanguageModel,

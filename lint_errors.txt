@@ -1,0 +1,81 @@
+﻿
+  x eslint(no-unused-vars): Identifier 'X' is imported but never used.
+   ,-[src/components/chat/DyadRename.tsx:4:26]
+ 3 | import { useState } from "react";
+ 4 | import { ArrowRightLeft, X } from "lucide-react";
+   :                          |
+   :                          `-- 'X' is imported here
+ 5 | import { CustomTagState } from "./stateTypes";
+   `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Identifier 'DyadDescription' is imported but never used.
+    ,-[src/components/chat/DyadRename.tsx:11:3]
+ 10 |   DyadStateIndicator,
+ 11 |   DyadDescription,
+    :   ^^^^^^^|^^^^^^^
+    :          `-- 'DyadDescription' is imported here
+ 12 |   DyadCardContent,
+    `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Variable 'handleCancel' is declared but never used. Unused variables should start with a '_'.
+    ,-[src/components/chat/DyadRename.tsx:37:9]
+ 36 | 
+ 37 |   const handleCancel = () => {
+    :         ^^^^^^|^^^^^
+    :               `-- 'handleCancel' is declared here
+ 38 |     // No editing functionality for rename tags
+    `----
+  help: Consider removing this declaration.
+
+  x eslint(no-unused-vars): Parameter 'settings' is declared but never used. Unused parameters should start with a '_'.
+     ,-[src/lib/schemas.ts:341:36]
+ 340 | 
+ 341 | export function isExactaProEnabled(settings: UserSettings): boolean {
+     :                                    ^^^^|^^^
+     :                                        `-- 'settings' is declared here
+ 342 |   return true;
+     `----
+  help: Consider removing this parameter.
+
+  x eslint(no-unused-vars): Parameter 'settings' is declared but never used. Unused parameters should start with a '_'.
+     ,-[src/lib/schemas.ts:345:33]
+ 344 | 
+ 345 | export function hasExactaProKey(settings: UserSettings): boolean {
+     :                                 ^^^^|^^^
+     :                                     `-- 'settings' is declared here
+ 346 |   return true;
+     `----
+  help: Consider removing this parameter.
+
+  ! eslint(no-constant-binary-expression): Unexpected constant truthiness on the left-hand side of a "&&" expression
+    ,-[src/ipc/utils/get_model_client.ts:85:7]
+ 84 |   // Handle Exacta Pro override
+ 85 |   if (false && dyadApiKey && settings.enableExactaPro) {
+    :       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 86 |     // Force disabled for Self-Hosted Pro
+    `----
+  help: This expression always evaluates to the constant on the left-hand side
+
+  ! eslint(no-constant-binary-expression): Unexpected constant truthiness on the left-hand side of a "&&" expression
+    ,-[src/ipc/utils/get_model_client.ts:85:7]
+ 84 |   // Handle Exacta Pro override
+ 85 |   if (false && dyadApiKey && settings.enableExactaPro) {
+    :       ^^^^^^^^^^^^^^^^^^^
+ 86 |     // Force disabled for Self-Hosted Pro
+    `----
+  help: This expression always evaluates to the constant on the left-hand side
+
+  ! eslint(no-constant-condition): Unexpected constant condition
+    ,-[src/ipc/utils/get_model_client.ts:85:7]
+ 84 |   // Handle Exacta Pro override
+ 85 |   if (false && dyadApiKey && settings.enableExactaPro) {
+    :       ^^^^^^^^^^^^^^^^^^^^^^^|^^^^^^^^^^^^^^^^^^^^^^^
+    :                              `-- this expression will always evaluate to the same value
+ 86 |     // Force disabled for Self-Hosted Pro
+    `----
+  help: Update the condition to not be constant, or remove the condition entirely
+
+Found 3 warnings and 5 errors.
+Finished in 136ms on 762 files with 88 rules using 8 threads.

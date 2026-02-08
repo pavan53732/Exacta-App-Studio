@@ -7,6 +7,7 @@ export const SECTION_IDS = {
   integrations: "integrations",
   agentPermissions: "agent-permissions",
   toolsMcp: "tools-mcp",
+  cliAgents: "cli-agents",
   experiments: "experiments",
   dangerZone: "danger-zone",
 } as const;
@@ -291,6 +292,29 @@ export const SETTINGS_SEARCH_INDEX: SearchableSettingItem[] = [
     ],
     sectionId: SECTION_IDS.toolsMcp,
     sectionLabel: "Tools (MCP)",
+  },
+
+  // CLI Agents
+  {
+    id: SECTION_IDS.cliAgents,
+    label: "CLI Agents",
+    description: "Configure external CLI agents as MCP tools",
+    keywords: [
+      "cli",
+      "agents",
+      "aider",
+      "codex",
+      "gpt-engineer",
+      "goose",
+      "opencode",
+      "blackbox",
+      "crush",
+      "gemini",
+      "terminal",
+      "command line",
+    ],
+    sectionId: SECTION_IDS.cliAgents,
+    sectionLabel: "CLI Agents",
   },
 
   // Experiments
