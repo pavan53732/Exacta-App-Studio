@@ -1,16 +1,16 @@
 {
-  "name": "dyad",
-  "version": "0.36.0-beta.2",
-  "description": "Free, local, open-source AI app builder",
+  "name": "exacta-app-studio",
+  "version": "0.1.0",
+  "description": "System-Level Native Windows AI App Studio",
   "keywords": [],
   "license": "MIT",
   "author": {
-    "name": "Will Chen",
-    "email": "willchen90@gmail.com"
+    "name": "Pavan",
+    "email": "pavan@exacta.ai"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/dyad-sh/dyad.git"
+    "url": "https://github.com/pavan53732/Exacta-App-Studio.git"
   },
   "main": ".vite/build/main.js",
   "scripts": {
@@ -181,5 +181,5 @@
   "engines": {
     "node": ">=20"
   },
-  "productName": "dyad"
+  "productName": "Exacta App Studio"
 }

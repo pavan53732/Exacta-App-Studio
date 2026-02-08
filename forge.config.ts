@@ -70,7 +70,7 @@ const config: ForgeConfig = {
     windowsSign: isWindowsSigningEnabled ? windowsSign : undefined,
     protocols: [
       {
-        name: "Dyad",
+        name: "Exacta App Studio",
         schemes: ["dyad"],
       },
     ],
@@ -140,8 +140,8 @@ const config: ForgeConfig = {
       name: "@electron-forge/publisher-github",
       config: {
         repository: {
-          owner: "dyad-sh",
-          name: "dyad",
+          owner: "pavan53732",
+          name: "Exacta-App-Studio",
         },
         draft: true,
         force: true,

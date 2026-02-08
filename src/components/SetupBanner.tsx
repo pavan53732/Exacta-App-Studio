@@ -181,7 +181,7 @@ export function SetupBanner() {
   return (
     <>
       <p className="text-xl font-medium text-zinc-700 dark:text-zinc-300 p-4 pt-6">
-        Setup Dyad
+        Setup Exacta App Studio
       </p>
       <OnboardingBanner
         isVisible={isOnboardingVisible}
@@ -320,10 +320,10 @@ export function SetupBanner() {
                 onClick={handleDyadProSetupClick}
                 tabIndex={isNodeSetupComplete ? 0 : -1}
                 leadingIcon={
-                  <img src={logo} alt="Dyad Logo" className="w-6 h-6 mr-0.5" />
+                  <img src={logo} alt="Exacta Logo" className="w-6 h-6 mr-0.5" />
                 }
-                title="Start with Dyad Pro free trial"
-                subtitle="Unlock the full power of Dyad"
+                title="Start with Exacta Pro free trial"
+                subtitle="Unlock the full power of Exacta"
                 chip={<>Recommended</>}
               />
               <div className="mt-2 flex gap-2">
@@ -451,7 +451,7 @@ function NodeInstallButton({
     case "finished-checking":
       return (
         <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-          Node.js not detected. Closing and re-opening Dyad usually fixes this.
+          Node.js not detected. Closing and re-opening Exacta App Studio usually fixes this.
         </div>
       );
     default:
