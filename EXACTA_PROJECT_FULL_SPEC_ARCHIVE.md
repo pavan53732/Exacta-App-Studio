@@ -139,7 +139,7 @@ Determinism is guaranteed ONLY for:
 - [27. Visibility Model](about:blank#27-visibility-model)
 - [28. Getting Started](about:blank#28-getting-started)
   - [28.1 UI Visibility Mandate (Settings Icon)](about:blank#281-ui-visibility-mandate-settings-icon)
-- [29. Features](about:blank#29-features)
+- [29. Web Application Support](about:blank#29-web-application-support)
 - [30. Build Export Model](about:blank#30-build-export-model)
 - [31. Operator Insight Surface](about:blank#31-operator-insight-surface)
   - [31.1 Intent](about:blank#311-intent)
@@ -2841,7 +2841,7 @@ Rule: SDF logs are diagnostic only and SHALL NOT be interpreted as deterministic
 
 ---
 
-## 29. Features
+## 29. Web Application Support
 
 ### 29.1 Web Project Types
 
@@ -3063,57 +3063,6 @@ npm run preview      # Preview production build locally
 - **Git-based** — Push to GitHub, auto-deploy via Netlify/Vercel
 - **CLI-based** — Use platform CLI (vercel deploy, netlify deploy)
 - **FTP/SFTP** — Traditional file upload
-
-### 29.3 Web Development Examples
-
-#### Example 1: Static Landing Page
-
-**Operator Intent**:
-
-> "Create a modern landing page for a SaaS product with hero section, features, pricing, and contact form"
-
-**System Actions**:
-
-1. Initialize Vite + React project
-2. Generate responsive layout with Tailwind CSS
-3. Create hero section with gradient background
-4. Add features grid with icons
-5. Build pricing cards with hover effects
-6. Implement contact form with validation
-7. Generate favicon and og-image
-8. Start dev server at `localhost:3000`
-9. Open browser preview
-
-**Output**:
-
-- Fully responsive landing page
-- Production build in `dist/` folder
-- Ready for deployment to Netlify/Vercel
-
-#### Example 2: Full-Stack Dashboard
-
-**Operator Intent**:
-
-> "Build an admin dashboard with user authentication, data tables, and charts"
-
-**System Actions**:
-
-1. Initialize Next.js project with TypeScript
-2. Set up authentication (NextAuth.js)
-3. Create dashboard layout with sidebar
-4. Implement data tables with sorting/filtering
-5. Add charts (Chart.js or Recharts)
-6. Set up API routes for data fetching
-7. Configure SQLite database
-8. Generate login/signup pages
-9. Start dev server with hot reload
-
-**Output**:
-
-- Full-stack Next.js application
-- Authentication system
-- Database integration
-- Production-ready build
 
 ---
 
