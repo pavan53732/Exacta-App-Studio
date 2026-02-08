@@ -1,0 +1,130 @@
+permissions:
+  contents: write
+
+name: Release app
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - release/**
+      - 'v*'          # run on branches named like v0.0.6
+    tags:
+      - 'v*.*.*'      # keep tag-based releases as well
+
+jobs:
+  build:
+    environment: release
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os:
+          - { name: "windows", image: "windows-2022" }
+          - { name: "linux", image: "ubuntu-22.04" }
+          - { name: "macos-intel", image: "macos-15-intel" }
+          - { name: "macos", image: "macos-latest" }
+    runs-on: ${{ matrix.os.image }}
+    env:
+      CI: true
+
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Use Node.js
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        with:
+          node-version: 20
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "store_path=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.store_path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Clean up potential corrupted install (CI-only)
+        run: |
+          rm -rf node_modules
+          rm -f pnpm-lock.yaml
+          rm -rf .pnpm-store
+          pnpm store prune --force || true
+        shell: bash
+
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        shell: bash
+
+      - name: Try rebuild rollup native binary (non-fatal)
+        run: |
+          if [[ "${{ matrix.os.name }}" == "linux" ]]; then
+            pnpm rebuild @rollup/rollup-linux-x64-gnu || true
+          elif [[ "${{ matrix.os.name }}" == "macos-intel" ]]; then
+            pnpm rebuild @rollup/rollup-darwin-x64 || true
+          elif [[ "${{ matrix.os.name }}" == "macos" ]]; then
+            pnpm rebuild @rollup/rollup-darwin-arm64 || true
+          elif [[ "${{ matrix.os.name }}" == "windows" ]]; then
+            pnpm rebuild @rollup/rollup-win32-x64-msvc || true
+          fi
+        shell: bash
+
+      - name: Build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: pnpm run build
+        shell: bash
+
+      - name: Publish app
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          SM_CODE_SIGNING_CERT_SHA1_HASH: ${{ secrets.SM_CODE_SIGNING_CERT_SHA1_HASH }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: pnpm run publish
+        shell: bash
+
+  verify-assets:
+    name: Verify Release Assets
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Use Node.js
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        shell: bash
+
+      - name: Verify all release assets are uploaded
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/verify-release-assets.js
+        shell: bash

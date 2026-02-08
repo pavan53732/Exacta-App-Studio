@@ -1,0 +1,12 @@
+{
+  "id": "rust-hello",
+  "name": "Rust Hello World",
+  "description": "A simple, high-performance Rust application template.",
+  "icon": "https://img.icons8.com/color/48/000000/rust-programming-language.png",
+  "commands": {
+    "start": "cargo run",
+    "build": "cargo build --release",
+    "test": "cargo test"
+  },
+  "requiredTools": ["cargo"]
+}
