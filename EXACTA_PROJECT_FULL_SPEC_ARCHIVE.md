@@ -159,8 +159,8 @@ Determinism is guaranteed ONLY for:
   - [A.3 BudgetState Schema](about:blank#a3-budgetstate-schema)
   - [A.4 Capability Enum](about:blank#a4-capability-enum)
   - [A.5 Risk Class Enum](about:blank#a5-command-class-to-capability-mapping)
-  - [A.6 Goal Schema](about:blank#appendix-b---invariant-index)
-- [Appendix B - Invariant Index](about:blank#appendix-c---change-log)
+  - [A.6 Goal Schema](about:blank#a6-goal-schema)
+- [Appendix B - Invariant Index](about:blank#appendix-b---invariant-index)
 - [Appendix C - Change Log](about:blank#appendix-c---change-log)
 
 ```
