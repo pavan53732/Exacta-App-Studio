@@ -22,27 +22,15 @@ It is designed to feel invisible: you describe what you want, and the system con
 
 There are no visible context windows, no dependency controls, no diff staging, and no undo buttons — only goals, progress, and results.
 
-**Behavioral focus:** Exacta prioritizes fast, intent-driven editing loops that apply changes to the workspace as they are produced (auto-apply by default). Responsibility for long-term recovery and full operational logging is shifted toward background snapshots and external VCS (recommended), not per-action review UIs.
+**Operational Model:** Exacta operates in an _iterative_ mode following the Core Design Philosophy defined in Section 1.2.
 
-**Operational Model:** Exacta operates in a _best-effort, iterative_ mode. The system does **not** guarantee deterministic execution ordering, strict checkpoint determinism, or replay equivalence of AI outputs. Execution focuses on fast iteration: changes are applied autonomously and the system attempts to self-correct over subsequent cycles rather than block for strict, pre-apply verification.
-Exacta **DOES NOT guarantee deterministic AI outputs, compiler outputs, package resolution, timestamps, or network-fetched artifacts.**
+All non-deterministic execution principles are defined normatively in Section 1.2 and Section 6.5. This prologue does not define operational behavior.
 
 Determinism is guaranteed ONLY for:
 
 1. Internal policy evaluation (the rules of the System Constitution)
 2. Capability token validation (the permission system)
 3. Invariant enforcement (security boundaries)
-
-> ⚠️ Flow vs. Formal Guarantees Tradeoff
->
-> Exacta prioritizes **developer flow** and **immediate productivity** over formal operational logging and deterministic guarantees. This design choice means:
->
-> - **Fast iteration** with auto-apply changes instead of per-step approvals
-> - **Hidden recovery mechanisms** instead of visible rollback UIs
-> - **Best-effort execution** instead of guaranteed deterministic outcomes
-> - **Background snapshots** instead of explicit checkpoint management
->
-> **For applications requiring strict operational logging, deterministic execution, or formal compliance guarantees, consider traditional development workflows with manual code review and explicit version control practices.**
 
 ## Table of Contents
 
@@ -219,69 +207,7 @@ AI cognition MAY be provided by either:
 
 Autonomous execution SHALL NOT begin unless at least one AI cognition source is available.
 
-**Toolchain Authority Model**
-
-Exacta App Studio DOES NOT implement new compilers, linkers, or packagers.
-
-To ensure a **“Full Stack App Builder” (Batteries Included)** experience, Exacta App Studio **BUNDLES** a **Standard Portable Toolchain** (containing .NET SDK, Node.js, and WiX Toolset) within its installer. This ensures immediate, offline-capable application building without requiring manual user setup.
-
-However, architecturally, Exacta remains an **Orchestrator**. It does not link these tools as libraries; it executes the bundled binaries as sandboxed subprocesses, identical to how it would execute manually installed tools.
-
-Exacta SHALL ONLY:
-
-- Discover (Bundled or System)
-- Verify
-  - **Discovery Order:** Internal (`%LocalAppData%\Exacta\Toolchain\`) -> System (`PATH`).
-  - **Bundled Manifest (Fixed Versions):**
-    - **Runtime:** .NET 8.0 LTS (Generic).
-    - **Scripting:** Node.js 20 LTS.
-    - **Installer:** WiX Toolset v4.
-    - **Media:** ImageMagick (Portable) for programmatic asset generation.
-  - **Isolation:** Exacta defaults to its **Internal Toolchain** to guarantee build reproducibility, ignoring system-installed versions unless explicitly overridden by the Operator.
-- Sandbox
-- Orchestrate
-
-All .exe and .msi artifacts are produced exclusively by these toolchains executed under Guardian-enforced sandbox controls.
-
-#### 1.1.1 Web Development Toolchain
-
-For web application and website projects, Exacta App Studio extends the bundled toolchain with web-specific capabilities:
-
-**Frontend Build Tools (Bundled)**:
-
-- **Vite** — Modern frontend build tool for fast development and optimized production builds
-- **Next.js** — React framework for production-grade web applications with SSR/SSG
-- **TypeScript Compiler** — Type-safe JavaScript development
-
-**Runtime Environments**:
-
-- **Node.js 20 LTS** (already bundled) — Serves dual purpose:
-  - Scripting/tooling for desktop apps
-  - Backend runtime for web applications
-
-**Web-Specific Package Managers**:
-
-- **npm** (already bundled) — JavaScript package management
-- **pnpm** (optional) — Fast, disk-efficient package manager
-- **yarn** (optional) — Alternative package manager
-
-**Development Servers**:
-
-- **Vite Dev Server** — Hot module replacement (HMR) for instant feedback
-- **Next.js Dev Server** — Full-stack development with API routes
-- **Express.js** — Custom backend server development
-
-**Browser Testing**:
-
-- **Playwright** — Automated browser testing (Chromium, Firefox, WebKit)
-- **Live Preview** — Integrated browser preview within Exacta UI
-
-**Build Outputs**:
-
-- **Static Sites** — Optimized HTML/CSS/JS bundles for hosting (e.g., `dist/` folder)
-- **Server-Side Rendered (SSR) Apps** — Next.js production builds (`.next/` folder)
-- **Single Page Applications (SPA)** — React/Vue/Angular bundles
-- **Progressive Web Apps (PWA)** — Installable web applications with service workers
+Web application support is provided via a bundled, sandboxed toolchain; detailed tool inventories are documented in Appendix A.
 
 ### 1.2 Core Design Philosophy (The Four Pillars)
 
@@ -294,8 +220,9 @@ The architecture of Exacta App Studio is defined by **four non-negotiable concep
 
 #### 2. Guardian Supremacy
 
-**Philosophy:** Security is not an afterthought; the **Guardian Service** (runs as `NT AUTHORITY\SYSTEM`) is the elevated, sole policy authority. It manages **Capability Tokens** that grant narrow permissions (like writing a specific file or calling a specific API) only when the Policy Engine allows it.
-**Implication:** Even the Core AI Runtime ("The Brain") is untrusted. It cannot touch the disk, network, or kernel without a signed permission slip from the Guardian.
+**Philosophy:** Security authority is concentrated in the Guardian Service (`NT AUTHORITY\SYSTEM`), which serves as the sole policy authority and capability token issuer. The Core AI Runtime operates as an untrusted decision proposer, requiring explicit Guardian authorization for all actions.
+
+**Core Principle:** All security boundaries, policy enforcement, and capability management are governed by the Guardian as defined in Section 11. No component can self-escalate privileges or bypass Guardian authority.
 
 #### 3. Local Sovereignty
 
@@ -305,14 +232,16 @@ The architecture of Exacta App Studio is defined by **four non-negotiable concep
 - **Bundled Toolchain:** We include .NET SDK, Node.js, and WiX to ensure offline-capable building.
 - **Antivirus Coexistence:** We actively detect local AV interference (process termination <100ms, access denied 0x5) and guide the user, rather than fighting the kernel.
 
-#### 4. Self-Healing Loops
+#### 4. Self-Healing Loops (Flow-First Philosophy)
 
-**Philosophy:** The system uses a **Perceive → Decide → Act → Observe** cycle (OODA Loop). If a build fails, the system doesn't nag the user; it **silently retries** (up to 20 times) with a different approach.
-**Implication:**
+**Philosophy:** The system operates on a **Perceive → Decide → Act → Observe** cycle (PDAO Loop) that prioritizes immediate progress and developer flow over formal guarantees. Changes are auto-applied to the workspace, failures trigger silent retries with alternative approaches, and the system maintains forward momentum rather than blocking for perfect verification.
 
-- **Best-Effort Execution:** We prioritize forward progress over strict determinism. Re-running a goal may produce a different path to the same solution.
-- **Non-Determinism:** We accept that external compilers, package managers (npm/NuGet), and AI outputs are non-deterministic. Only the **Policy Engine** and **Token Validation** are guaranteed deterministic.
-- **Deep Autonomy:** The _System_ handles complexity (heuristics, routing, verification) so the _AI_ can focus purely on reasoning.
+**Core Tenets:**
+
+- **Flow Over Formalism:** Immediate productivity and intent-driven editing take precedence over deterministic replay guarantees
+- **Auto-Apply by Default:** Changes are applied to workspace as produced, not staged for manual review
+
+All retry logic, escalation thresholds, and recovery mechanics are normatively defined in Section 6.3.
 
 ### 1.3 What the Operator Sees (and Does NOT See)
 
@@ -339,17 +268,14 @@ Interaction is chat-first and goal-oriented:
 - Operator may refine the goal; system continues cycles.
 - On errors, system self-heals silently; only asks for clarification when truly stuck.
 
-Notes:
-
-- No file-tree or diff-first UI in default mode.
-- “Revert and edit” UI is exposed only in advanced/administrative debug builds (not in default consumer flow).
+All UI visibility rules are normatively defined in Section 4.
 
 ### 1.5 Execution & Isolation Tradeoffs
 
 This boundary includes:
 
 - **Filesystem access** (project root jail with MAX_PATH considerations, symlink rules, atomic writes, system-path denylist, no UNC paths)
-- **Process execution** (System sandboxing (Standard): Job Objects, standard User Mode isolation, and basic network allowlisting. Logs are **diagnostic only** and SHALL NOT be interpreted as replay, causality proof, or deterministic execution history. Subprocess lifetime, enforce memory and CPU usage limits, and enable coordinated termination)
+- **Process execution** (System sandboxing (Standard): Job Objects, standard User Mode isolation, and basic network allowlisting.
 - **Network access** (explicitly gated by capability tokens; network isolation is an operator-configured policy and may rely on OS-level controls outside Exacta’s runtime)
 - **Memory & data flow** (Never-Send rules, redaction, provider boundary)
 
@@ -359,7 +285,7 @@ This boundary includes:
 - memory usage limits
 - CPU usage limits and accounting
 
-Network blocking is enforced by Exacta’s **bundled WFP Callout Driver** (Guardian). Credential stripping, PATH enforcement, and environment scrubbing utilize OS primitives (AppContainer, Job Objects) orchestrated by Core.
+Credential stripping, PATH enforcement, and environment scrubbing utilize OS primitives (AppContainer, Job Objects) orchestrated by Core.
 
 **Failure Rule:** If required isolation primitives cannot be established, the action will be denied and the system will halt autonomous execution and require operator review before proceeding.
 
@@ -597,7 +523,7 @@ System Surface (hidden by default; available only in debug/administrative builds
 - Emergency stop at any time
 - Clarification requests only when system is truly stuck (not technical errors)
 
-Capability toggles, budget meters, execution traces, error codes, and limit counters exist as internal controls and are NOT visible in the default UI. The system self-heals silently on errors.
+Capability toggles, budget meters, execution traces, error codes, and limit counters exist as internal controls and are NOT visible in the default UI. Error handling follows the silent self-healing protocols defined in Section 6.3.
 
 ### 4.3 UI-to-Core Bridge Protocol (JSON-RPC)
 
@@ -665,12 +591,9 @@ Every discrete action within a cycle SHALL be assigned a unique, monotonically i
 - Goal is satisfied (success criteria met)
 - Operator presses emergency stop
 
-**System self-heals silently on:**
+**System self-heals silently using the protocols defined in Section 6.3 for:**
 
-- Soft budget limits reached (throttle and continue)
-- Build or action failures (retry with different approach)
-- AI provider errors (switch provider or retry)
-- Detected patterns (adjust approach automatically)
+- Budget limits | Build failures | AI provider errors | Pattern detection
 
 **System asks for clarification when:**
 
@@ -781,19 +704,22 @@ Default model: single-goal serial decisioning.
 Within a goal: certain subprocesses may be run in parallel but always grouped under a single Goal Job Object to preserve coordinated termination semantics.
 No multi-goal concurrency allowed in default mode.
 
-### 6.5 Determinism Scope
+### 6.5 Determinism Scope (Normative Matrix)
 
-- Policy Determinism — Guaranteed
-- Capability Validation — Guaranteed
-- Logging Structure — Structured Diagnostic Format (not deterministic replay)
-- Execution Order — Best-effort only
-- Outcome Equivalence — Not guaranteed
+**Determinism Guarantees:**
 
-**AI Routing Determinism**
+- ✅ Policy Evaluation — Guaranteed
+- ✅ Capability Validation — Guaranteed
+- ✅ AI Provider Routing — Deterministic selection for identical system state snapshots
 
-For a given `(goal_id, policy_profile, provider_set, budget_state)` snapshot, the selection of AI provider or local model SHALL be deterministic.
+**Non-Deterministic Areas:**
 
-AI output content is explicitly non-deterministic.
+- ❌ AI Output Content — Explicitly non-deterministic
+- ❌ Execution Order
+- ❌ Outcome Equivalence — Not guaranteed
+- ❌ External Tool Outputs — Compilers, package managers, network artifacts
+
+**Enforcement Rule:** For identical `(goal_id, policy_profile, provider_set, budget_state, environment_snapshot)` conditions, routing and policy decisions SHALL be deterministic, but execution path and outcomes may vary.
 
 ## 7. Context Handling - AI Isolation (Hidden)
 
@@ -1107,7 +1033,7 @@ Communication flows:
 
 Authority rules:
 
-- Guardian is the ultimate arbiter of capability tokens and policy decisions (see Section 11).
+- Guardian serves as the ultimate authority for capability tokens and policy decisions (see Section 11 for comprehensive authority definition).
 
 **UI Trust Level**
 
@@ -1374,10 +1300,7 @@ Exacta uses the **Windows Filtering Platform (WFP)** to enforce per-process netw
 - Kernel-level enforcement.
 - Guaranteed isolation.
 - **Bootstrap Protocol:**
-  1.  App Check: Is `ExactaWfpDriver.sys` loaded?
-  2.  If NO: Prompt User for **Admin Elevation** (UAC) to install.
-  3.  Action: Register Driver via WiX/sc.exe.
-  4.  Fallback: If User denies, degrade to **TIER 2**.
+  Driver installation and bootstrap mechanics are implementation details and are not part of the constitutional authority surface.
 
 **TIER 2 (Fallback): User-Mode WFP API**
 
@@ -1400,26 +1323,7 @@ If Core detects it is already running within a Job Object:
 2. Attempt to apply required limits within nested context
 3. If enforcement cannot be guaranteed (defined as: inability to set CPU limits via JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, inability to set memory limits via JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, or inability to enforce breakaway prevention via JOB_OBJECT_LIMIT_BREAKAWAY_OK flag), enter Safe Mode
 
-**WFP Callout Driver Lifecycle:**
-
-- **Install/Uninstall:** Driver is installed/removed ONLY by the MSI installer (requires Admin).
-- **Load:** Loaded at system boot or service start.
-- **Fail-State:** If the driver is not loaded or fails to attach:
-  1. Guardian detects failure via heartbeat.
-  2. System enters `NETWORK-DENY` mode (ALL external traffic blocked).
-  3. Operator is notified to repair installation.
-
 **Invariant:INV-NET-FAIL-1: Network Enforcement Dependency** — If BOTH the WFP callout driver AND User-Mode WFP API are unavailable, Exacta SHALL operate in NETWORK-DENY mode for all subprocesses.
-
-**Standard Feature Set:**
-Exacta App Studio is a single, open-source distribution containing all security and operational features:
-
-- **Full Network Isolation:** Uses WFP Callout Driver if installed, falls back to User-Mode API.
-- **Guardian Attestation:** Supports TPM 2.0 integration for hardware-backed security where available.
-- **Checkpoint Retention:** Configurable retention policies (default: 200 checkpoints).
-- **Policy Management:** Support for Custom Policy Profiles and Organizational Policies.
-- **Audit Logging:** Full audit log export and archival capabilities.
-- **Deployment:** Supports Offline Activation and Airgapped environments.
 
 **Authority Model:**
 
@@ -2186,8 +2090,6 @@ timezone: string
 
 **INV-DET-1: Snapshot Completeness** — A checkpoint SHALL NOT be considered reproducible unless a valid EnvironmentSnapshot is present and hash-anchored.
 
-**Note:** snapshot presence improves investigatory ability; it does not create a general deterministic replay guarantee for toolchains or networked fetches.
-
 **Invariant:INV-DET-2: Toolchain Drift Lock** — If critical toolchain verions (dotnet, node, python) differ from the EnvironmentSnapshot, execution SHALL HALT. Override requires Operator `ALLOW_WITH_DRIFT` acknowledgement.
 
 ## 25. Supply Chain Trust Boundary
@@ -2456,7 +2358,6 @@ ProviderRecord {
 - Registry state MUST be snapshotted in EnvironmentSnapshot
 
 **Invariant:INV-AI-REG-1: Signed Provider Registry Only** — AI provider, CLI agent, or local runtime selection SHALL NOT occur unless the ProviderRecord is Guardian-signed and enabled.
-
 
 ### 26.4 CLI Agent Orchestration (Tier 5)
 
@@ -4617,6 +4518,29 @@ Goal {
 }
 ```
 
+### A.7 Bundled Toolchain Reference (Non-Authoritative)
+
+Exacta App Studio BUNDLES a Standard Portable Toolchain within its installer. This ensures immediate, offline-capable application building without requiring manual user setup.
+
+**Inventory (Non-Normative Implementation Detail):**
+
+- **.NET SDK** (e.g., 8.0.x) — Trusted compilation for C#/.NET projects.
+- **Node.js** (e.g., LTS 20.x) — Runtime for JavaScript/TypeScript build tools.
+- **WiX Toolset** (e.g., v3.14/v4.x) — Standard Windows MSI generation.
+- **Git** (MinGit) — Version control operations.
+- **ImageMagick** (Portable) — Asset generation and manipulation.
+
+All .exe and .msi artifacts are produced exclusively by these toolchains executed under Guardian-enforced sandbox controls.
+
+### A.8 WFP Driver Lifecycle (Implementation Detail)
+
+- **Install/Uninstall:** Driver is installed/removed ONLY by the MSI installer (requires Admin).
+- **Load:** Loaded at system boot or service start.
+- **Fail-State:** If the driver is not loaded or fails to attach:
+  1. Guardian detects failure via heartbeat.
+  2. System enters `NETWORK-DENY` mode (ALL external traffic blocked).
+  3. Operator is notified to repair installation.
+
 ## Appendix B - Invariant Index
 
 This index MUST enumerate all INV-\* identifiers defined in this document. Missing entries constitute a SPEC VIOLATION.
@@ -4709,7 +4633,7 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 ## Appendix C - Change Log
 
 | Version         | Date       | Change Description                                          |
-| --------------- | ---------- | ----------------------------------------------------------- | --- |
+| --------------- | ---------- | ----------------------------------------------------------- |
 | 1.0.0           | 2024-05-22 | Initial Canonical Authority Ratification                    |
 | 1.1.0           | 2024-05-23 | Table of Contents & Header Alignment                        |
 | 1.2.0           | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules)        |
@@ -4765,7 +4689,7 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 |                 |            | \\\* WEB_PACKAGE_INSTALL (7 new capabilities)               |
 |                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel     |
 |                 |            | Railway, Render, Cloudflare Pages, DigitalOcean             |
-| 2.6.0 (CURRENT) | 2026-02-08 | Observability & Power User Enhancements                      |
+| 2.6.0 (CURRENT) | 2026-02-08 | Observability & Power User Enhancements                     |
 |                 |            | - **Section 31**: Operator Insight Surface                  |
 |                 |            | \\\* Read-only observability panel                          |
 |                 |            | \\\* Action timeline, checkpoint history, changed files     |
