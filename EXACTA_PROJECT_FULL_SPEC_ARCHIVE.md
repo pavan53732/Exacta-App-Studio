@@ -141,6 +141,38 @@ Determinism is guaranteed ONLY for:
   - [28.1 UI Visibility Mandate (Settings Icon)](about:blank#281-ui-visibility-mandate-settings-icon)
 - [29. Features](about:blank#29-features)
 - [30. Build Export Model](about:blank#30-build-export-model)
+- [31. Operator Insight Surface](about:blank#31-operator-insight-surface)
+  - [31.1 Philosophy](about:blank#311-philosophy)
+  - [31.2 Insight Panel Components](about:blank#312-insight-panel-components)
+  - [31.3 Invariants](about:blank#313-invariants)
+- [32. Worked Examples](about:blank#32-worked-examples)
+  - [32.1 Example 1: Windows Desktop App (WPF Finance Tracker)](about:blank#321-example-1--windows-desktop-app-wpf-finance-tracker)
+  - [32.2 Example 2: Web App (Next.js Dashboard with Auth)](about:blank#322-example-2--web-app-nextjs-dashboard-with-auth)
+  - [32.3 Lessons from Examples](about:blank#323-lessons-from-examples)
+- [33. Project Lifecycle Model](about:blank#33-project-lifecycle-model)
+  - [33.1 Philosophy](about:blank#331-philosophy)
+  - [33.2 State Transitions](about:blank#332-state-transitions)
+  - [33.3 Project Metadata](about:blank#333-project-metadata)
+  - [33.4 Lifecycle UI](about:blank#334-lifecycle-ui)
+  - [33.5 Invariants](about:blank#335-invariants)
+- [34. Debug / Administrative Mode](about:blank#34-debug---administrative-mode)
+  - [34.1 Philosophy](about:blank#341-philosophy)
+  - [34.2 Enabling Debug Mode](about:blank#342-enabling-debug-mode)
+  - [34.3 Debug Mode UI Additions](about:blank#343-debug-mode-ui-additions)
+  - [34.4 Invariants](about:blank#344-invariants)
+- [35. Destructive Action Guardrails](about:blank#35-destructive-action-guardrails)
+  - [35.1 Philosophy](about:blank#351-philosophy)
+  - [35.2 Confirmation Flows](about:blank#352-confirmation-flows)
+  - [35.3 Undo Mechanisms](about:blank#353-undo-mechanisms)
+  - [35.4 Guardrail Bypass (Debug Mode Only)](about:blank#354-guardrail-bypass-debug-mode-only)
+  - [35.5 Invariants](about:blank#355-invariants)
+- [36. Failure UX Contract](about:blank#36-failure-ux-contract)
+  - [36.1 Philosophy](about:blank#361-philosophy)
+  - [36.2 Error Message Structure](about:blank#362-error-message-structure)
+  - [36.3 Error Types](about:blank#363-error-types)
+  - [36.4 Recovery Flows](about:blank#364-recovery-flows)
+  - [36.5 Error Logging](about:blank#365-error-logging)
+  - [36.6 Invariants](about:blank#366-invariants)
 - [Appendix A - Engineering Schemas](about:blank#appendix-a---engineering-schemas)
   - [A.1 RiskRule Schema](about:blank#a1-riskrule-schema)
   - [A.2 Action Schema](about:blank#a2-action-schema)
@@ -527,6 +559,8 @@ The UI communicates with the Core effectively as a "Remote" client over a named 
 - `Core.Progress`: Stream structured progress (Step 1/5, "Compiling...").
 - `Core.StreamToken`: Real-time text streaming of AI thought/code.
 - `Core.ArtifactReady`: Notification that a build has finished.
+
+## 5. Non-Goals - Explicit Exclusions
 
 Exacta App Studio is **intentionally not designed** for the following use cases:
 
