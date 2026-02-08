@@ -142,7 +142,7 @@ Determinism is guaranteed ONLY for:
 - [29. Features](about:blank#29-features)
 - [30. Build Export Model](about:blank#30-build-export-model)
 - [31. Operator Insight Surface](about:blank#31-operator-insight-surface)
-  - [31.1 Philosophy](about:blank#311-philosophy)
+  - [31.1 Intent](about:blank#311-intent)
   - [31.2 Insight Panel Components](about:blank#312-insight-panel-components)
   - [31.3 Invariants](about:blank#313-invariants)
 - [32. Worked Examples](about:blank#32-worked-examples)
@@ -150,24 +150,24 @@ Determinism is guaranteed ONLY for:
   - [32.2 Example 2: Web App (Next.js Dashboard with Auth)](about:blank#322-example-2--web-app-nextjs-dashboard-with-auth)
   - [32.3 Lessons from Examples](about:blank#323-lessons-from-examples)
 - [33. Project Lifecycle Model](about:blank#33-project-lifecycle-model)
-  - [33.1 Philosophy](about:blank#331-philosophy)
+  - [33.1 Intent](about:blank#331-intent)
   - [33.2 State Transitions](about:blank#332-state-transitions)
   - [33.3 Project Metadata](about:blank#333-project-metadata)
   - [33.4 Lifecycle UI](about:blank#334-lifecycle-ui)
   - [33.5 Invariants](about:blank#335-invariants)
 - [34. Debug / Administrative Mode](about:blank#34-debug---administrative-mode)
-  - [34.1 Philosophy](about:blank#341-philosophy)
+  - [34.1 Intent](about:blank#341-intent)
   - [34.2 Enabling Debug Mode](about:blank#342-enabling-debug-mode)
   - [34.3 Debug Mode UI Additions](about:blank#343-debug-mode-ui-additions)
   - [34.4 Invariants](about:blank#344-invariants)
 - [35. Destructive Action Guardrails](about:blank#35-destructive-action-guardrails)
-  - [35.1 Philosophy](about:blank#351-philosophy)
+  - [35.1 Intent](about:blank#351-intent)
   - [35.2 Confirmation Flows](about:blank#352-confirmation-flows)
   - [35.3 Undo Mechanisms](about:blank#353-undo-mechanisms)
   - [35.4 Guardrail Bypass (Debug Mode Only)](about:blank#354-guardrail-bypass-debug-mode-only)
   - [35.5 Invariants](about:blank#355-invariants)
 - [36. Failure UX Contract](about:blank#36-failure-ux-contract)
-  - [36.1 Philosophy](about:blank#361-philosophy)
+  - [36.1 Intent](about:blank#361-intent)
   - [36.2 Error Message Structure](about:blank#362-error-message-structure)
   - [36.3 Error Types](about:blank#363-error-types)
   - [36.4 Recovery Flows](about:blank#364-recovery-flows)
@@ -3143,7 +3143,7 @@ npm run preview      # Preview production build locally
 
 ## 31. Operator Insight Surface
 
-### 31.1 Philosophy
+### 31.1 Intent
 
 **Core Tension**: Exacta is an "invisible builder" that auto-applies changes without diffs or manual staging. However, for non-trivial apps, operators need to understand **what changed** and **why** without breaking the flow-first model.
 
@@ -3569,7 +3569,7 @@ Drift Events
 
 ## 33. Project Lifecycle Model
 
-### 33.1 Philosophy
+### 33.1 Intent
 
 **Core Principle**: Exacta manages projects through a simple, deterministic lifecycle that tracks project state from creation to archival.
 
@@ -3751,7 +3751,7 @@ Projects
 
 ## 34. Debug / Administrative Mode
 
-### 34.1 Philosophy
+### 34.1 Intent
 
 **Core Principle**: Debug Mode provides **enhanced visibility** without **loosening security**.
 
@@ -3926,7 +3926,7 @@ This is a DISRUPTIVE action. Continue? [Yes] [No]
 
 ## 35. Destructive Action Guardrails
 
-### 35.1 Philosophy
+### 35.1 Intent
 
 **Core Principle**: Exacta protects operators from accidental data loss through explicit confirmation flows for destructive actions.
 
@@ -4180,7 +4180,7 @@ Continue? [Yes] [No]
 
 ## 36. Failure UX Contract
 
-### 36.1 Philosophy
+### 36.1 Intent
 
 **Core Principle**: Exacta handles failures gracefully, providing clear error messages, actionable recovery steps, and preserving operator work.
 
