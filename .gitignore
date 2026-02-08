@@ -104,3 +104,17 @@ userData/
 
 # dyad
 dyad
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+test-results/
