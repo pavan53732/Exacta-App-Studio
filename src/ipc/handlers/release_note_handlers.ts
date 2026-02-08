@@ -23,7 +23,7 @@ export function registerReleaseNoteHandlers() {
       if (IS_TEST_BUILD) {
         return { exists: false };
       }
-      const releaseNoteUrl = `https://www.alifullstack.alitech.io/docs/releases/${version}`;
+      const releaseNoteUrl = `https://www.exacta-app-studio.alitech.io/docs/releases/${version}`;
 
       logger.debug(`Checking for release note at: ${releaseNoteUrl}`);
 

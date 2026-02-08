@@ -31,9 +31,9 @@ export function PrivacyBanner() {
               Note: this does not log your code or messages.
             </em>
             <a
-              onClick={() => {
-                IpcClient.getInstance().openExternalUrl(
-                  "https://alifullstack.alitech.io/docs/policies/privacy-policy",
+            onClick={() => {
+              IpcClient.getInstance().openExternalUrl(
+                "https://www.exacta-app-studio.alitech.io/docs/policies/privacy-policy",
                 );
               }}
               className="cursor-pointer text-sm text-blue-600 dark:text-blue-400 hover:underline"

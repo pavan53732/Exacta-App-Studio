@@ -33,6 +33,9 @@
     "**/__tests__/*",
     "e2e-tests/fixtures",
     "**/*.spec.ts",
-    "**/*.test.ts"
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "src/components/roocode/**/*",
+    "src/hooks/roocode/**/*"
   ]
 }

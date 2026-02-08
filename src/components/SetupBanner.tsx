@@ -306,7 +306,7 @@ function NodeJsHelpCallout() {
         <a
           onClick={() => {
             IpcClient.getInstance().openExternalUrl(
-              "https://www.alifullstack.alitech.io/docs/help/nodejs",
+              "https://www.exacta-app-studio.alitech.io/docs/help/nodejs",
             );
           }}
           className="text-blue-600 dark:text-blue-400 hover:underline font-medium"

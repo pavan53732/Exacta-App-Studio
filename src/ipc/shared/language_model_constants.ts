@@ -446,7 +446,7 @@ export const CLOUD_PROVIDERS: Record<
   },
   auto: {
     displayName: "Dyad",
-    websiteUrl: "https://academy.alifullstack.alitech.io/settings",
+    websiteUrl: "https://academy.exacta-app-studio.alitech.io/settings",
     gatewayPrefix: "dyad/",
   },
   azure: {

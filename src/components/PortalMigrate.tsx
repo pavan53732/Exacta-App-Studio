@@ -43,7 +43,7 @@ export const PortalMigrate = ({ appId }: PortalMigrateProps) => {
   const openDocs = () => {
     const ipcClient = IpcClient.getInstance();
     ipcClient.openExternalUrl(
-      "https://www.alifullstack.alitech.io/docs/templates/portal#create-a-database-migration",
+      "https://www.exacta-app-studio.alitech.io/docs/templates/portal#create-a-database-migration",
     );
   };
 

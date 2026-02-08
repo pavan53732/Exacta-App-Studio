@@ -47,7 +47,7 @@ export async function refreshSupabaseToken(): Promise<void> {
   try {
     // Make request to Supabase refresh endpoint
     const response = await apiFetch(
-      "https://supabase-oauth.alifullstack.alitech.io/api/connect-supabase/refresh",
+      "https://supabase-oauth.exacta-app-studio.alitech.io/api/connect-supabase/refresh",
       {
         method: "POST",
         headers: {
@@ -188,7 +188,7 @@ export async function deploySupabaseFunctions({
     JSON.stringify({
       entrypoint_path: "index.ts",
       name: functionName,
-      // See: https://github.com/SFARPak/dyad/issues/1010
+      // See: https://github.com/pavan53732/Exacta-App-Studio/issues/1010
       verify_jwt: false,
     }),
   );

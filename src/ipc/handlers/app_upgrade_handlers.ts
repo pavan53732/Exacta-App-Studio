@@ -21,7 +21,7 @@ const availableUpgrades: Omit<AppUpgrade, "isNeeded">[] = [
     description:
       "Installs the Exacta-App-Studio component tagger Vite plugin and its dependencies.",
     manualUpgradeUrl:
-      "https://alifullstack.alitech.io/docs/upgrades/select-component",
+      "https://www.exacta-app-studio.alitech.io/docs/upgrades/select-component",
   },
   {
     id: "capacitor",
@@ -29,7 +29,7 @@ const availableUpgrades: Omit<AppUpgrade, "isNeeded">[] = [
     description:
       "Adds Capacitor to your app lets it run on iOS and Android in addition to the web.",
     manualUpgradeUrl:
-      "https://alifullstack.alitech.io/docs/guides/mobile-app#upgrade-your-app",
+      "https://www.exacta-app-studio.alitech.io/docs/guides/mobile-app#upgrade-your-app",
   },
 ];
 

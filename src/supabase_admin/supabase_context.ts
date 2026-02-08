@@ -26,7 +26,7 @@ async function getPublishableKey({ projectId }: { projectId: string }) {
 
   if (!publishableKey) {
     throw new Error(
-      "No publishable key found for project. Make sure you are connected to the correct Supabase account and project. See https://alifullstack.alitech.io/docs/integrations/supabase#no-publishable-keys",
+      "No publishable key found for project. Make sure you are connected to the correct Supabase account and project. See https://www.exacta-app-studio.alitech.io/docs/integrations/supabase#no-publishable-keys",
     );
   }
   return publishableKey.api_key;

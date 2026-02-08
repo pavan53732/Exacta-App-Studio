@@ -126,7 +126,7 @@ export function AppUpgrades({ appId }: { appId: number | null }) {
                           e.stopPropagation();
                           IpcClient.getInstance().openExternalUrl(
                             upgrade.manualUpgradeUrl ??
-                              "https://alifullstack.alitech.io/docs",
+                              "https://www.exacta-app-studio.alitech.io/docs",
                           );
                         }}
                         className="underline font-medium hover:dark:text-red-200"

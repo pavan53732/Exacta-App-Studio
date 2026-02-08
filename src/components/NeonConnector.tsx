@@ -69,7 +69,7 @@ export function NeonConnector() {
               await IpcClient.getInstance().fakeHandleNeonConnect();
             } else {
               await IpcClient.getInstance().openExternalUrl(
-                "https://oauth.alifullstack.alitech.io/api/integrations/neon/login",
+                "https://oauth.exacta-app-studio.alitech.io/api/integrations/neon/login",
               );
             }
           }}

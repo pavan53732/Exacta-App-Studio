@@ -1295,6 +1295,17 @@ export class IpcClient {
     return this.ipcRenderer.invoke("roocode:auth-callback", code, state);
   }
 
+  // Node.js path selection
+  public async selectNodeFolder(): Promise<{
+    path: string | null;
+    canceled: boolean;
+    selectedPath?: string;
+  }> {
+    return this.ipcRenderer.invoke("select-node-folder");
+  }
+
+
+
   // Send client-side errors to terminal output
   public logClientError(appId: number, error: any, context?: string): void {
     this.ipcRenderer

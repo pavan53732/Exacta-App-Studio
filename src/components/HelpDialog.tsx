@@ -110,7 +110,7 @@ ${debugInfo.logs.slice(-3_500) || "No logs available"}
       // Create the GitHub issue URL with the pre-filled body
       const encodedBody = encodeURIComponent(issueBody);
       const encodedTitle = encodeURIComponent("[bug] <WRITE TITLE HERE>");
-      const githubIssueUrl = `https://github.com/SFARPak/dyad/issues/new?title=${encodedTitle}&labels=bug,filed-from-app&body=${encodedBody}`;
+      const githubIssueUrl = `https://github.com/pavan53732/Exacta-App-Studio/issues/new?title=${encodedTitle}&labels=bug,filed-from-app&body=${encodedBody}`;
 
       // Open the pre-filled GitHub issue page
       IpcClient.getInstance().openExternalUrl(githubIssueUrl);
@@ -118,7 +118,7 @@ ${debugInfo.logs.slice(-3_500) || "No logs available"}
       console.error("Failed to prepare bug report:", error);
       // Fallback to opening the regular GitHub issue page
       IpcClient.getInstance().openExternalUrl(
-        "https://github.com/SFARPak/dyad/issues/new",
+        "https://github.com/pavan53732/Exacta-App-Studio/issues/new",
       );
     } finally {
       setIsLoading(false);
@@ -230,7 +230,7 @@ Session ID: ${sessionId}
 
     const encodedBody = encodeURIComponent(issueBody);
     const encodedTitle = encodeURIComponent("[session report] <add title>");
-    const githubIssueUrl = `https://github.com/SFARPak/dyad/issues/new?title=${encodedTitle}&labels=support&body=${encodedBody}`;
+    const githubIssueUrl = `https://github.com/pavan53732/Exacta-App-Studio/issues/new?title=${encodedTitle}&labels=support&body=${encodedBody}`;
 
     IpcClient.getInstance().openExternalUrl(githubIssueUrl);
     handleClose();

@@ -106,10 +106,17 @@ export const VertexProviderSettingSchema = z.object({
   serviceAccountKey: SecretSchema.optional(),
 });
 
+export const AzureProviderSettingSchema = z.object({
+  apiKey: SecretSchema.optional(),
+  resourceName: z.string().optional(),
+});
+export type AzureProviderSetting = z.infer<typeof AzureProviderSettingSchema>;
+
 export const ProviderSettingSchema = z.union([
   // Must use more specific type first!
   // Zod uses the first type that matches.
   VertexProviderSettingSchema,
+  AzureProviderSettingSchema,
   RegularProviderSettingSchema,
 ]);
 
@@ -247,6 +254,8 @@ export const UserSettingsSchema = z.object({
   enableProSaverMode: z.boolean().optional(),
   exactaAppStudioProBudget: ExactaAppStudioProBudgetSchema.optional(),
   runtimeMode: RuntimeModeSchema.optional(),
+
+  customNodePath: z.string().nullable().optional(),
 });
 
 /**

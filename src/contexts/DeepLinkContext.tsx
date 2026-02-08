@@ -3,10 +3,12 @@ import { IpcClient, DeepLinkData } from "../ipc/ipc_client";
 
 type DeepLinkContextType = {
   lastDeepLink: (DeepLinkData & { timestamp: number }) | null;
+  clearLastDeepLink: () => void;
 };
 
 const DeepLinkContext = createContext<DeepLinkContextType>({
   lastDeepLink: null,
+  clearLastDeepLink: () => {},
 });
 
 export function DeepLinkProvider({ children }: { children: React.ReactNode }) {
@@ -37,8 +39,10 @@ export function DeepLinkProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearLastDeepLink = () => setLastDeepLink(null);
+
   return (
-    <DeepLinkContext.Provider value={{ lastDeepLink }}>
+    <DeepLinkContext.Provider value={{ lastDeepLink, clearLastDeepLink }}>
       {children}
     </DeepLinkContext.Provider>
   );

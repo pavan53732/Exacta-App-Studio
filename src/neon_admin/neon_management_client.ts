@@ -42,7 +42,7 @@ export async function refreshNeonToken(): Promise<void> {
   try {
     // Make request to Neon refresh endpoint
     const response = await apiFetch(
-      "https://oauth.alifullstack.alitech.io/api/integrations/neon/refresh",
+      "https://oauth.exacta-app-studio.alitech.io/api/integrations/neon/refresh",
 
       {
         method: "POST",
