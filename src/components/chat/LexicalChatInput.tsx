@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   $getRoot,
   $createParagraphNode,
@@ -26,6 +26,8 @@ import { forwardRef } from "react";
 import { useAtomValue } from "jotai";
 import { selectedAppIdAtom } from "@/atoms/appAtoms";
 import { MENTION_REGEX, parseAppMentions } from "@/shared/parse_mention_apps";
+import { useLoadApp } from "@/hooks/useLoadApp";
+import { HistoryNavigation, HISTORY_TRIGGER } from "./HistoryNavigation";
 
 // Define the theme for mentions
 const beautifulMentionsTheme: BeautifulMentionsTheme = {
@@ -38,9 +40,29 @@ const CustomMenuItem = forwardRef<
   HTMLLIElement,
   BeautifulMentionsMenuItemProps
 >(({ selected, item, ...props }, ref) => {
-  const isPrompt = typeof item !== "string" && item.data?.type === "prompt";
-  const label = isPrompt ? "Prompt" : "App";
-  const value = typeof item === "string" ? item : (item as any)?.value;
+  const isPrompt = item.data?.type === "prompt";
+  const isApp = item.data?.type === "app";
+  const isHistory = item.data?.type === "history";
+  const label = isPrompt ? "Prompt" : isApp ? "App" : isHistory ? "" : "File";
+  const value = (item as any)?.value;
+
+  // For history items, show full text without label
+  if (isHistory) {
+    return (
+      <li
+        className={`m-0 px-3 py-2 cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis ${
+          selected
+            ? "bg-accent text-accent-foreground"
+            : "bg-popover text-popover-foreground hover:bg-accent/50"
+        }`}
+        {...props}
+        ref={ref}
+      >
+        <span className="truncate text-sm">{value}</span>
+      </li>
+    );
+  }
+
   return (
     <li
       className={`m-0 flex items-center px-3 py-2 cursor-pointer whitespace-nowrap ${
@@ -56,7 +78,9 @@ const CustomMenuItem = forwardRef<
           className={`px-2 py-0.5 text-xs font-medium rounded-md flex-shrink-0 ${
             isPrompt
               ? "bg-purple-500 text-white"
-              : "bg-primary text-primary-foreground"
+              : isApp
+                ? "bg-primary text-primary-foreground"
+                : "bg-blue-600 text-white"
           }`}
         >
           {label}
@@ -86,7 +110,13 @@ function CustomMenu({ loading: _loading, ...props }: any) {
 }
 
 // Plugin to handle Enter key
-function EnterKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
+function EnterKeyPlugin({
+  onSubmit,
+  disableSendButton,
+}: {
+  onSubmit: () => void;
+  disableSendButton: boolean;
+}) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -105,7 +135,7 @@ function EnterKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
           return false;
         }
 
-        if (!event.shiftKey) {
+        if (!event.shiftKey && !disableSendButton) {
           event.preventDefault();
           onSubmit();
           return true;
@@ -114,7 +144,7 @@ function EnterKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
       },
       COMMAND_PRIORITY_HIGH, // Use higher priority to catch before mentions plugin
     );
-  }, [editor, onSubmit]);
+  }, [editor, onSubmit, disableSendButton]);
 
   return null;
 }
@@ -181,7 +211,7 @@ function ExternalValueSyncPlugin({
       // Build nodes from internal value, turning @app:Name and @prompt:<id> into mention nodes
       let lastIndex = 0;
       let match: RegExpExecArray | null;
-      const combined = /@app:([a-zA-Z0-9_-]+)|@prompt:(\d+)/g;
+      const combined = /@app:([a-zA-Z0-9_-]+)|@prompt:(\d+)|@file:([^\s]+)/g;
       while ((match = combined.exec(value)) !== null) {
         const start = match.index;
         const full = match[0];
@@ -196,6 +226,9 @@ function ExternalValueSyncPlugin({
           const id = Number(match[2]);
           const title = promptsById[id] || `prompt:${id}`;
           paragraph.append($createBeautifulMentionNode("@", title));
+        } else if (match[3]) {
+          const filePath = match[3];
+          paragraph.append($createBeautifulMentionNode("@", filePath));
         }
         lastIndex = start + full.length;
       }
@@ -223,7 +256,9 @@ interface LexicalChatInputProps {
   onPaste?: (e: React.ClipboardEvent) => void;
   placeholder?: string;
   disabled?: boolean;
+  messageHistory: string[];
   excludeCurrentApp: boolean;
+  disableSendButton: boolean;
 }
 
 function onError(error: Error) {
@@ -236,17 +271,35 @@ export function LexicalChatInput({
   onSubmit,
   onPaste,
   excludeCurrentApp,
-  placeholder = "Ask Exacta-App-Studio to build...",
+  placeholder = "Ask Dyad to build...",
   disabled = false,
+  disableSendButton,
+  messageHistory = [],
 }: LexicalChatInputProps) {
   const { apps } = useLoadApps();
   const { prompts } = usePrompts();
   const [shouldClear, setShouldClear] = useState(false);
+  const historyTriggerActiveRef = useRef(false);
   const selectedAppId = useAtomValue(selectedAppIdAtom);
+  const { app } = useLoadApp(selectedAppId);
+  const appFiles = app?.files;
 
   // Prepare mention items - convert apps to mention format
   const mentionItems = React.useMemo(() => {
-    if (!apps) return { "@": [] };
+    const result: Record<string, any[]> = { "@": [], [HISTORY_TRIGGER]: [] };
+
+    // Add history items under the history trigger - always available regardless of app loading
+    // Reverse so most recent appears at the bottom
+    const historyItems = (messageHistory || [])
+      .slice()
+      .reverse()
+      .map((item) => ({
+        value: item,
+        type: "history",
+      }));
+    result[HISTORY_TRIGGER] = historyItems;
+
+    if (!apps) return result;
 
     // Get current app name
     const currentApp = apps.find((app) => app.id === selectedAppId);
@@ -271,7 +324,10 @@ export function LexicalChatInput({
       return true;
     });
 
-    const appMentions = filteredApps.map((app) => app.name);
+    const appMentions = filteredApps.map((app) => ({
+      value: app.name,
+      type: "app",
+    }));
 
     const promptItems = (prompts || []).map((p) => ({
       value: p.title,
@@ -279,10 +335,23 @@ export function LexicalChatInput({
       id: p.id,
     }));
 
-    return {
-      "@": [...appMentions, ...promptItems],
-    };
-  }, [apps, selectedAppId, value, excludeCurrentApp, prompts]);
+    const fileItems = (appFiles || []).map((item) => ({
+      value: item,
+      type: "file",
+    }));
+
+    result["@"] = [...appMentions, ...promptItems, ...fileItems];
+
+    return result;
+  }, [
+    apps,
+    selectedAppId,
+    value,
+    excludeCurrentApp,
+    prompts,
+    appFiles,
+    messageHistory,
+  ]);
 
   const initialConfig = {
     namespace: "ChatInput",
@@ -299,6 +368,24 @@ export function LexicalChatInput({
       editorState.read(() => {
         const root = $getRoot();
         let textContent = root.getTextContent();
+
+        // If the history trigger is active, keep the input value empty while the
+        // menu is open, and always strip the invisible trigger from the value.
+        if (historyTriggerActiveRef.current) {
+          const hasTrigger = textContent.includes(HISTORY_TRIGGER);
+          const withoutTrigger = textContent.split(HISTORY_TRIGGER).join("");
+          // Clear the ref when trigger is gone OR when real content is inserted
+          // (e.g., when a menu item is selected). This ensures consistent state
+          // even if the selected text contains a zero-width space character.
+          if (!hasTrigger || withoutTrigger.trim() !== "") {
+            historyTriggerActiveRef.current = false;
+          }
+          if (withoutTrigger.trim() === "") {
+            textContent = "";
+          } else {
+            textContent = withoutTrigger;
+          }
+        }
 
         // Transform @AppName mentions to @app:AppName format
         // This regex matches @AppName where AppName is one of our actual app names
@@ -325,11 +412,20 @@ export function LexicalChatInput({
             const regex = new RegExp(`@(${escapedTitle})(?![\\w-])`, "g");
             textContent = textContent.replace(regex, `@prompt:${id}`);
           }
+
+          for (const fullPath of appFiles || []) {
+            const escapedDisplay = fullPath.replace(
+              /[.*+?^${}()|[\]\\]/g,
+              "\\$&",
+            );
+            const fileRegex = new RegExp(`@(${escapedDisplay})(?![\\w-])`, "g");
+            textContent = textContent.replace(fileRegex, `@file:${fullPath}`);
+          }
         }
         onChange(textContent);
       });
     },
-    [onChange, apps, prompts],
+    [onChange, apps, prompts, appFiles],
   );
 
   const handleSubmit = useCallback(() => {
@@ -376,7 +472,10 @@ export function LexicalChatInput({
         />
         <OnChangePlugin onChange={handleEditorChange} />
         <HistoryPlugin />
-        <EnterKeyPlugin onSubmit={handleSubmit} />
+        <EnterKeyPlugin
+          onSubmit={handleSubmit}
+          disableSendButton={disableSendButton}
+        />
         <ExternalValueSyncPlugin
           value={value}
           promptsById={Object.fromEntries(
@@ -386,6 +485,15 @@ export function LexicalChatInput({
         <ClearEditorPlugin
           shouldClear={shouldClear}
           onCleared={handleCleared}
+        />
+        <HistoryNavigation
+          messageHistory={messageHistory}
+          onTriggerInserted={() => {
+            historyTriggerActiveRef.current = true;
+          }}
+          onTriggerCleared={() => {
+            historyTriggerActiveRef.current = false;
+          }}
         />
       </div>
     </LexicalComposer>

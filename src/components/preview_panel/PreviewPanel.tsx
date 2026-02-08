@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from "jotai";
 import {
-  appOutputAtom,
+  appConsoleEntriesAtom,
   previewModeAtom,
   previewPanelKeyAtom,
   selectedAppIdAtom,
@@ -16,8 +16,9 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
 import { PublishPanel } from "./PublishPanel";
-import { useSidebar } from "@/components/ui/sidebar";
-import { useSettings } from "@/hooks/useSettings";
+import { SecurityPanel } from "./SecurityPanel";
+import { PlanPanel } from "./PlanPanel";
+import { useSupabase } from "@/hooks/useSupabase";
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -51,37 +52,19 @@ const ConsoleHeader = ({
 
 // Main PreviewPanel component
 export function PreviewPanel() {
-  const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
+  const [previewMode] = useAtom(previewModeAtom);
   const selectedAppId = useAtomValue(selectedAppIdAtom);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const { runApp, stopApp, loading, app } = useRunApp();
+  const { loadEdgeLogs } = useSupabase();
   const runningAppIdRef = useRef<number | null>(null);
   const key = useAtomValue(previewPanelKeyAtom);
-  const appOutput = useAtomValue(appOutputAtom);
-  const { state: sidebarState, toggleSidebar } = useSidebar();
-  const { settings } = useSettings();
+  const consoleEntries = useAtomValue(appConsoleEntriesAtom);
 
-  const messageCount = appOutput.length;
   const latestMessage =
-    messageCount > 0 ? appOutput[messageCount - 1]?.message : undefined;
-
-  // Auto-switch to "code" mode for backend development
-  // Auto-switch to "code" mode for backend development if the user is not in fullstack mode
-  // and the preview is currently in "preview" mode.
-  // This prevents the preview from being stuck in a non-functional state when
-  // switching to backend mode, but allows manual override.
-  useEffect(() => {
-    if (
-      settings?.selectedChatMode === "backend" &&
-      previewMode === "preview"
-    ) {
-      setPreviewMode("code");
-    }
-  }, [
-    settings?.selectedChatMode,
-    previewMode,
-    setPreviewMode,
-  ]);
+    consoleEntries.length > 0
+      ? consoleEntries[consoleEntries.length - 1]?.message
+      : undefined;
 
   useEffect(() => {
     const previousAppId = runningAppIdRef.current;
@@ -101,11 +84,6 @@ export function PreviewPanel() {
         console.debug("Starting new app", selectedAppId);
         runApp(selectedAppId); // Consider adding error handling for the promise if needed
         runningAppIdRef.current = selectedAppId; // Update ref to the new running app ID
-
-        // Close sidebar when app starts running
-        if (sidebarState === "expanded") {
-          toggleSidebar();
-        }
       } else {
         // If selectedAppId is null, ensure no app is marked as running
         runningAppIdRef.current = null;
@@ -132,6 +110,28 @@ export function PreviewPanel() {
     // Dependencies: run effect when selectedAppId changes.
     // runApp/stopApp are stable due to useCallback.
   }, [selectedAppId, runApp, stopApp]);
+
+  // Load edge logs if app has Supabase project configured
+  useEffect(() => {
+    const projectId = app?.supabaseProjectId;
+    const organizationSlug = app?.supabaseOrganizationSlug ?? undefined;
+    if (!projectId) return;
+
+    // Load logs immediately
+    loadEdgeLogs({ projectId, organizationSlug }).catch((error) => {
+      console.error("Failed to load edge logs:", error);
+    });
+
+    // Poll for new logs every 5 seconds
+    const intervalId = setInterval(() => {
+      loadEdgeLogs({ projectId, organizationSlug }).catch((error) => {
+        console.error("Failed to load edge logs:", error);
+      });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [app?.supabaseProjectId, app?.supabaseOrganizationSlug, loadEdgeLogs]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
@@ -146,6 +146,10 @@ export function PreviewPanel() {
                 <ConfigurePanel />
               ) : previewMode === "publish" ? (
                 <PublishPanel />
+              ) : previewMode === "security" ? (
+                <SecurityPanel />
+              ) : previewMode === "plan" ? (
+                <PlanPanel />
               ) : (
                 <Problems />
               )}

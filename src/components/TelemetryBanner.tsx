@@ -1,4 +1,4 @@
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import React from "react";
 import { Button } from "./ui/button";
 import { atom, useAtom } from "jotai";
@@ -19,21 +19,21 @@ export function PrivacyBanner() {
     return null;
   }
   return (
-    <div className="fixed bg-[var(--background)]/90 bottom-4 right-4  backdrop-blur-md border border-gray-200 dark:border-gray-700 p-4 rounded-lg shadow-lg z-50 max-w-md">
+    <div className="fixed bg-(--background)/90 bottom-4 right-4  backdrop-blur-md border border-gray-200 dark:border-gray-700 p-4 rounded-lg shadow-lg z-50 max-w-md">
       <div className="flex flex-col gap-3">
         <div>
           <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             Share anonymous data?
           </h4>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Help improve Exacta-App-Studio with anonymous usage data.
+            Help improve Dyad with anonymous usage data.
             <em className="block italic mt-0.5">
               Note: this does not log your code or messages.
             </em>
             <a
-            onClick={() => {
-              IpcClient.getInstance().openExternalUrl(
-                "https://www.exacta-app-studio.alitech.io/docs/policies/privacy-policy",
+              onClick={() => {
+                ipc.system.openExternalUrl(
+                  "https://dyad.sh/docs/policies/privacy-policy",
                 );
               }}
               className="cursor-pointer text-sm text-blue-600 dark:text-blue-400 hover:underline"

@@ -1,102 +1,149 @@
-// scripts/verify-release-assets.js
+#!/usr/bin/env node
 
-import fetch from "node-fetch";
+const fs = require("fs");
+const path = require("path");
 
-// GitHub API configuration
-const owner = "SFARPak";
-const repo = "AliFullStack";
-const token = process.env.GITHUB_TOKEN;
+/**
+ * Verifies that all expected binary assets are present in the GitHub release
+ * for the version specified in package.json
+ */
+async function verifyReleaseAssets() {
+  try {
+    // Read version from package.json
+    const packagePath = path.join(__dirname, "..", "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    const version = packageJson.version;
 
-if (!token) {
-  console.error("❌ GITHUB_TOKEN not provided.");
-  process.exit(1);
-}
+    console.log(`🔍 Verifying release assets for version ${version}...`);
 
-async function getJson(url) {
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, "User-Agent": "verify-script" }
-  });
+    // GitHub API configuration
+    const owner = "dyad-sh";
+    const repo = "dyad";
+    const token = process.env.GITHUB_TOKEN;
 
-  if (res.status === 404) return null;
-  if (!res.ok) {
-    console.error(`❌ GitHub API error ${res.status}: ${await res.text()}`);
-    process.exit(1);
-  }
+    if (!token) {
+      throw new Error("GITHUB_TOKEN environment variable is required");
+    }
 
-  return res.json();
-}
+    // Fetch all releases (including drafts)
+    const tagName = `v${version}`;
 
-async function main() {
-  // normalize tags to strip "release/" prefix if present
-  let tag = process.env.GITHUB_REF_NAME || process.env.TAG_NAME || '';
-  tag = tag.replace(/^release\//, ''); // remove 'release/' if it exists
+    console.log(`📡 Fetching all releases to find: ${tagName}`);
 
-  if (!tag) {
-    console.error("❌ No TAG_NAME or GITHUB_REF_NAME detected.");
-    process.exit(1);
-  }
+    const allReleasesUrl = `https://api.github.com/repos/${owner}/${repo}/releases`;
+    const response = await fetch(allReleasesUrl, {
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "dyad-release-verifier",
+      },
+    });
 
-  console.log(`🔍 Looking up release for tag: ${tag}`);
+    if (!response.ok) {
+      throw new Error(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+      );
+    }
 
-  // -------------------------------------------------------------------------
-  // 1. Try standard API (does NOT work for draft releases)
-  // -------------------------------------------------------------------------
-  let release = await getJson(
-    `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`
-  );
-
-  if (!release) {
-    console.log("⚠️ Tag API returned no release (likely a draft release). Falling back to full release list…");
-
-    // ---------------------------------------------------------------------
-    // 2. Fetch all releases and find manually (works with drafts)
-    // ---------------------------------------------------------------------
-    const releases = await getJson(
-      `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100`
-    );
-
-    release = releases.find(r => r.tag_name === tag);
+    const allReleases = await response.json();
+    const release = allReleases.find((r) => r.tag_name === tagName);
 
     if (!release) {
-      console.error(`❌ Release for tag ${tag} not found even in full release list.`);
+      throw new Error(
+        `Release ${tagName} not found in published releases or drafts. Make sure the release exists.`,
+      );
+    }
+
+    const assets = release.assets || [];
+
+    console.log(`📦 Found ${assets.length} assets in release ${tagName}`);
+    console.log(`📄 Release status: ${release.draft ? "DRAFT" : "PUBLISHED"}`);
+
+    // Handle different beta naming conventions across platforms
+    const normalizeVersionForPlatform = (version, platform) => {
+      if (!version.includes("beta")) {
+        return version;
+      }
+
+      switch (platform) {
+        case "rpm":
+        case "deb":
+          // RPM and DEB use dots: 0.14.0-beta.1 -> 0.14.0.beta.1
+          return version.replace("-beta.", ".beta.");
+        case "nupkg":
+          // NuGet removes the dot: 0.14.0-beta.1 -> 0.14.0-beta1
+          return version.replace("-beta.", "-beta");
+        default:
+          // Windows installer and macOS zips keep original format
+          return version;
+      }
+    };
+
+    // Define expected assets with platform-specific version handling
+    const expectedAssets = [
+      `dyad-${normalizeVersionForPlatform(version, "rpm")}-1.x86_64.rpm`,
+      `dyad-${normalizeVersionForPlatform(version, "nupkg")}-full.nupkg`,
+      `dyad-${version}.Setup.exe`,
+      `dyad-darwin-arm64-${version}.zip`,
+      `dyad-darwin-x64-${version}.zip`,
+      `dyad_${normalizeVersionForPlatform(version, "deb")}_amd64.deb`,
+      `dyad_${version}_x86_64.AppImage`,
+      "RELEASES",
+    ];
+
+    console.log("📋 Expected assets:");
+    expectedAssets.forEach((asset) => console.log(`  - ${asset}`));
+    console.log("");
+
+    // Get actual asset names
+    const actualAssets = assets.map((asset) => asset.name);
+
+    console.log("📋 Actual assets:");
+    actualAssets.forEach((asset) => console.log(`  - ${asset}`));
+    console.log("");
+
+    // Check for missing assets
+    const missingAssets = expectedAssets.filter(
+      (expected) => !actualAssets.includes(expected),
+    );
+
+    if (missingAssets.length > 0) {
+      console.error("❌ VERIFICATION FAILED!");
+      console.error("📭 Missing assets:");
+      missingAssets.forEach((asset) => console.error(`  - ${asset}`));
+      console.error("");
+      console.error(
+        "Please ensure all platforms have completed their builds and uploads.",
+      );
       process.exit(1);
     }
-  }
 
-  console.log(`✔ Found release: ${release.name || release.tag_name}`);
-  console.log(`   Draft: ${release.draft}`);
-  console.log(`   Prerelease: ${release.prerelease}`);
+    // Check for unexpected assets (optional warning)
+    const unexpectedAssets = actualAssets.filter(
+      (actual) => !expectedAssets.includes(actual),
+    );
 
-  // -------------------------------------------------------------------------
-  // 3. Reject draft releases (electron-builder default)
-  // -------------------------------------------------------------------------
-  if (release.draft) {
-    console.error("❌ Release is still a DRAFT — publish it before verifying assets.");
+    if (unexpectedAssets.length > 0) {
+      console.warn("⚠️  Unexpected assets found:");
+      unexpectedAssets.forEach((asset) => console.warn(`  - ${asset}`));
+      console.warn("");
+    }
+
+    console.log("✅ VERIFICATION PASSED!");
+    console.log(
+      `🎉 All ${expectedAssets.length} expected assets are present in release ${tagName}`,
+    );
+    console.log("");
+    console.log("📊 Release Summary:");
+    console.log(`  Release: ${release.name || tagName}`);
+    console.log(`  Tag: ${release.tag_name}`);
+    console.log(`  Published: ${release.published_at}`);
+    console.log(`  URL: ${release.html_url}`);
+  } catch (error) {
+    console.error("❌ Error verifying release assets:", error.message);
     process.exit(1);
   }
-
-  // -------------------------------------------------------------------------
-  // 4. Check assets
-  // -------------------------------------------------------------------------
-  if (!release.assets || release.assets.length === 0) {
-    console.error("❌ No assets found in release. Build/upload may have failed.");
-    process.exit(1);
-  }
-
-  console.log(`📦 Found ${release.assets.length} assets:`);
-  for (const asset of release.assets) {
-    console.log(`   - ${asset.name} (${asset.size} bytes)`);
-  }
-
-  console.log("🎉 All assets successfully uploaded and release is published!");
 }
 
-main().catch((err) => {
-  console.error("❌ Script error:", err);
-  process.exit(1);
-});
-
-
-
-
-
+// Run the verification
+verifyReleaseAssets();

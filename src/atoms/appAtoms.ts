@@ -1,20 +1,22 @@
 import { atom } from "jotai";
-import type { App, AppOutput, Version } from "@/ipc/ipc_types";
+import type { App, Version, ConsoleEntry } from "@/ipc/types";
 import type { UserSettings } from "@/lib/schemas";
 
 export const currentAppAtom = atom<App | null>(null);
 export const selectedAppIdAtom = atom<number | null>(null);
-export const appsListAtom = atom<App[]>([]);
-export const appBasePathAtom = atom<string>("");
 export const versionsListAtom = atom<Version[]>([]);
 export const previewModeAtom = atom<
-  "preview" | "code" | "problems" | "configure" | "publish"
+  | "preview"
+  | "code"
+  | "problems"
+  | "configure"
+  | "publish"
+  | "security"
+  | "plan"
 >("preview");
 export const selectedVersionIdAtom = atom<string | null>(null);
-export const appOutputAtom = atom<AppOutput[]>([]);
-export const frontendTerminalOutputAtom = atom<AppOutput[]>([]);
-export const backendTerminalOutputAtom = atom<AppOutput[]>([]);
-export const activeTerminalAtom = atom<"main" | "frontend" | "backend">("main");
+
+export const appConsoleEntriesAtom = atom<ConsoleEntry[]>([]);
 export const appUrlAtom = atom<
   | { appUrl: string; appId: number; originalUrl: string }
   | { appUrl: null; appId: null; originalUrl: null }
@@ -26,4 +28,10 @@ export const envVarsAtom = atom<Record<string, string | undefined>>({});
 
 export const previewPanelKeyAtom = atom<number>(0);
 
-export const previewErrorMessageAtom = atom<string | undefined>(undefined);
+// Stores the current preview URL to preserve route across HMR-induced remounts
+// Maps appId to the current URL for that app
+export const previewCurrentUrlAtom = atom<Record<number, string>>({});
+
+export const previewErrorMessageAtom = atom<
+  { message: string; source: "preview-app" | "dyad-app" } | undefined
+>(undefined);

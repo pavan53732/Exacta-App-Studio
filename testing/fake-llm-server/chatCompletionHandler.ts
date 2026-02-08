@@ -2,11 +2,15 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import { CANNED_MESSAGE, createStreamChunk } from ".";
+import {
+  handleLocalAgentFixture,
+  extractLocalAgentFixture,
+} from "./localAgentHandler";
 
 let globalCounter = 0;
 
 export const createChatCompletionHandler =
-  (prefix: string) => (req: Request, res: Response) => {
+  (prefix: string) => async (req: Request, res: Response) => {
     const { stream = false, messages = [] } = req.body;
     console.log("* Received messages", messages);
 
@@ -23,23 +27,67 @@ export const createChatCompletionHandler =
       });
     }
 
+    // Check for local-agent fixture requests (tc=local-agent/*)
+    // This needs to be checked on the first user message, not the last (which might be tool results)
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find((m: any) => m.role === "user");
+
+    // Extract text content from last user message (handles both string and array content)
+    let userTextContent = "";
+    if (lastUserMessage) {
+      if (typeof lastUserMessage.content === "string") {
+        userTextContent = lastUserMessage.content;
+      } else if (Array.isArray(lastUserMessage.content)) {
+        const textPart = lastUserMessage.content.find(
+          (p: any) => p.type === "text",
+        );
+        if (textPart) {
+          userTextContent = textPart.text;
+        }
+      }
+
+      const localAgentFixture = extractLocalAgentFixture(userTextContent);
+      console.error(
+        `[local-agent] Checking message: "${userTextContent.slice(0, 50)}", fixture: ${localAgentFixture}`,
+      );
+      if (localAgentFixture) {
+        return handleLocalAgentFixture(req, res, localAgentFixture);
+      }
+
+      // Route plan acceptance message to exit-plan fixture
+      if (userTextContent.includes("I accept this plan")) {
+        return handleLocalAgentFixture(req, res, "exit-plan");
+      }
+    }
+
     let messageContent = CANNED_MESSAGE;
 
+    // Handle compaction summary requests (from generateText() in compaction_handler)
     if (
-      lastMessage &&
-      Array.isArray(lastMessage.content) &&
-      lastMessage.content.some(
-        (part: { type: string; text: string }) =>
-          part.type === "text" &&
-          part.text.includes("[[UPLOAD_IMAGE_TO_CODEBASE]]"),
-      )
+      userTextContent.startsWith("Please summarize the following conversation:")
     ) {
+      messageContent =
+        "## Key Decisions Made\n- Completed initial task as requested\n\n## Current Task State\nConversation was compacted to save context space.";
+    }
+
+    // Check for upload image to codebase using lastUserMessage (which already handles both string and array content)
+    if (userTextContent.includes("[[UPLOAD_IMAGE_TO_CODEBASE]]")) {
       messageContent = `Uploading image to codebase
 <dyad-write path="new/image/file.png" description="Uploaded image to codebase">
 DYAD_ATTACHMENT_0
 </dyad-write>
 `;
       messageContent += "\n\n" + generateDump(req);
+    }
+
+    if (
+      lastMessage &&
+      typeof lastMessage.content === "string" &&
+      lastMessage.content.includes("[sleep=medium]")
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
     }
 
     // TS auto-fix prefixes
@@ -119,6 +167,42 @@ export default Index;
       </dyad-write>
       `;
     }
+    if (
+      lastMessage &&
+      typeof lastMessage.content === "string" &&
+      lastMessage.content.startsWith(
+        "There was an issue with the following `dyad-search-replace` tags.",
+      )
+    ) {
+      if (lastMessage.content.includes("Make sure you use `dyad-read`")) {
+        // Fix errors in create-ts-errors.md and introduce a new error
+        messageContent =
+          `
+<dyad-read path="src/pages/Index.tsx"></dyad-read>
+
+<dyad-search-replace path="src/pages/Index.tsx">
+<<<<<<< SEARCH
+        // STILL Intentionally DO NOT MATCH ANYTHING TO TRIGGER FALLBACK
+        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
+=======
+        <h1 className="text-4xl font-bold mb-4">Welcome to the UPDATED App</h1>
+>>>>>>> REPLACE
+</dyad-search-replace>
+` +
+          "\n\n" +
+          generateDump(req);
+      } else {
+        // Fix errors in create-ts-errors.md and introduce a new error
+        messageContent =
+          `
+<dyad-write path="src/pages/Index.tsx" description="Rewrite file.">
+// FILE IS REPLACED WITH FALLBACK WRITE.
+</dyad-write>` +
+          "\n\n" +
+          generateDump(req);
+      }
+    }
+
     console.error("LASTMESSAGE", lastMessage);
     // Check if the last message is "[dump]" to write messages to file and return path
     if (
@@ -133,6 +217,27 @@ export default Index;
       messageContent = generateDump(req);
     }
 
+    if (
+      lastMessage &&
+      typeof lastMessage.content === "string" &&
+      lastMessage.content.startsWith("/security-review")
+    ) {
+      messageContent = fs.readFileSync(
+        path.join(
+          __dirname,
+          "..",
+          "..",
+          "..",
+          "e2e-tests",
+          "fixtures",
+          "security-review",
+          "findings.md",
+        ),
+        "utf-8",
+      );
+      messageContent += "\n\n" + generateDump(req);
+    }
+
     if (lastMessage && lastMessage.content === "[increment]") {
       globalCounter++;
       messageContent = `counter=${globalCounter}`;
@@ -143,9 +248,11 @@ export default Index;
       lastMessage &&
       lastMessage.content &&
       typeof lastMessage.content === "string" &&
-      lastMessage.content.startsWith("tc=")
+      lastMessage.content.startsWith("tc=") &&
+      !lastMessage.content.startsWith("tc=local-agent/")
     ) {
-      const testCaseName = lastMessage.content.slice(3); // Remove "tc=" prefix
+      const testCaseName = lastMessage.content.slice(3).split("[")[0].trim(); // Remove "tc=" prefix
+      console.error(`* Loading test case: ${testCaseName}`);
       const testFilePath = path.join(
         __dirname,
         "..",
@@ -162,7 +269,7 @@ export default Index;
           messageContent = fs.readFileSync(testFilePath, "utf-8");
           console.log(`* Loaded test case: ${testCaseName}`);
         } else {
-          console.log(`* Test case file not found: ${testFilePath}`);
+          console.error(`* Test case file not found: ${testFilePath}`);
           messageContent = `Error: Test case file not found: ${testCaseName}.md`;
         }
       } catch (error) {
@@ -180,9 +287,46 @@ export default Index;
       messageContent = `[[STRING_IS_FINISHED]]";</dyad-write>\nFinished writing file.`;
       messageContent += "\n\n" + generateDump(req);
     }
+    const isToolCall = !!(
+      lastMessage &&
+      lastMessage.content &&
+      lastMessage.content.includes("[call_tool=calculator_add]")
+    );
+    let message = {
+      role: "assistant",
+      content: messageContent,
+    } as any;
 
     // Non-streaming response
     if (!stream) {
+      if (isToolCall) {
+        const toolCallId = `call_${Date.now()}`;
+        return res.json({
+          id: `chatcmpl-${Date.now()}`,
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: "fake-model",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    id: toolCallId,
+                    type: "function",
+                    function: {
+                      name: "calculator_add",
+                      arguments: JSON.stringify({ a: 1, b: 2 }),
+                    },
+                  },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+        });
+      }
       return res.json({
         id: `chatcmpl-${Date.now()}`,
         object: "chat.completion",
@@ -191,10 +335,7 @@ export default Index;
         choices: [
           {
             index: 0,
-            message: {
-              role: "assistant",
-              content: messageContent,
-            },
+            message,
             finish_reason: "stop",
           },
         ],
@@ -206,13 +347,86 @@ export default Index;
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
+    // Tool call streaming (OpenAI-style)
+    if (isToolCall) {
+      const now = Date.now();
+      const mkChunk = (delta: any, finish: null | string = null) => {
+        const chunk = {
+          id: `chatcmpl-${now}`,
+          object: "chat.completion.chunk",
+          created: Math.floor(now / 1000),
+          model: "fake-model",
+          choices: [
+            {
+              index: 0,
+              delta,
+              finish_reason: finish,
+            },
+          ],
+        };
+        return `data: ${JSON.stringify(chunk)}\n\n`;
+      };
+
+      // 1) Send role
+      res.write(mkChunk({ role: "assistant" }));
+
+      // 2) Send tool_calls init with id + name + empty args
+      const toolCallId = `call_${now}`;
+      res.write(
+        mkChunk({
+          tool_calls: [
+            {
+              index: 0,
+              id: toolCallId,
+              type: "function",
+              function: {
+                name: "testing-mcp-server__calculator_add",
+                arguments: "",
+              },
+            },
+          ],
+        }),
+      );
+
+      // 3) Stream arguments gradually
+      const args = JSON.stringify({ a: 1, b: 2 });
+      let i = 0;
+      const argBatchSize = 6;
+      const argInterval = setInterval(() => {
+        if (i < args.length) {
+          const part = args.slice(i, i + argBatchSize);
+          i += argBatchSize;
+          res.write(
+            mkChunk({
+              tool_calls: [{ index: 0, function: { arguments: part } }],
+            }),
+          );
+        } else {
+          // 4) Finalize with finish_reason tool_calls and [DONE]
+          res.write(mkChunk({}, "tool_calls"));
+          res.write("data: [DONE]\n\n");
+          clearInterval(argInterval);
+          res.end();
+        }
+      }, 10);
+      return;
+    }
+
+    // Check for high token usage marker to simulate near context limit
+    const highTokensMatch =
+      typeof lastMessage?.content === "string" &&
+      !lastMessage?.content.startsWith("Summarize the following chat:") &&
+      lastMessage?.content?.match?.(/\[high-tokens=(\d+)\]/);
+    const highTokensValue = highTokensMatch
+      ? parseInt(highTokensMatch[1], 10)
+      : null;
+
     // Split the message into characters to simulate streaming
-    const message = messageContent;
-    const messageChars = message.split("");
+    const messageChars = messageContent.split("");
 
     // Stream each character with a delay
     let index = 0;
-    const batchSize = 8;
+    const batchSize = 32;
 
     // Send role first
     res.write(createStreamChunk("", "assistant"));
@@ -224,8 +438,15 @@ export default Index;
         res.write(createStreamChunk(batch));
         index += batchSize;
       } else {
-        // Send the final chunk
-        res.write(createStreamChunk("", "assistant", true));
+        // Send the final chunk with optional usage info for high token simulation
+        const usage = highTokensValue
+          ? {
+              prompt_tokens: highTokensValue - 100,
+              completion_tokens: 100,
+              total_tokens: highTokensValue,
+            }
+          : undefined;
+        res.write(createStreamChunk("", "assistant", true, usage));
         clearInterval(interval);
         res.end();
       }

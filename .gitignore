@@ -101,20 +101,13 @@ out/
 sqlite.db
 userData/
 .env.local
+.idea/
 
-# dyad
-dyad
+# Claude Code
+.claude/settings.local.json
 
-# .NET / Visual Studio
-bin/
-obj/
-.vs/
-*.user
-*.suo
-[Dd]ebug/
-[Rr]elease/
-project.lock.json
-project.fragment.lock.json
-artifacts/
-*.nupkg
-test-results/
+# Python
+__pycache__/
+
+# Storybook
+storybook-static/

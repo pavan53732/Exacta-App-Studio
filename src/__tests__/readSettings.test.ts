@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { safeStorage } from "electron";
-import { readSettings, getSettingsFilePath } from "@/main/settings";
+import {
+  readSettings,
+  getSettingsFilePath,
+  encrypt,
+  decrypt,
+} from "@/main/settings";
 import { getUserDataPath } from "@/paths/paths";
 import { UserSettings } from "@/lib/schemas";
 
@@ -53,12 +58,17 @@ describe("readSettings", () => {
       );
       expect(scrubSettings(result)).toMatchInlineSnapshot(`
         {
+          "autoExpandPreviewPanel": true,
           "enableAutoFixProblems": false,
           "enableAutoUpdate": true,
+          "enableContextCompaction": true,
+          "enableNativeGit": true,
           "enableProLazyEditsMode": true,
           "enableProSmartFilesContextMode": true,
           "experiments": {},
           "hasRunBefore": false,
+          "isRunning": false,
+          "lastKnownPerformance": undefined,
           "providerSettings": {},
           "releaseChannel": "stable",
           "selectedChatMode": "build",
@@ -67,6 +77,7 @@ describe("readSettings", () => {
             "provider": "auto",
           },
           "selectedTemplateId": "react",
+          "selectedThemeId": "default",
           "telemetryConsent": "unset",
           "telemetryUserId": "[scrubbed]",
         }
@@ -216,6 +227,61 @@ describe("readSettings", () => {
       );
     });
 
+    it("should trim whitespace from decrypted API keys", () => {
+      const mockFileContent = {
+        providerSettings: {
+          openai: {
+            apiKey: {
+              value: "encrypted-api-key",
+              encryptionType: "electron-safe-storage",
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(mockFileContent));
+      mockSafeStorage.decryptString.mockReturnValue(
+        "  decrypted-api-key-with-spaces\n",
+      );
+
+      const result = readSettings();
+
+      expect(result.providerSettings.openai.apiKey).toEqual({
+        value: "decrypted-api-key-with-spaces",
+        encryptionType: "electron-safe-storage",
+      });
+    });
+
+    it("should trim whitespace from plaintext secrets", () => {
+      const mockFileContent = {
+        githubAccessToken: {
+          value: "  plaintext-token-with-spaces\n",
+          encryptionType: "plaintext",
+        },
+        providerSettings: {
+          openai: {
+            apiKey: {
+              value: "\nplaintext-api-key\n",
+              encryptionType: "plaintext",
+            },
+          },
+        },
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(mockFileContent));
+
+      const result = readSettings();
+
+      expect(result.githubAccessToken?.value).toBe(
+        "plaintext-token-with-spaces",
+      );
+      expect(result.providerSettings.openai.apiKey?.value).toBe(
+        "plaintext-api-key",
+      );
+    });
+
     it("should handle secrets without encryptionType", () => {
       const mockFileContent = {
         githubAccessToken: {
@@ -244,7 +310,7 @@ describe("readSettings", () => {
       );
     });
 
-    it("should strip extra fields not recognized by the schema", () => {
+    it("should preserve extra fields not recognized by the schema", () => {
       const mockFileContent = {
         selectedModel: {
           name: "gpt-4",
@@ -252,8 +318,8 @@ describe("readSettings", () => {
         },
         telemetryConsent: "opted_in",
         hasRunBefore: true,
-        // Extra fields that are not in the schema
-        unknownField: "should be removed",
+        // Extra fields that are not in the schema (should be preserved)
+        unknownField: "should be preserved",
         deprecatedSetting: true,
         extraConfig: {
           someValue: 123,
@@ -277,10 +343,15 @@ describe("readSettings", () => {
       expect(result.telemetryConsent).toBe("opted_in");
       expect(result.hasRunBefore).toBe(true);
 
-      // Extra fields should be stripped by schema validation
-      expect(result).not.toHaveProperty("unknownField");
-      expect(result).not.toHaveProperty("deprecatedSetting");
-      expect(result).not.toHaveProperty("extraConfig");
+      // Extra fields should be preserved by passthrough()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resultAny = result as any;
+      expect(resultAny.unknownField).toBe("should be preserved");
+      expect(resultAny.deprecatedSetting).toBe(true);
+      expect(resultAny.extraConfig).toEqual({
+        someValue: 123,
+        anotherValue: "test",
+      });
 
       // Should still have defaults for missing properties
       expect(result.enableAutoUpdate).toBe(true);
@@ -299,12 +370,17 @@ describe("readSettings", () => {
 
       expect(scrubSettings(result)).toMatchInlineSnapshot(`
         {
+          "autoExpandPreviewPanel": true,
           "enableAutoFixProblems": false,
           "enableAutoUpdate": true,
+          "enableContextCompaction": true,
+          "enableNativeGit": true,
           "enableProLazyEditsMode": true,
           "enableProSmartFilesContextMode": true,
           "experiments": {},
           "hasRunBefore": false,
+          "isRunning": false,
+          "lastKnownPerformance": undefined,
           "providerSettings": {},
           "releaseChannel": "stable",
           "selectedChatMode": "build",
@@ -313,6 +389,7 @@ describe("readSettings", () => {
             "provider": "auto",
           },
           "selectedTemplateId": "react",
+          "selectedThemeId": "default",
           "telemetryConsent": "unset",
           "telemetryUserId": "[scrubbed]",
         }
@@ -394,6 +471,51 @@ describe("readSettings", () => {
       );
       expect(result).toBe(mockSettingsPath);
     });
+  });
+});
+
+describe("encrypt", () => {
+  it("should trim whitespace before encrypting", () => {
+    const result = encrypt("  my-api-key\n");
+    // In test builds, encryption falls back to plaintext
+    expect(result.value).toBe("my-api-key");
+  });
+
+  it("should trim trailing newlines", () => {
+    const result = encrypt("sk-abc123\n\n");
+    expect(result.value).toBe("sk-abc123");
+  });
+
+  it("should not alter values without whitespace", () => {
+    const result = encrypt("sk-abc123");
+    expect(result.value).toBe("sk-abc123");
+  });
+});
+
+describe("decrypt", () => {
+  it("should trim whitespace from plaintext secrets", () => {
+    const result = decrypt({
+      value: "  my-api-key\n",
+      encryptionType: "plaintext",
+    });
+    expect(result).toBe("my-api-key");
+  });
+
+  it("should trim whitespace from electron-safe-storage secrets", () => {
+    mockSafeStorage.decryptString.mockReturnValue("  decrypted-key\n");
+    const result = decrypt({
+      value: Buffer.from("encrypted").toString("base64"),
+      encryptionType: "electron-safe-storage",
+    });
+    expect(result).toBe("decrypted-key");
+  });
+
+  it("should not alter values without whitespace", () => {
+    const result = decrypt({
+      value: "sk-abc123",
+      encryptionType: "plaintext",
+    });
+    expect(result).toBe("sk-abc123");
   });
 });
 

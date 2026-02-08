@@ -9,7 +9,7 @@ export async function getGitAuthor() {
       }
     : {
         name: "[dyad]",
-        email: "git@exacta-app-studio.alitech.io",
+        email: "git@dyad.sh",
       };
   return author;
 }

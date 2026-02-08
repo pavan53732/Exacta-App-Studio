@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import { ProviderSettingsGrid } from "@/components/ProviderSettings";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import { showSuccess, showError } from "@/lib/toast";
 import { AutoApproveSwitch } from "@/components/AutoApproveSwitch";
 import { TelemetrySwitch } from "@/components/TelemetrySwitch";
@@ -20,15 +20,21 @@ import { SupabaseIntegration } from "@/components/SupabaseIntegration";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AutoFixProblemsSwitch } from "@/components/AutoFixProblemsSwitch";
+import { AutoExpandPreviewSwitch } from "@/components/AutoExpandPreviewSwitch";
+import { ChatCompletionNotificationSwitch } from "@/components/ChatCompletionNotificationSwitch";
 import { AutoUpdateSwitch } from "@/components/AutoUpdateSwitch";
 import { ReleaseChannelSelector } from "@/components/ReleaseChannelSelector";
 import { NeonIntegration } from "@/components/NeonIntegration";
 import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { ToolsMcpSettings } from "@/components/settings/ToolsMcpSettings";
+import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
 import { ZoomSelector } from "@/components/ZoomSelector";
+import { DefaultChatModeSelector } from "@/components/DefaultChatModeSelector";
+import { ContextCompactionSwitch } from "@/components/ContextCompactionSwitch";
 import { useSetAtom } from "jotai";
 import { activeSettingsSectionAtom } from "@/atoms/viewAtoms";
+import { SECTION_IDS, SETTING_IDS } from "@/lib/settingsSearchIndex";
 
 export default function SettingsPage() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -39,14 +45,13 @@ export default function SettingsPage() {
   const setActiveSettingsSection = useSetAtom(activeSettingsSectionAtom);
 
   useEffect(() => {
-    setActiveSettingsSection("general-settings");
+    setActiveSettingsSection(SECTION_IDS.general);
   }, [setActiveSettingsSection]);
 
   const handleResetEverything = async () => {
     setIsResetting(true);
     try {
-      const ipcClient = IpcClient.getInstance();
-      await ipcClient.resetAll();
+      await ipc.system.resetAll();
       showSuccess("Successfully reset everything. Restart the application.");
     } catch (error) {
       console.error("Error resetting:", error);
@@ -83,7 +88,7 @@ export default function SettingsPage() {
           <AISettings />
 
           <div
-            id="provider-settings"
+            id={SECTION_IDS.providers}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm"
           >
             <ProviderSettingsGrid />
@@ -91,13 +96,13 @@ export default function SettingsPage() {
 
           <div className="space-y-6">
             <div
-              id="telemetry"
+              id={SECTION_IDS.telemetry}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
             >
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Telemetry
               </h2>
-              <div className="space-y-2">
+              <div id={SETTING_IDS.telemetry} className="space-y-2">
                 <TelemetrySwitch />
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   This records anonymous usage data to improve the product.
@@ -115,23 +120,43 @@ export default function SettingsPage() {
 
           {/* Integrations Section */}
           <div
-            id="integrations"
+            id={SECTION_IDS.integrations}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Integrations
             </h2>
             <div className="space-y-4">
-              <GitHubIntegration />
-              <VercelIntegration />
-              <SupabaseIntegration />
-              <NeonIntegration />
+              <div id={SETTING_IDS.github}>
+                <GitHubIntegration />
+              </div>
+              <div id={SETTING_IDS.vercel}>
+                <VercelIntegration />
+              </div>
+              <div id={SETTING_IDS.supabase}>
+                <SupabaseIntegration />
+              </div>
+              <div id={SETTING_IDS.neon}>
+                <NeonIntegration />
+              </div>
             </div>
+          </div>
+
+          {/* Agent v2 Permissions */}
+
+          <div
+            id={SECTION_IDS.agentPermissions}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
+          >
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Agent Permissions (Pro)
+            </h2>
+            <AgentToolsSettings />
           </div>
 
           {/* Tools (MCP) */}
           <div
-            id="tools-mcp"
+            id={SECTION_IDS.toolsMcp}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -142,17 +167,18 @@ export default function SettingsPage() {
 
           {/* Experiments Section */}
           <div
-            id="experiments"
+            id={SECTION_IDS.experiments}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Experiments
             </h2>
             <div className="space-y-4">
-              <div className="space-y-1 mt-4">
+              <div id={SETTING_IDS.nativeGit} className="space-y-1 mt-4">
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="enable-native-git"
+                    aria-label="Enable Native Git"
                     checked={!!settings?.enableNativeGit}
                     onCheckedChange={(checked) => {
                       updateSettings({
@@ -163,18 +189,8 @@ export default function SettingsPage() {
                   <Label htmlFor="enable-native-git">Enable Native Git</Label>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Native Git offers faster performance but requires{" "}
-                  <a
-                    onClick={() => {
-                      IpcClient.getInstance().openExternalUrl(
-                        "https://git-scm.com/downloads",
-                      );
-                    }}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    installing Git
-                  </a>
-                  .
+                  This doesn't require any external Git installation and offers
+                  a faster, native-Git performance experience.
                 </div>
               </div>
             </div>
@@ -182,7 +198,7 @@ export default function SettingsPage() {
 
           {/* Danger Zone */}
           <div
-            id="danger-zone"
+            id={SECTION_IDS.dangerZone}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-red-200 dark:border-red-800"
           >
             <h2 className="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
@@ -190,7 +206,10 @@ export default function SettingsPage() {
             </h2>
 
             <div className="space-y-4">
-              <div className="flex items-start justify-between flex-col sm:flex-row sm:items-center gap-4">
+              <div
+                id={SETTING_IDS.reset}
+                className="flex items-start justify-between flex-col sm:flex-row sm:items-center gap-4"
+              >
                 <div>
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                     Reset Everything
@@ -217,8 +236,9 @@ export default function SettingsPage() {
         isOpen={isResetDialogOpen}
         title="Reset Everything"
         message="Are you sure you want to reset everything? This will delete all your apps, chats, and settings. This action cannot be undone."
-        confirmText="Reset Everything"
+        confirmText={isResetting ? "Resetting..." : "Reset Everything"}
         cancelText="Cancel"
+        confirmDisabled={isResetting}
         onConfirm={handleResetEverything}
         onCancel={() => setIsResetDialogOpen(false)}
       />
@@ -231,7 +251,7 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
 
   return (
     <div
-      id="general-settings"
+      id={SECTION_IDS.general}
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
     >
       <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -239,7 +259,7 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
       </h2>
 
       <div className="space-y-4 mb-4">
-        <div className="flex items-center gap-4">
+        <div id={SETTING_IDS.theme} className="flex items-center gap-4">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Theme
           </label>
@@ -266,11 +286,11 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
         </div>
       </div>
 
-      <div className="mt-4">
+      <div id={SETTING_IDS.zoom} className="mt-4">
         <ZoomSelector />
       </div>
 
-      <div className="space-y-1 mt-4">
+      <div id={SETTING_IDS.autoUpdate} className="space-y-1 mt-4">
         <AutoUpdateSwitch />
         <div className="text-sm text-gray-500 dark:text-gray-400">
           This will automatically update the app when new versions are
@@ -278,14 +298,14 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
         </div>
       </div>
 
-      <div className="mt-4">
+      <div id={SETTING_IDS.releaseChannel} className="mt-4">
         <ReleaseChannelSelector />
       </div>
 
-      <div className="mt-4">
+      <div id={SETTING_IDS.runtimeMode} className="mt-4">
         <RuntimeModeSelector />
       </div>
-      <div className="mt-4">
+      <div id={SETTING_IDS.nodePath} className="mt-4">
         <NodePathSelector />
       </div>
 
@@ -302,24 +322,46 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
 export function WorkflowSettings() {
   return (
     <div
-      id="workflow-settings"
+      id={SECTION_IDS.workflow}
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
     >
       <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
         Workflow Settings
       </h2>
 
-      <div className="space-y-1">
+      <div id={SETTING_IDS.defaultChatMode} className="mt-4">
+        <DefaultChatModeSelector />
+      </div>
+
+      <div id={SETTING_IDS.autoApprove} className="space-y-1 mt-4">
         <AutoApproveSwitch showToast={false} />
         <div className="text-sm text-gray-500 dark:text-gray-400">
           This will automatically approve code changes and run them.
         </div>
       </div>
 
-      <div className="space-y-1 mt-4">
+      <div id={SETTING_IDS.autoFix} className="space-y-1 mt-4">
         <AutoFixProblemsSwitch />
         <div className="text-sm text-gray-500 dark:text-gray-400">
           This will automatically fix TypeScript errors.
+        </div>
+      </div>
+
+      <div id={SETTING_IDS.autoExpandPreview} className="space-y-1 mt-4">
+        <AutoExpandPreviewSwitch />
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Automatically expand the preview panel when code changes are made.
+        </div>
+      </div>
+
+      <div
+        id={SETTING_IDS.chatCompletionNotification}
+        className="space-y-1 mt-4"
+      >
+        <ChatCompletionNotificationSwitch />
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Show a native notification when a chat response completes while the
+          app is not focused.
         </div>
       </div>
     </div>
@@ -328,19 +370,27 @@ export function WorkflowSettings() {
 export function AISettings() {
   return (
     <div
-      id="ai-settings"
+      id={SECTION_IDS.ai}
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
     >
       <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
         AI Settings
       </h2>
 
-      <div className="mt-4">
+      <div id={SETTING_IDS.thinkingBudget} className="mt-4">
         <ThinkingBudgetSelector />
       </div>
 
-      <div className="mt-4">
+      <div id={SETTING_IDS.maxChatTurns} className="mt-4">
         <MaxChatTurnsSelector />
+      </div>
+
+      <div id={SETTING_IDS.contextCompaction} className="space-y-1 mt-4">
+        <ContextCompactionSwitch />
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Automatically compact long conversations to stay within context
+          limits. Original messages are preserved in the app data directory.
+        </div>
       </div>
     </div>
   );

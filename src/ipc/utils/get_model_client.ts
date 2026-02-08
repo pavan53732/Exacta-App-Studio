@@ -3,72 +3,71 @@ import { createGoogleGenerativeAI as createGoogle } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createXai } from "@ai-sdk/xai";
 import { createVertex as createGoogleVertex } from "@ai-sdk/google-vertex";
-import { azure } from "@ai-sdk/azure";
-import { LanguageModelV2 } from "@ai-sdk/provider";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createAzure } from "@ai-sdk/azure";
+import type { LanguageModel } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import type {
   LargeLanguageModel,
   UserSettings,
   VertexProviderSetting,
+  AzureProviderSetting,
 } from "../../lib/schemas";
 import { getEnvVar } from "./read_env";
 import log from "electron-log";
-import { FREE_OPENROUTER_MODEL_NAMES } from "../shared/language_model_constants";
+import {
+  FREE_OPENROUTER_MODEL_NAMES,
+  GEMINI_3_FLASH,
+  GPT_5_2_MODEL_NAME,
+  SONNET_4_5,
+} from "../shared/language_model_constants";
 import { getLanguageModelProviders } from "../shared/language_model_helpers";
-import { LanguageModelProvider } from "../ipc_types";
-import { createDyadEngine } from "./llm_engine_provider";
+import { LanguageModelProvider } from "@/ipc/types";
+import {
+  createDyadEngine,
+  type DyadEngineProvider,
+} from "./llm_engine_provider";
 
 import { LM_STUDIO_BASE_URL } from "./lm_studio_utils";
 import { createOllamaProvider } from "./ollama_provider";
 import { getOllamaApiUrl } from "../handlers/local_model_ollama_handler";
 import { createFallback } from "./fallback_ai_model";
-import {
-  getStoredCredentials,
-  clerkCreateSessionToken,
-} from "../handlers/roocode_auth_handlers";
 
-const dyadEngineUrl = process.env.EXACTA_APP_STUDIO_ENGINE_URL;
-const dyadGatewayUrl = process.env.EXACTA_APP_STUDIO_GATEWAY_URL;
+const dyadEngineUrl = process.env.DYAD_ENGINE_URL;
 
 const AUTO_MODELS = [
+  {
+    provider: "openai",
+    name: GPT_5_2_MODEL_NAME,
+  },
+  {
+    provider: "anthropic",
+    name: SONNET_4_5,
+  },
+  {
+    provider: "google",
+    name: GEMINI_3_FLASH,
+  },
   {
     provider: "google",
     name: "gemini-2.5-flash",
   },
-  {
-    provider: "openrouter",
-    name: "qwen/qwen3-coder:free",
-  },
-  {
-    provider: "anthropic",
-    name: "claude-sonnet-4-20250514",
-  },
-  {
-    provider: "openai",
-    name: "gpt-4.1",
-  },
 ];
 
 export interface ModelClient {
-  model: LanguageModelV2;
+  model: LanguageModel;
   builtinProviderId?: string;
-}
-
-interface File {
-  path: string;
-  content: string;
 }
 
 const logger = log.scope("getModelClient");
 export async function getModelClient(
   model: LargeLanguageModel,
   settings: UserSettings,
-  files?: File[],
+  // files?: File[],
 ): Promise<{
   modelClient: ModelClient;
   isEngineEnabled?: boolean;
+  isSmartContextEnabled?: boolean;
 }> {
   const allProviders = await getLanguageModelProviders();
 
@@ -82,69 +81,49 @@ export async function getModelClient(
   }
 
   // Handle Dyad Pro override
-  if (dyadApiKey && settings.enableExactaAppStudioPro) {
+  if (dyadApiKey && settings.enableDyadPro) {
     // Check if the selected provider supports Dyad Pro (has a gateway prefix) OR
     // we're using local engine.
     // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,
     // so we do a nullish and not a truthy check here.
     if (providerConfig.gatewayPrefix != null || dyadEngineUrl) {
-      const isEngineEnabled =
-        settings.enableProSmartFilesContextMode ||
-        settings.enableProLazyEditsMode;
-      const provider = isEngineEnabled
-        ? createDyadEngine({
-            apiKey: dyadApiKey,
-            baseURL:
-              dyadEngineUrl ?? "https://engine.exacta-app-studio.alitech.io/v1",
-            originalProviderId: model.provider,
-            dyadOptions: {
-              enableLazyEdits:
-                settings.selectedChatMode === "ask"
-                  ? false
-                  : settings.enableProLazyEditsMode,
-              enableSmartFilesContext: settings.enableProSmartFilesContextMode,
-              // Keep in sync with getCurrentValue in ProModeSelector.tsx
-              smartContextMode: settings.proSmartContextOption ?? "balanced",
-            },
-            settings,
-          })
-        : createOpenAICompatible({
-            name: "dyad-gateway",
-            apiKey: dyadApiKey,
-            baseURL:
-              dyadGatewayUrl ??
-              "https://llm-gateway.exacta-app-studio.alitech.io/v1",
-          });
+      const enableSmartFilesContext = settings.enableProSmartFilesContextMode;
+      const provider = createDyadEngine({
+        apiKey: dyadApiKey,
+        baseURL: dyadEngineUrl ?? "https://engine.dyad.sh/v1",
+        dyadOptions: {
+          enableLazyEdits:
+            settings.selectedChatMode === "ask"
+              ? false
+              : settings.enableProLazyEditsMode &&
+                settings.proLazyEditsMode !== "v2",
+          enableSmartFilesContext,
+          enableWebSearch: settings.enableProWebSearch,
+        },
+        settings,
+      });
 
       logger.info(
-        `\x1b[1;97;44m Using Dyad Pro API key for model: ${model.name}. engine_enabled=${isEngineEnabled} \x1b[0m`,
+        `\x1b[1;97;44m Using Dyad Pro API key for model: ${model.name} \x1b[0m`,
       );
-      if (isEngineEnabled) {
-        logger.info(
-          `\x1b[1;30;42m Using Dyad Pro engine: ${dyadEngineUrl ?? "<prod>"} \x1b[0m`,
-        );
-      } else {
-        logger.info(
-          `\x1b[1;30;43m Using Dyad Pro gateway: ${dyadGatewayUrl ?? "<prod>"} \x1b[0m`,
-        );
-      }
+
+      logger.info(
+        `\x1b[1;30;42m Using Dyad Pro engine: ${dyadEngineUrl ?? "<prod>"} \x1b[0m`,
+      );
+
       // Do not use free variant (for openrouter).
       const modelName = model.name.split(":free")[0];
-      const autoModelClient = {
-        model: provider(
-          `${providerConfig.gatewayPrefix || ""}${modelName}`,
-          isEngineEnabled
-            ? {
-                files,
-              }
-            : undefined,
-        ),
-        builtinProviderId: model.provider,
-      };
+      const proModelClient = getProModelClient({
+        model,
+        settings,
+        provider,
+        modelId: `${providerConfig.gatewayPrefix || ""}${modelName}`,
+      });
 
       return {
-        modelClient: autoModelClient,
-        isEngineEnabled,
+        modelClient: proModelClient,
+        isEngineEnabled: true,
+        isSmartContextEnabled: enableSmartFilesContext,
       };
     } else {
       logger.warn(
@@ -165,17 +144,13 @@ export async function getModelClient(
       return {
         modelClient: {
           model: createFallback({
-            models: await Promise.all(
-              FREE_OPENROUTER_MODEL_NAMES.map(
-                async (name: string) =>
-                  (
-                    await getRegularModelClient(
-                      { provider: "openrouter", name },
-                      settings,
-                      openRouterProvider,
-                    )
-                  ).modelClient.model,
-              ),
+            models: FREE_OPENROUTER_MODEL_NAMES.map(
+              (name: string) =>
+                getRegularModelClient(
+                  { provider: "openrouter", name },
+                  settings,
+                  openRouterProvider,
+                ).modelClient.model,
             ),
           }),
           builtinProviderId: "openrouter",
@@ -204,7 +179,6 @@ export async function getModelClient(
             name: autoModel.name,
           },
           settings,
-          files,
         );
       }
     }
@@ -213,17 +187,65 @@ export async function getModelClient(
       "No API keys available for any model supported by the 'auto' provider.",
     );
   }
-  return await getRegularModelClient(model, settings, providerConfig);
+  return getRegularModelClient(model, settings, providerConfig);
 }
 
-async function getRegularModelClient(
+function getProModelClient({
+  model,
+  settings,
+  provider,
+  modelId,
+}: {
+  model: LargeLanguageModel;
+  settings: UserSettings;
+  provider: DyadEngineProvider;
+  modelId: string;
+}): ModelClient {
+  if (
+    settings.selectedChatMode === "local-agent" &&
+    model.provider === "auto" &&
+    model.name === "auto"
+  ) {
+    return {
+      // We need to do the fallback here (and not server-side)
+      // because GPT-5* models need to use responses API to get
+      // full functionality (e.g. thinking summaries).
+      model: createFallback({
+        models: [
+          // openai requires no prefix.
+          provider.responses(`${GPT_5_2_MODEL_NAME}`, { providerId: "openai" }),
+          provider(`anthropic/${SONNET_4_5}`, { providerId: "anthropic" }),
+          provider(`gemini/${GEMINI_3_FLASH}`, { providerId: "google" }),
+        ],
+      }),
+      // Using openAI as the default provider.
+      // TODO: we should remove this and rely on the provider id passed into the provider().
+      builtinProviderId: "openai",
+    };
+  }
+  if (
+    settings.selectedChatMode === "local-agent" &&
+    model.provider === "openai"
+  ) {
+    return {
+      model: provider.responses(modelId, { providerId: model.provider }),
+      builtinProviderId: model.provider,
+    };
+  }
+  return {
+    model: provider(modelId, { providerId: model.provider }),
+    builtinProviderId: model.provider,
+  };
+}
+
+function getRegularModelClient(
   model: LargeLanguageModel,
   settings: UserSettings,
   providerConfig: LanguageModelProvider,
-): Promise<{
+): {
   modelClient: ModelClient;
   backupModelClients: ModelClient[];
-}> {
+} {
   // Get API key for the specific provider
   const apiKey =
     settings.providerSettings?.[model.provider]?.apiKey?.value ||
@@ -314,7 +336,11 @@ async function getRegularModelClient(
       };
     }
     case "openrouter": {
-      const provider = createOpenRouter({ apiKey });
+      const provider = createOpenAICompatible({
+        name: "openrouter",
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey,
+      });
       return {
         modelClient: {
           model: provider(model.name),
@@ -344,28 +370,41 @@ async function getRegularModelClient(
         };
       }
 
-      // Azure OpenAI requires both API key and resource name as env vars
-      // We use environment variables for Azure configuration
-      const resourceName = getEnvVar("AZURE_RESOURCE_NAME");
-      const azureApiKey = getEnvVar("AZURE_API_KEY");
+      const azureSettings = settings.providerSettings?.azure as
+        | AzureProviderSetting
+        | undefined;
+      const azureApiKeyFromSettings = (
+        azureSettings?.apiKey?.value ?? ""
+      ).trim();
+      const azureResourceNameFromSettings = (
+        azureSettings?.resourceName ?? ""
+      ).trim();
+      const envResourceName = (getEnvVar("AZURE_RESOURCE_NAME") ?? "").trim();
+      const envAzureApiKey = (getEnvVar("AZURE_API_KEY") ?? "").trim();
+
+      const resourceName = azureResourceNameFromSettings || envResourceName;
+      const azureApiKey = azureApiKeyFromSettings || envAzureApiKey;
 
       if (!resourceName) {
         throw new Error(
-          "Azure OpenAI resource name is required. Please set the AZURE_RESOURCE_NAME environment variable.",
+          "Azure OpenAI resource name is required. Provide it in Settings or set the AZURE_RESOURCE_NAME environment variable.",
         );
       }
 
       if (!azureApiKey) {
         throw new Error(
-          "Azure OpenAI API key is required. Please set the AZURE_API_KEY environment variable.",
+          "Azure OpenAI API key is required. Provide it in Settings or set the AZURE_API_KEY environment variable.",
         );
       }
 
-      // Use the default Azure provider with environment variables
-      // The azure provider automatically picks up AZURE_RESOURCE_NAME and AZURE_API_KEY
+      const provider = createAzure({
+        resourceName,
+        apiKey: azureApiKey,
+      });
+
       return {
         modelClient: {
-          model: azure(model.name),
+          model: provider(model.name),
           builtinProviderId: providerId,
         },
         backupModelClients: [],
@@ -401,41 +440,6 @@ async function getRegularModelClient(
       const provider = createAmazonBedrock({
         apiKey: apiKey,
         region: getEnvVar("AWS_REGION") || "us-east-1",
-      });
-      return {
-        modelClient: {
-          model: provider(model.name),
-          builtinProviderId: providerId,
-        },
-        backupModelClients: [],
-      };
-    }
-    case "roo": {
-      // Roo Code Cloud uses their API with session token authentication
-      // Get the session token from stored credentials
-      const credentials = getStoredCredentials();
-      let sessionToken: string;
-      if (credentials) {
-        // Get a fresh session token using the stored credentials
-        try {
-          sessionToken = await clerkCreateSessionToken(credentials);
-        } catch (error) {
-          logger.warn(
-            "Failed to get fresh session token for Roo Code, using stored client token:",
-            error,
-          );
-          sessionToken = credentials.clientToken;
-        }
-      } else {
-        sessionToken = "unauthenticated";
-      }
-
-      const rooCodeApiUrl =
-        process.env.ROO_CODE_PROVIDER_URL ?? "https://api.roocode.com/proxy/v1";
-      const provider = createOpenAICompatible({
-        name: "roo-code",
-        baseURL: rooCodeApiUrl,
-        apiKey: sessionToken,
       });
       return {
         modelClient: {

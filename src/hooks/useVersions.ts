@@ -1,17 +1,17 @@
 import { useEffect } from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { versionsListAtom } from "@/atoms/appAtoms";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc, type RevertVersionResponse, type Version } from "@/ipc/types";
 
-import { chatMessagesAtom, selectedChatIdAtom } from "@/atoms/chatAtoms";
+import { chatMessagesByIdAtom, selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { RevertVersionResponse, Version } from "@/ipc/ipc_types";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 export function useVersions(appId: number | null) {
   const [, setVersionsAtom] = useAtom(versionsListAtom);
   const selectedChatId = useAtomValue(selectedChatIdAtom);
-  const [, setMessages] = useAtom(chatMessagesAtom);
+  const setMessagesById = useSetAtom(chatMessagesByIdAtom);
   const queryClient = useQueryClient();
 
   const {
@@ -20,16 +20,15 @@ export function useVersions(appId: number | null) {
     error,
     refetch: refreshVersions,
   } = useQuery<Version[], Error>({
-    queryKey: ["versions", appId],
+    queryKey: queryKeys.versions.list({ appId }),
     queryFn: async (): Promise<Version[]> => {
       if (appId === null) {
         return [];
       }
-      const ipcClient = IpcClient.getInstance();
-      return ipcClient.listVersions({ appId });
+      return ipc.version.listVersions({ appId });
     },
     enabled: appId !== null,
-    initialData: [],
+    placeholderData: [],
     meta: { showErrorToast: true },
   });
 
@@ -42,17 +41,26 @@ export function useVersions(appId: number | null) {
   const revertVersionMutation = useMutation<
     RevertVersionResponse,
     Error,
-    { versionId: string }
+    {
+      versionId: string;
+      currentChatMessageId?: { chatId: number; messageId: number };
+    }
   >({
-    mutationFn: async ({ versionId }: { versionId: string }) => {
+    mutationFn: async ({
+      versionId,
+      currentChatMessageId,
+    }: {
+      versionId: string;
+      currentChatMessageId?: { chatId: number; messageId: number };
+    }) => {
       const currentAppId = appId;
       if (currentAppId === null) {
         throw new Error("App ID is null");
       }
-      const ipcClient = IpcClient.getInstance();
-      return ipcClient.revertVersion({
+      return ipc.version.revertVersion({
         appId: currentAppId,
         previousVersionId: versionId,
+        currentChatMessageId,
       });
     },
     onSuccess: async (result) => {
@@ -61,16 +69,22 @@ export function useVersions(appId: number | null) {
       } else if ("warningMessage" in result) {
         toast.warning(result.warningMessage);
       }
-      await queryClient.invalidateQueries({ queryKey: ["versions", appId] });
       await queryClient.invalidateQueries({
-        queryKey: ["currentBranch", appId],
+        queryKey: queryKeys.versions.list({ appId }),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.branches.current({ appId }),
       });
       if (selectedChatId) {
-        const chat = await IpcClient.getInstance().getChat(selectedChatId);
-        setMessages(chat.messages);
+        const chat = await ipc.chat.getChat(selectedChatId);
+        setMessagesById((prev) => {
+          const next = new Map(prev);
+          next.set(selectedChatId, chat.messages);
+          return next;
+        });
       }
       await queryClient.invalidateQueries({
-        queryKey: ["problems", appId],
+        queryKey: queryKeys.problems.byApp({ appId }),
       });
     },
     meta: { showErrorToast: true },

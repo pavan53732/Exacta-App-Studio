@@ -1,21 +1,36 @@
-import type { Message } from "@/ipc/ipc_types";
+import type { FileAttachment, Message, AgentTodo } from "@/ipc/types";
 import { atom } from "jotai";
-import type { ChatSummary } from "@/lib/schemas";
 
-// Atom to hold the chat history
-export const chatMessagesAtom = atom<Message[]>([]);
-export const chatErrorAtom = atom<string | null>(null);
+// Per-chat atoms implemented with maps keyed by chatId
+export const chatMessagesByIdAtom = atom<Map<number, Message[]>>(new Map());
+export const chatErrorByIdAtom = atom<Map<number, string | null>>(new Map());
 
 // Atom to hold the currently selected chat ID
 export const selectedChatIdAtom = atom<number | null>(null);
 
-export const isStreamingAtom = atom<boolean>(false);
+export const isStreamingByIdAtom = atom<Map<number, boolean>>(new Map());
 export const chatInputValueAtom = atom<string>("");
 export const homeChatInputValueAtom = atom<string>("");
 
-// Atoms for chat list management
-export const chatsAtom = atom<ChatSummary[]>([]);
-export const chatsLoadingAtom = atom<boolean>(false);
+// Used for scrolling to the bottom of the chat messages (per chat)
+export const chatStreamCountByIdAtom = atom<Map<number, number>>(new Map());
+export const recentStreamChatIdsAtom = atom<Set<number>>(new Set<number>());
 
-// Used for scrolling to the bottom of the chat messages
-export const chatStreamCountAtom = atom<number>(0);
+export const attachmentsAtom = atom<FileAttachment[]>([]);
+
+// Agent tool consent request queue
+export interface PendingAgentConsent {
+  requestId: string;
+  chatId: number;
+  toolName: string;
+  toolDescription?: string | null;
+  inputPreview?: string | null;
+}
+
+export const pendingAgentConsentsAtom = atom<PendingAgentConsent[]>([]);
+
+// Agent todos per chat
+export const agentTodosByChatIdAtom = atom<Map<number, AgentTodo[]>>(new Map());
+
+// Flag: set when user switches to plan mode from another mode in a chat with messages
+export const needsFreshPlanChatAtom = atom<boolean>(false);

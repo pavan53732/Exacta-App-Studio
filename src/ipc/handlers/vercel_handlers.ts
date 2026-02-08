@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent } from "electron";
+import { IpcMainInvokeEvent } from "electron";
 import { Vercel } from "@vercel/sdk";
 import { writeSettings, readSettings } from "../../main/settings";
 import * as schema from "../../db/schema";
@@ -11,20 +11,20 @@ import * as fs from "fs";
 import * as path from "path";
 import { CreateProjectFramework } from "@vercel/sdk/models/createprojectop.js";
 import { getDyadAppPath } from "@/paths/paths";
+import { createTypedHandler } from "./base";
 import {
-  CreateVercelProjectParams,
-  IsVercelProjectAvailableParams,
+  vercelContracts,
   SaveVercelAccessTokenParams,
-  VercelDeployment,
+  IsVercelProjectAvailableParams,
+  CreateVercelProjectParams,
+  ConnectToExistingVercelProjectParams,
+  GetVercelDeploymentsParams,
+  DisconnectVercelProjectParams,
   VercelProject,
-} from "../ipc_types";
-import { ConnectToExistingVercelProjectParams } from "../ipc_types";
-import { GetVercelDeploymentsParams } from "../ipc_types";
-import { DisconnectVercelProjectParams } from "../ipc_types";
-import { createLoggedHandler } from "./safe_handle";
+  VercelDeployment,
+} from "../types/vercel";
 
 const logger = log.scope("vercel_handlers");
-const handle = createLoggedHandler(logger);
 
 // Use test server URLs when in test mode
 const TEST_SERVER_BASE = "http://localhost:3500";
@@ -40,6 +40,54 @@ function createVercelClient(token: string): Vercel {
     bearerToken: token,
     ...(IS_TEST_BUILD && { serverURL: VERCEL_API_BASE }),
   });
+}
+
+interface VercelProjectResponse {
+  id: string;
+  name: string;
+  framework?: string | null;
+  targets?: {
+    production?: {
+      url?: string;
+    };
+  };
+}
+
+interface GetVercelProjectsResponse {
+  projects: VercelProjectResponse[];
+}
+
+/**
+ * Fetch Vercel projects via HTTP request (bypasses the broken SDK).
+ * Mimics the SDK's `vercel.projects.getProjects` API.
+ */
+async function getVercelProjects(
+  token: string,
+  options?: { search?: string },
+): Promise<GetVercelProjectsResponse> {
+  const url = new URL(`${VERCEL_API_BASE}/v9/projects`);
+  if (options?.search) {
+    url.searchParams.set("search", options.search);
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch Vercel projects: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+
+  const data = await response.json();
+  return {
+    projects: data.projects || [],
+  };
 }
 
 async function validateVercelToken(token: string): Promise<boolean> {
@@ -184,8 +232,7 @@ async function handleListVercelProjects(): Promise<VercelProject[]> {
       throw new Error("Not authenticated with Vercel.");
     }
 
-    const vercel = createVercelClient(accessToken);
-    const response = await vercel.projects.getProjects({});
+    const response = await getVercelProjects(accessToken);
 
     if (!response.projects) {
       throw new Error("Failed to retrieve projects from Vercel.");
@@ -214,12 +261,8 @@ async function handleIsProjectAvailable(
       return { available: false, error: "Not authenticated with Vercel." };
     }
 
-    const vercel = createVercelClient(accessToken);
-
     // Check if project name is available by searching for projects with that name
-    const response = await vercel.projects.getProjects({
-      search: name,
-    });
+    const response = await getVercelProjects(accessToken, { search: name });
 
     if (!response.projects) {
       return {
@@ -361,10 +404,8 @@ async function handleConnectToExistingProject(
       `Connecting to existing Vercel project: ${projectId} for app ${appId}`,
     );
 
-    const vercel = createVercelClient(accessToken);
-
     // Verify the project exists and get its details
-    const response = await vercel.projects.getProjects({});
+    const response = await getVercelProjects(accessToken);
     const projectData = response.projects?.find(
       (p) => p.id === projectId || p.name === projectId,
     );
@@ -423,11 +464,30 @@ async function handleGetVercelDeployments(
     // Get deployments for the project
     const deploymentsResponse = await vercel.deployments.getDeployments({
       projectId: app.vercelProjectId,
-      limit: 3, // Get last 3 deployments
+      limit: 5, // Get last 5 deployments
     });
 
     if (!deploymentsResponse.deployments) {
       throw new Error("Failed to retrieve deployments from Vercel.");
+    }
+
+    // Find the most recent READY production deployment and update the stored URL
+    const readyProductionDeployment = deploymentsResponse.deployments.find(
+      (d) => d.readyState === "READY" && d.target === "production",
+    );
+
+    if (readyProductionDeployment?.url) {
+      const newDeploymentUrl = `https://${readyProductionDeployment.url}`;
+      // Only update if the URL has changed
+      if (newDeploymentUrl !== app.vercelDeploymentUrl) {
+        logger.info(
+          `Updating deployment URL for app ${appId}: ${app.vercelDeploymentUrl} -> ${newDeploymentUrl}`,
+        );
+        await db
+          .update(apps)
+          .set({ vercelDeploymentUrl: newDeploymentUrl })
+          .where(eq(apps.id, appId));
+      }
     }
 
     // Map deployments to our interface format
@@ -474,15 +534,41 @@ async function handleDisconnectVercelProject(
 // --- Registration ---
 export function registerVercelHandlers() {
   // DO NOT LOG this handler because tokens are sensitive
-  ipcMain.handle("vercel:save-token", handleSaveVercelToken);
+  createTypedHandler(vercelContracts.saveToken, async (event, params) => {
+    await handleSaveVercelToken(event, params);
+  });
 
-  // Logged handlers
-  handle("vercel:list-projects", handleListVercelProjects);
-  handle("vercel:is-project-available", handleIsProjectAvailable);
-  handle("vercel:create-project", handleCreateProject);
-  handle("vercel:connect-existing-project", handleConnectToExistingProject);
-  handle("vercel:get-deployments", handleGetVercelDeployments);
-  handle("vercel:disconnect", handleDisconnectVercelProject);
+  createTypedHandler(vercelContracts.listProjects, async () => {
+    return handleListVercelProjects();
+  });
+
+  createTypedHandler(
+    vercelContracts.isProjectAvailable,
+    async (event, params) => {
+      return handleIsProjectAvailable(event, params);
+    },
+  );
+
+  createTypedHandler(vercelContracts.createProject, async (event, params) => {
+    await handleCreateProject(event, params);
+  });
+
+  createTypedHandler(
+    vercelContracts.connectExistingProject,
+    async (event, params) => {
+      await handleConnectToExistingProject(event, params);
+    },
+  );
+
+  createTypedHandler(vercelContracts.getDeployments, async (event, params) => {
+    return handleGetVercelDeployments(event, params);
+  });
+
+  createTypedHandler(vercelContracts.disconnect, async (event, params) => {
+    await handleDisconnectVercelProject(event, params);
+  });
+
+  logger.debug("Registered Vercel IPC handlers");
 }
 
 export async function updateAppVercelProject({

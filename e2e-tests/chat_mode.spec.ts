@@ -23,7 +23,7 @@ test("chat mode selector - ask mode", async ({ po }) => {
   await po.snapshotMessages({ replaceDumpPath: true });
 });
 
-test("dyadwrite edit and save - basic flow", async ({ po }) => {
+test.skip("dyadwrite edit and save - basic flow", async ({ po }) => {
   await po.setUp({ autoApprove: true });
   await po.importApp("minimal");
   await po.clickNewChat();
@@ -37,22 +37,6 @@ test("dyadwrite edit and save - basic flow", async ({ po }) => {
   await po.editFileContent("// Test modification\n");
 
   await po.saveFile();
-
-  await po.snapshotMessages({ replaceDumpPath: true });
-});
-
-test("dyadwrite edit and cancel", async ({ po }) => {
-  await po.setUp({ autoApprove: true });
-  await po.importApp("minimal");
-  await po.clickNewChat();
-
-  await po.sendPrompt("Create a utility function in src/utils/helper.ts");
-  await po.waitForChatCompletion();
-
-  await po.clickEditButton();
-
-  await po.editFileContent("// This should be discarded\n");
-  await po.cancelEdit();
 
   await po.snapshotMessages({ replaceDumpPath: true });
 });

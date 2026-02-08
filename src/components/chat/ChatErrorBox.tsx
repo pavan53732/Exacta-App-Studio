@@ -1,23 +1,39 @@
-import { IpcClient } from "@/ipc/ipc_client";
-import { X } from "lucide-react";
+import { ipc } from "@/ipc/types";
+import { AI_STREAMING_ERROR_MESSAGE_PREFIX } from "@/shared/texts";
+import {
+  X,
+  ExternalLink as ExternalLinkIcon,
+  CircleArrowUp,
+  MessageSquarePlus,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function ChatErrorBox({
   onDismiss,
   error,
-  isExactaAppStudioProEnabled,
+  isDyadProEnabled,
+  onStartNewChat,
 }: {
   onDismiss: () => void;
   error: string;
-  isExactaAppStudioProEnabled: boolean;
+  isDyadProEnabled: boolean;
+  onStartNewChat?: () => void;
 }) {
   if (error.includes("doesn't have a free quota tier")) {
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
         <span className="ml-1">
-          <ExternalLink href="https://exacta-app-studio.alitech.io/pro">
+          <ExternalLink
+            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
+            variant="primary"
+          >
             Access with Dyad Pro
           </ExternalLink>
         </span>{" "}
@@ -28,24 +44,31 @@ export function ChatErrorBox({
 
   // Important, this needs to come after the "free quota tier" check
   // because it also includes this URL in the error message
+  //
+  // Sometimes Dyad Pro can return rate limit errors and we do not want to
+  // show the upgrade to Dyad Pro link in that case because they are
+  // already on the Dyad Pro plan.
   if (
-    error.includes("Resource has been exhausted") ||
-    error.includes("https://ai.google.dev/gemini-api/docs/rate-limits")
+    !isDyadProEnabled &&
+    (error.includes("Resource has been exhausted") ||
+      error.includes("https://ai.google.dev/gemini-api/docs/rate-limits") ||
+      error.includes("Provider returned error"))
   ) {
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         {error}
-        <span className="ml-1">
-          <ExternalLink href="https://exacta-app-studio.alitech.io/pro">
+        <div className="mt-2 space-y-2 space-x-2">
+          <ExternalLink
+            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
+            variant="primary"
+          >
             Upgrade to Dyad Pro
           </ExternalLink>
-        </span>{" "}
-        or read the
-        <span className="ml-1">
-          <ExternalLink href="https://exacta-app-studio.alitech.io/docs/help/ai-rate-limit">
-            Rate limit troubleshooting guide.
+
+          <ExternalLink href="https://dyad.sh/docs/help/ai-rate-limit">
+            Troubleshooting guide
           </ExternalLink>
-        </span>
+        </div>
       </ChatErrorContainer>
     );
   }
@@ -55,7 +78,10 @@ export function ChatErrorBox({
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
           Looks like you don't have a valid Dyad Pro key.{" "}
-          <ExternalLink href="https://exacta-app-studio.alitech.io/pro">
+          <ExternalLink
+            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=invalid-pro-key-error"
+            variant="primary"
+          >
             Upgrade to Dyad Pro
           </ExternalLink>{" "}
           today.
@@ -63,13 +89,16 @@ export function ChatErrorBox({
       </ChatInfoContainer>
     );
   }
-  if (isExactaAppStudioProEnabled && error.includes("ExceededBudget:")) {
+  if (isDyadProEnabled && error.includes("ExceededBudget:")) {
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
           You have used all of your Dyad AI credits this month.{" "}
-          <ExternalLink href="https://academy.exacta-app-studio.alitech.io/subscription">
-            Upgrade to Dyad Max
+          <ExternalLink
+            href="https://academy.dyad.sh/subscription?utm_source=dyad-app&utm_medium=app&utm_campaign=exceeded-budget-error"
+            variant="primary"
+          >
+            Reload or upgrade your subscription
           </ExternalLink>{" "}
           and get more AI credits
         </span>
@@ -77,25 +106,100 @@ export function ChatErrorBox({
     );
   }
   // This is a very long list of model fallbacks that clutters the error message.
-  if (error.includes("Fallbacks=")) {
-    error = error.split("Fallbacks=")[0];
+  //
+  // We are matching "Fallbacks=[{" and not just "Fallbacks=" because the fallback
+  // model itself can error and we want to include the fallback model error in the error message.
+  // Example: https://github.com/dyad-sh/dyad/issues/1849#issuecomment-3590685911
+  const fallbackPrefix = "Fallbacks=[{";
+  if (error.includes(fallbackPrefix)) {
+    error = error.split(fallbackPrefix)[0];
   }
-  return <ChatErrorContainer onDismiss={onDismiss}>{error}</ChatErrorContainer>;
+  // Handle FREE_AGENT_QUOTA_EXCEEDED error (Basic Agent mode quota exceeded)
+  if (error.includes("FREE_AGENT_QUOTA_EXCEEDED")) {
+    return (
+      <ChatErrorContainer onDismiss={onDismiss}>
+        You have used all 5 free Agent messages for today. Please upgrade to
+        Dyad Pro for unlimited access or switch to Build mode.
+        <div className="mt-2 space-y-2 space-x-2">
+          <ExternalLink
+            href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-agent-quota-exceeded"
+            variant="primary"
+          >
+            Upgrade to Dyad Pro
+          </ExternalLink>
+        </div>
+      </ChatErrorContainer>
+    );
+  }
+
+  return (
+    <ChatErrorContainer onDismiss={onDismiss}>
+      {error}
+      <div className="mt-2 space-y-2 space-x-2">
+        {!isDyadProEnabled &&
+          error.includes(AI_STREAMING_ERROR_MESSAGE_PREFIX) &&
+          !error.includes("TypeError: terminated") && (
+            <ExternalLink
+              href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=general-error"
+              variant="primary"
+            >
+              Upgrade to Dyad Pro
+            </ExternalLink>
+          )}
+        {isDyadProEnabled && onStartNewChat && (
+          <Tooltip>
+            <TooltipTrigger
+              onClick={onStartNewChat}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+            >
+              <span>Start new chat</span>
+              <MessageSquarePlus size={18} />
+            </TooltipTrigger>
+            <TooltipContent>
+              Starting a new chat can fix some issues
+            </TooltipContent>
+          </Tooltip>
+        )}
+        <ExternalLink href="https://www.dyad.sh/docs/faq">
+          Read docs
+        </ExternalLink>
+      </div>
+    </ChatErrorContainer>
+  );
 }
 
 function ExternalLink({
   href,
   children,
+  variant = "secondary",
+  icon,
 }: {
   href: string;
   children: React.ReactNode;
+  variant?: "primary" | "secondary";
+  icon?: React.ReactNode;
 }) {
+  const baseClasses =
+    "cursor-pointer inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2";
+  const primaryClasses =
+    "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500";
+  const secondaryClasses =
+    "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 focus:ring-blue-200";
+  const iconElement =
+    icon ??
+    (variant === "primary" ? (
+      <CircleArrowUp size={18} />
+    ) : (
+      <ExternalLinkIcon size={14} />
+    ));
+
   return (
     <a
-      className="underline cursor-pointer text-blue-500 hover:text-blue-700"
-      onClick={() => IpcClient.getInstance().openExternalUrl(href)}
+      className={`${baseClasses} ${variant === "primary" ? primaryClasses : secondaryClasses}`}
+      onClick={() => ipc.system.openExternalUrl(href)}
     >
-      {children}
+      <span>{children}</span>
+      {iconElement}
     </a>
   );
 }
@@ -108,7 +212,10 @@ function ChatErrorContainer({
   children: React.ReactNode | string;
 }) {
   return (
-    <div className="relative mt-2 bg-red-50 border border-red-200 rounded-md shadow-sm p-2 mx-4">
+    <div
+      data-testid="chat-error-box"
+      className="relative mt-2 bg-red-50 border border-red-200 rounded-md shadow-sm p-2 mx-4"
+    >
       <button
         onClick={onDismiss}
         className="absolute top-2.5 left-2 p-1 hover:bg-red-100 rounded"
@@ -127,7 +234,7 @@ function ChatErrorContainer({
                     onClick={(e) => {
                       e.preventDefault();
                       if (props.href) {
-                        IpcClient.getInstance().openExternalUrl(props.href);
+                        ipc.system.openExternalUrl(props.href);
                       }
                     }}
                     className="text-blue-500 hover:text-blue-700"

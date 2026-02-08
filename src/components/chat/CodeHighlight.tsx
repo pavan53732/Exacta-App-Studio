@@ -1,16 +1,78 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  memo,
-  type ReactNode,
-} from "react";
-import { isInlineCode, useShikiHighlighter } from "react-shiki";
-import github from "@shikijs/themes/github-light-default";
-import githubDark from "@shikijs/themes/github-dark-default";
+import React, { useState, useEffect, memo, type ReactNode } from "react";
+import ShikiHighlighter, {
+  isInlineCode,
+  createHighlighterCore,
+  createJavaScriptRegexEngine,
+} from "react-shiki/core";
 import type { Element as HastElement } from "hast";
 import { useTheme } from "../../contexts/ThemeContext";
 import { Copy, Check } from "lucide-react";
+import github from "@shikijs/themes/github-light-default";
+import githubDark from "@shikijs/themes/github-dark-default";
+// common languages
+import astro from "@shikijs/langs/astro";
+import css from "@shikijs/langs/css";
+import graphql from "@shikijs/langs/graphql";
+import html from "@shikijs/langs/html";
+import java from "@shikijs/langs/java";
+import javascript from "@shikijs/langs/javascript";
+import json from "@shikijs/langs/json";
+import jsx from "@shikijs/langs/jsx";
+import less from "@shikijs/langs/less";
+import markdown from "@shikijs/langs/markdown";
+import python from "@shikijs/langs/python";
+import sass from "@shikijs/langs/sass";
+import scss from "@shikijs/langs/scss";
+import shell from "@shikijs/langs/shell";
+import sql from "@shikijs/langs/sql";
+import tsx from "@shikijs/langs/tsx";
+import typescript from "@shikijs/langs/typescript";
+import vue from "@shikijs/langs/vue";
+
+type HighlighterCore = Awaited<ReturnType<typeof createHighlighterCore>>;
+
+// Create a singleton highlighter instance
+let highlighterPromise: Promise<HighlighterCore> | null = null;
+
+function getHighlighter(): Promise<HighlighterCore> {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighterCore({
+      themes: [github, githubDark],
+      langs: [
+        astro,
+        css,
+        graphql,
+        html,
+        java,
+        javascript,
+        json,
+        jsx,
+        less,
+        markdown,
+        python,
+        sass,
+        scss,
+        shell,
+        sql,
+        tsx,
+        typescript,
+        vue,
+      ],
+      engine: createJavaScriptRegexEngine(),
+    });
+  }
+  return highlighterPromise as Promise<HighlighterCore>;
+}
+
+function useHighlighter() {
+  const [highlighter, setHighlighter] = useState<HighlighterCore>();
+
+  useEffect(() => {
+    getHighlighter().then(setHighlighter);
+  }, []);
+
+  return highlighter;
+}
 
 interface CodeHighlightProps {
   className?: string | undefined;
@@ -32,52 +94,45 @@ export const CodeHighlight = memo(
     };
 
     const { isDarkMode } = useTheme();
+    const highlighter = useHighlighter();
 
-    // Cache for the highlighted code
-    const highlightedCodeCache = useRef<ReactNode | null>(null);
-
-    // Only update the highlighted code if the inputs change
-    const highlightedCode = useShikiHighlighter(
-      code,
-      language,
-      isDarkMode ? githubDark : github,
-      {
-        delay: 150,
-      },
-    );
-
-    // Update the cache whenever we get a new highlighted code
-    useEffect(() => {
-      if (highlightedCode) {
-        highlightedCodeCache.current = highlightedCode;
-      }
-    }, [highlightedCode]);
-
-    // Use the cached version during transitions to prevent flickering
-    const displayedCode = highlightedCode || highlightedCodeCache.current;
     return !isInline ? (
       <div
         className="shiki not-prose relative [&_pre]:overflow-auto 
       [&_pre]:rounded-lg [&_pre]:px-6 [&_pre]:py-7"
       >
-        {language ? (
-          <div className="absolute top-2 left-2 right-2 text-xs flex justify-between">
-            <span className="tracking-tighter text-muted-foreground/85">
-              {language}
-            </span>
-            {code && (
-              <button
-                className="mr-2 flex items-center text-xs cursor-pointer"
-                onClick={handleCopy}
-                type="button"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                <span className="ml-1">{copied ? "Copied" : "Copy"}</span>
-              </button>
+        {code && (
+          <div className="absolute top-2 left-0 right-0 px-6 text-xs z-10 flex items-center justify-between">
+            {language && (
+              <span className="tracking-tighter text-muted-foreground/85 truncate min-w-0">
+                {language}
+              </span>
             )}
+            <button
+              className="flex items-center text-xs cursor-pointer ml-auto flex-shrink-0"
+              onClick={handleCopy}
+              type="button"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              <span className="ml-1">{copied ? "Copied" : "Copy"}</span>
+            </button>
           </div>
-        ) : null}
-        {displayedCode}
+        )}
+        {highlighter ? (
+          <ShikiHighlighter
+            highlighter={highlighter}
+            language={language}
+            theme={isDarkMode ? "github-dark-default" : "github-light-default"}
+            delay={150}
+            showLanguage={false}
+          >
+            {code}
+          </ShikiHighlighter>
+        ) : (
+          <pre>
+            <code>{code}</code>
+          </pre>
+        )}
       </div>
     ) : (
       <code className={className} {...props}>

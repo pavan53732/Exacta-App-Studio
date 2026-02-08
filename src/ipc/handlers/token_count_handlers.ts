@@ -5,23 +5,27 @@ import {
   constructSystemPrompt,
   readAiRules,
 } from "../../prompts/system_prompt";
+import { getThemePromptById } from "../utils/theme_utils";
 import {
-  SUPABASE_AVAILABLE_SYSTEM_PROMPT,
+  getSupabaseAvailableSystemPrompt,
   SUPABASE_NOT_AVAILABLE_SYSTEM_PROMPT,
 } from "../../prompts/supabase_prompt";
 import { getDyadAppPath } from "../../paths/paths";
 import log from "electron-log";
 import { extractCodebase } from "../../utils/codebase";
-import { getSupabaseContext } from "../../supabase_admin/supabase_context";
+import {
+  getSupabaseContext,
+  getSupabaseClientCode,
+} from "../../supabase_admin/supabase_context";
 
-import { TokenCountParams } from "../ipc_types";
-import { TokenCountResult } from "../ipc_types";
+import { TokenCountParams, TokenCountResult } from "@/ipc/types";
 import { estimateTokens, getContextWindow } from "../utils/token_utils";
 import { createLoggedHandler } from "./safe_handle";
 import { validateChatContext } from "../utils/context_paths_utils";
 import { readSettings } from "@/main/settings";
 import { extractMentionedAppsCodebases } from "../utils/mention_apps";
 import { parseAppMentions } from "@/shared/parse_mention_apps";
+import { isTurboEditsV2Enabled } from "@/lib/schemas";
 
 const logger = log.scope("token_count_handlers");
 
@@ -60,16 +64,29 @@ export function registerTokenCountHandlers() {
       const mentionedAppNames = parseAppMentions(req.input);
 
       // Count system prompt tokens
+      const themePrompt = await getThemePromptById(chat.app?.themeId ?? null);
       let systemPrompt = constructSystemPrompt({
         aiRules: await readAiRules(getDyadAppPath(chat.app.path)),
-        chatMode: settings.selectedChatMode,
+        chatMode:
+          settings.selectedChatMode === "agent" ||
+          settings.selectedChatMode === "local-agent"
+            ? "build"
+            : settings.selectedChatMode,
+        enableTurboEditsV2: isTurboEditsV2Enabled(settings),
+        themePrompt,
       });
       let supabaseContext = "";
 
       if (chat.app?.supabaseProjectId) {
-        systemPrompt += "\n\n" + SUPABASE_AVAILABLE_SYSTEM_PROMPT;
+        const supabaseClientCode = await getSupabaseClientCode({
+          projectId: chat.app.supabaseProjectId,
+          organizationSlug: chat.app.supabaseOrganizationSlug ?? null,
+        });
+        systemPrompt +=
+          "\n\n" + getSupabaseAvailableSystemPrompt(supabaseClientCode);
         supabaseContext = await getSupabaseContext({
           supabaseProjectId: chat.app.supabaseProjectId,
+          organizationSlug: chat.app.supabaseOrganizationSlug ?? null,
         });
       } else if (
         // Neon projects don't need Supabase.
@@ -91,10 +108,7 @@ export function registerTokenCountHandlers() {
           chatContext: validateChatContext(chat.app.chatContext),
         });
         codebaseInfo = formattedOutput;
-        if (
-          settings.enableExactaAppStudioPro &&
-          settings.enableProSmartFilesContextMode
-        ) {
+        if (settings.enableDyadPro && settings.enableProSmartFilesContextMode) {
           codebaseTokens = estimateTokens(
             files
               // It doesn't need to be the exact format but it's just to get a token estimate
@@ -142,8 +156,15 @@ export function registerTokenCountHandlers() {
         codebaseTokens +
         mentionedAppsTokens;
 
+      // Find the last assistant message since totalTokens is only set on assistant messages
+      const lastAssistantMessage = [...chat.messages]
+        .reverse()
+        .find((m) => m.role === "assistant");
+      const actualMaxTokens = lastAssistantMessage?.maxTokensUsed ?? null;
+
       return {
-        totalTokens,
+        estimatedTotalTokens: totalTokens,
+        actualMaxTokens,
         messageHistoryTokens,
         codebaseTokens,
         mentionedAppsTokens,

@@ -4,22 +4,62 @@ import { ThemeProvider } from "../contexts/ThemeContext";
 import { DeepLinkProvider } from "../contexts/DeepLinkContext";
 import { Toaster } from "sonner";
 import { TitleBar } from "./TitleBar";
-import { useEffect } from "react";
-import { useRunApp } from "@/hooks/useRunApp";
-import { useAtomValue } from "jotai";
-import { previewModeAtom } from "@/atoms/appAtoms";
+import { useEffect, type ReactNode } from "react";
+import { useRunApp, useAppOutputSubscription } from "@/hooks/useRunApp";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  appConsoleEntriesAtom,
+  previewModeAtom,
+  selectedAppIdAtom,
+} from "@/atoms/appAtoms";
+import { useSettings } from "@/hooks/useSettings";
+import type { ZoomLevel } from "@/lib/schemas";
+import { selectedComponentsPreviewAtom } from "@/atoms/previewAtoms";
+import { chatInputValueAtom } from "@/atoms/chatAtoms";
+import { usePlanEvents } from "@/hooks/usePlanEvents";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  console.log("RootLayout rendering");
-  try {
-    const { refreshAppIframe } = useRunApp();
-    console.log("useRunApp hook called successfully");
-    const previewMode = useAtomValue(previewModeAtom);
-    console.log("previewMode:", previewMode);
+const DEFAULT_ZOOM_LEVEL: ZoomLevel = "100";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  const { refreshAppIframe } = useRunApp();
+  // Subscribe to app output events once at the root level to avoid duplicates
+  useAppOutputSubscription();
+  const previewMode = useAtomValue(previewModeAtom);
+  const { settings } = useSettings();
+  const setSelectedComponentsPreview = useSetAtom(
+    selectedComponentsPreviewAtom,
+  );
+  const setChatInput = useSetAtom(chatInputValueAtom);
+  const selectedAppId = useAtomValue(selectedAppIdAtom);
+  const setConsoleEntries = useSetAtom(appConsoleEntriesAtom);
+
+  // Initialize plan events listener
+  usePlanEvents();
+
+  useEffect(() => {
+    const zoomLevel = settings?.zoomLevel ?? DEFAULT_ZOOM_LEVEL;
+    const zoomFactor = Number(zoomLevel) / 100;
+
+    const electronApi = (
+      window as Window & {
+        electron?: {
+          webFrame?: {
+            setZoomFactor: (factor: number) => void;
+          };
+        };
+      }
+    ).electron;
+
+    if (electronApi?.webFrame?.setZoomFactor) {
+      electronApi.webFrame.setZoomFactor(zoomFactor);
+
+      return () => {
+        electronApi.webFrame?.setZoomFactor(Number(DEFAULT_ZOOM_LEVEL) / 100);
+      };
+    }
+
+    return () => {};
+  }, [settings?.zoomLevel]);
   // Global keyboard listener for refresh events
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -41,7 +81,12 @@ export default function RootLayout({
     };
   }, [refreshAppIframe, previewMode]);
 
-  console.log("RootLayout about to return JSX");
+  useEffect(() => {
+    setChatInput("");
+    setSelectedComponentsPreview([]);
+    setConsoleEntries([]);
+  }, [selectedAppId]);
+
   return (
     <>
       <ThemeProvider>
@@ -49,17 +94,19 @@ export default function RootLayout({
           <SidebarProvider>
             <TitleBar />
             <AppSidebar />
-            <div className="flex h-screenish w-full overflow-x-hidden mt-12 mb-4 mr-4 border-t border-l border-border rounded-lg bg-background">
+            <div
+              id="layout-main-content-container"
+              className="flex h-screenish w-full overflow-x-hidden mt-12 mb-4 mr-4 border-t border-l border-border rounded-lg bg-background"
+            >
               {children}
             </div>
-            <Toaster richColors />
+            <Toaster
+              richColors
+              duration={settings?.isTestMode ? 500 : undefined}
+            />
           </SidebarProvider>
         </DeepLinkProvider>
       </ThemeProvider>
     </>
   );
-  } catch (error) {
-    console.error("Error in RootLayout:", error);
-    return <div>Error loading layout</div>;
-  }
 }

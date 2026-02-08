@@ -1,6 +1,14 @@
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
+import type { ModelMessage } from "ai";
+
+export const AI_MESSAGES_SDK_VERSION = "ai@v6" as const;
+
+export type AiMessagesJsonV6 = {
+  messages: ModelMessage[];
+  sdkVersion: typeof AI_MESSAGES_SDK_VERSION;
+};
 
 export const prompts = sqliteTable("prompts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -29,6 +37,14 @@ export const apps = sqliteTable("apps", {
   githubRepo: text("github_repo"),
   githubBranch: text("github_branch"),
   supabaseProjectId: text("supabase_project_id"),
+  // If supabaseProjectId is a branch, then the parent project id set.
+  // This is because there's no way to retrieve ALL the branches for ALL projects
+  // in a single API call
+  // This is only used for display purposes but is NOT used for any actual
+  // supabase management logic.
+  supabaseParentProjectId: text("supabase_parent_project_id"),
+  // Supabase organization slug for credential lookup
+  supabaseOrganizationSlug: text("supabase_organization_slug"),
   neonProjectId: text("neon_project_id"),
   neonDevelopmentBranchId: text("neon_development_branch_id"),
   neonPreviewBranchId: text("neon_preview_branch_id"),
@@ -39,6 +55,11 @@ export const apps = sqliteTable("apps", {
   installCommand: text("install_command"),
   startCommand: text("start_command"),
   chatContext: text("chat_context", { mode: "json" }),
+  isFavorite: integer("is_favorite", { mode: "boolean" })
+    .notNull()
+    .default(sql`0`),
+  // Theme ID for design system theming (null means "no theme")
+  themeId: text("theme_id"),
 });
 
 export const chats = sqliteTable("chats", {
@@ -51,6 +72,10 @@ export const chats = sqliteTable("chats", {
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
+  // Context compaction fields
+  compactedAt: integer("compacted_at", { mode: "timestamp" }),
+  compactionBackupPath: text("compaction_backup_path"),
+  pendingCompaction: integer("pending_compaction", { mode: "boolean" }),
 });
 
 export const messages = sqliteTable("messages", {
@@ -63,7 +88,25 @@ export const messages = sqliteTable("messages", {
   approvalState: text("approval_state", {
     enum: ["approved", "rejected"],
   }),
+  // The commit hash of the codebase at the time the message was created
+  sourceCommitHash: text("source_commit_hash"),
+  // The commit hash of the codebase at the time the message was sent
   commitHash: text("commit_hash"),
+  requestId: text("request_id"),
+  // Max tokens used for this message (only for assistant messages)
+  maxTokensUsed: integer("max_tokens_used"),
+  // Model name used for this message (only for assistant messages)
+  model: text("model"),
+  // AI SDK messages (v5 envelope) for preserving tool calls/results in agent mode
+  aiMessagesJson: text("ai_messages_json", {
+    mode: "json",
+  }).$type<AiMessagesJsonV6 | null>(),
+  // Track if this message used the free agent quota (for non-Pro users)
+  usingFreeAgentModeQuota: integer("using_free_agent_mode_quota", {
+    mode: "boolean",
+  }),
+  // Indicates this message is a compaction summary
+  isCompactionSummary: integer("is_compaction_summary", { mode: "boolean" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -135,7 +178,9 @@ export const language_models = sqliteTable("language_models", {
   builtinProviderId: text("builtin_provider_id"),
   customProviderId: text("custom_provider_id").references(
     () => language_model_providers.id,
-    { onDelete: "cascade" },
+    {
+      onDelete: "cascade",
+    },
   ),
   description: text("description"),
   max_output_tokens: integer("max_output_tokens"),
@@ -172,3 +217,61 @@ export const versionsRelations = relations(versions, ({ one }) => ({
     references: [apps.id],
   }),
 }));
+
+// --- MCP (Model Context Protocol) tables ---
+export const mcpServers = sqliteTable("mcp_servers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  transport: text("transport").notNull(),
+  command: text("command"),
+  // Store typed JSON for args and environment variables
+  args: text("args", { mode: "json" }).$type<string[] | null>(),
+  envJson: text("env_json", { mode: "json" }).$type<Record<
+    string,
+    string
+  > | null>(),
+  headersJson: text("headers_json", { mode: "json" }).$type<Record<
+    string,
+    string
+  > | null>(),
+  url: text("url"),
+  enabled: integer("enabled", { mode: "boolean" })
+    .notNull()
+    .default(sql`0`),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const mcpToolConsents = sqliteTable(
+  "mcp_tool_consents",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    serverId: integer("server_id")
+      .notNull()
+      .references(() => mcpServers.id, { onDelete: "cascade" }),
+    toolName: text("tool_name").notNull(),
+    consent: text("consent").notNull().default("ask"), // ask | always | denied
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [unique("uniq_mcp_consent").on(table.serverId, table.toolName)],
+);
+
+// --- Custom Themes table ---
+export const customThemes = sqliteTable("custom_themes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  prompt: text("prompt").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});

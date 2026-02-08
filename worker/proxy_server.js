@@ -12,7 +12,7 @@ const fs = require("fs");
 const path = require("path");
 
 /* ──────────────────────────── worker code ─────────────────────────────── */
-const LISTEN_HOST = "0.0.0.0";
+const LISTEN_HOST = "localhost";
 const LISTEN_PORT = workerData.port;
 let rememberedOrigin = null; // e.g. "http://localhost:5173"
 
@@ -38,6 +38,30 @@ let rememberedOrigin = null; // e.g. "http://localhost:5173"
 let stacktraceJsContent = null;
 let dyadShimContent = null;
 let dyadComponentSelectorClientContent = null;
+let dyadScreenshotClientContent = null;
+let htmlToImageContent = null;
+let dyadVisualEditorClientContent = null;
+let dyadLogsContent = null;
+
+try {
+  const htmlToImagePath = path.join(
+    __dirname,
+    "..",
+    "node_modules",
+    "html-to-image",
+    "dist",
+    "html-to-image.js",
+  );
+  htmlToImageContent = fs.readFileSync(htmlToImagePath, "utf-8");
+  parentPort?.postMessage(
+    `[proxy-worker] html-to-image.js loaded from: ${htmlToImagePath}`,
+  );
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read html-to-image.js: ${error.message}`,
+  );
+}
+
 try {
   const stackTraceLibPath = path.join(
     __dirname,
@@ -83,9 +107,79 @@ try {
   );
 }
 
+try {
+  const dyadScreenshotClientPath = path.join(
+    __dirname,
+    "dyad-screenshot-client.js",
+  );
+  dyadScreenshotClientContent = fs.readFileSync(
+    dyadScreenshotClientPath,
+    "utf-8",
+  );
+  parentPort?.postMessage("[proxy-worker] dyad-screenshot-client.js loaded.");
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read dyad-screenshot-client.js: ${error.message}`,
+  );
+}
+
+try {
+  const dyadVisualEditorClientPath = path.join(
+    __dirname,
+    "dyad-visual-editor-client.js",
+  );
+  dyadVisualEditorClientContent = fs.readFileSync(
+    dyadVisualEditorClientPath,
+    "utf-8",
+  );
+  parentPort?.postMessage(
+    "[proxy-worker] dyad-visual-editor-client.js loaded.",
+  );
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read dyad-visual-editor-client.js: ${error.message}`,
+  );
+}
+
+try {
+  const dyadLogsPath = path.join(__dirname, "dyad_logs.js");
+  dyadLogsContent = fs.readFileSync(dyadLogsPath, "utf-8");
+  parentPort?.postMessage("[proxy-worker] dyad_logs.js loaded.");
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read dyad_logs.js: ${error.message}`,
+  );
+}
+
+// Load Service Worker files
+let dyadSwContent = null;
+let dyadSwRegisterContent = null;
+
+try {
+  const dyadSwPath = path.join(__dirname, "dyad-sw.js");
+  dyadSwContent = fs.readFileSync(dyadSwPath, "utf-8");
+  parentPort?.postMessage("[proxy-worker] dyad-sw.js loaded.");
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read dyad-sw.js: ${error.message}`,
+  );
+}
+
+try {
+  const dyadSwRegisterPath = path.join(__dirname, "dyad-sw-register.js");
+  dyadSwRegisterContent = fs.readFileSync(dyadSwRegisterPath, "utf-8");
+  parentPort?.postMessage("[proxy-worker] dyad-sw-register.js loaded.");
+} catch (error) {
+  parentPort?.postMessage(
+    `[proxy-worker] Failed to read dyad-sw-register.js: ${error.message}`,
+  );
+}
+
 /* ---------------------- helper: need to inject? ------------------------ */
 function needsInjection(pathname) {
-  return pathname.endsWith("index.html") || pathname === "/";
+  // Inject for routes without a file extension (e.g., "/foo", "/foo/bar", "/")
+  const ext = path.extname(pathname).toLowerCase();
+  return ext === "" || ext === ".html";
 }
 
 function injectHTML(buf) {
@@ -122,6 +216,47 @@ function injectHTML(buf) {
       '<script>console.warn("[proxy-worker] dyad component selector client was not injected.");</script>',
     );
   }
+  if (htmlToImageContent) {
+    scripts.push(`<script>${htmlToImageContent}</script>`);
+    parentPort?.postMessage(
+      "[proxy-worker] html-to-image script injected into HTML.",
+    );
+  } else {
+    scripts.push(
+      '<script>console.error("[proxy-worker] html-to-image was not injected - library not loaded.");</script>',
+    );
+    parentPort?.postMessage(
+      "[proxy-worker] WARNING: html-to-image not injected!",
+    );
+  }
+  if (dyadScreenshotClientContent) {
+    scripts.push(`<script>${dyadScreenshotClientContent}</script>`);
+  } else {
+    scripts.push(
+      '<script>console.warn("[proxy-worker] dyad screenshot client was not injected.");</script>',
+    );
+  }
+  if (dyadVisualEditorClientContent) {
+    scripts.push(`<script>${dyadVisualEditorClientContent}</script>`);
+  } else {
+    scripts.push(
+      '<script>console.warn("[proxy-worker] dyad visual editor client was not injected.");</script>',
+    );
+  }
+  if (dyadLogsContent) {
+    scripts.push(`<script>${dyadLogsContent}</script>`);
+  } else {
+    scripts.push(
+      '<script>console.warn("[proxy-worker] dyad_logs.js was not injected.");</script>',
+    );
+  }
+  if (dyadSwRegisterContent) {
+    scripts.push(`<script>${dyadSwRegisterContent}</script>`);
+  } else {
+    scripts.push(
+      '<script>console.warn("[proxy-worker] dyad-sw-register.js was not injected.");</script>',
+    );
+  }
   const allScripts = scripts.join("\n");
 
   const headRegex = /<head[^>]*>/i;
@@ -149,50 +284,29 @@ function buildTargetURL(clientReq) {
 /* ----------------------------------------------------------------------- */
 
 const server = http.createServer((clientReq, clientRes) => {
-  parentPort?.postMessage(`[proxy] Request: ${clientReq.method} ${clientReq.url}`);
-
-  let responseSent = false; // Track if response has been initiated
-
-  // Handle preflight OPTIONS requests
-  if (clientReq.method === 'OPTIONS') {
-    clientRes.writeHead(200, {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
-      "access-control-allow-headers": "content-type, authorization, x-requested-with",
-      "access-control-max-age": "86400"
-    });
-    responseSent = true;
-    return clientRes.end();
-  }
-
-  // Health check endpoint
-  if (clientReq.url === '/proxy-health') {
-    clientRes.writeHead(200, {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "access-control-allow-headers": "*"
-    });
-    responseSent = true;
-    return clientRes.end(JSON.stringify({
-      status: "ok",
-      upstream: rememberedOrigin,
-      timestamp: new Date().toISOString()
-    }));
+  // Special handling for Service Worker file
+  if (clientReq.url === "/dyad-sw.js") {
+    if (dyadSwContent) {
+      clientRes.writeHead(200, {
+        "content-type": "application/javascript",
+        "service-worker-allowed": "/",
+        "cache-control": "no-cache",
+      });
+      clientRes.end(dyadSwContent);
+      return;
+    } else {
+      clientRes.writeHead(404, { "content-type": "text/plain" });
+      clientRes.end("Service Worker file not found");
+      return;
+    }
   }
 
   let target;
   try {
     target = buildTargetURL(clientReq);
-    parentPort?.postMessage(`[proxy] Forwarding to: ${target.href}`);
   } catch (err) {
-    parentPort?.postMessage(`[proxy] Error building target URL: ${err.message}`);
-    if (!responseSent) {
-      clientRes.writeHead(400, { "content-type": "text/plain" });
-      responseSent = true;
-      clientRes.end("Bad request: " + err.message);
-    }
-    return;
+    clientRes.writeHead(400, { "content-type": "text/plain" });
+    return void clientRes.end("Bad request: " + err.message);
   }
 
   const isTLS = target.protocol === "https:";
@@ -212,10 +326,9 @@ const server = http.createServer((clientReq, clientRes) => {
   if (needsInjection(target.pathname)) {
     // Request uncompressed content from upstream
     delete headers["accept-encoding"];
-  }
-
-  if (headers["if-none-match"] && needsInjection(target.pathname))
+    // Avoid getting cached resources.
     delete headers["if-none-match"];
+  }
 
   const upOpts = {
     protocol: target.protocol,
@@ -227,20 +340,20 @@ const server = http.createServer((clientReq, clientRes) => {
   };
 
   const upReq = lib.request(upOpts, (upRes) => {
-    parentPort?.postMessage(`[proxy] Upstream response: ${upRes.statusCode} for ${target.href}`);
-
-    const inject = needsInjection(target.pathname);
+    const wantsInjection = needsInjection(target.pathname);
+    // Only inject when upstream indicates HTML content
+    const contentTypeHeader = upRes.headers["content-type"];
+    const contentType = Array.isArray(contentTypeHeader)
+      ? contentTypeHeader[0]
+      : contentTypeHeader || "";
+    const isHtml =
+      typeof contentType === "string" &&
+      contentType.toLowerCase().includes("text/html");
+    const inject = wantsInjection && isHtml;
 
     if (!inject) {
-      // Add CORS headers to proxied responses
-      const headers = { ...upRes.headers };
-      headers['access-control-allow-origin'] = '*';
-      if (!responseSent) {
-        clientRes.writeHead(upRes.statusCode, headers);
-        responseSent = true;
-        upRes.pipe(clientRes);
-      }
-      return;
+      clientRes.writeHead(upRes.statusCode, upRes.headers);
+      return void upRes.pipe(clientRes);
     }
 
     const chunks = [];
@@ -253,84 +366,25 @@ const server = http.createServer((clientReq, clientRes) => {
         const hdrs = {
           ...upRes.headers,
           "content-length": Buffer.byteLength(patched),
-          "access-control-allow-origin": "*",
         };
         // If we injected content, it's no longer encoded in the original way
         delete hdrs["content-encoding"];
         // Also, remove ETag as content has changed
         delete hdrs["etag"];
 
-        if (!responseSent) {
-          clientRes.writeHead(upRes.statusCode, hdrs);
-          responseSent = true;
-          clientRes.end(patched);
-        }
+        clientRes.writeHead(upRes.statusCode, hdrs);
+        clientRes.end(patched);
       } catch (e) {
-        parentPort?.postMessage(`[proxy] Injection failed: ${e.message}`);
-        if (!responseSent) {
-          clientRes.writeHead(500, { "content-type": "text/plain" });
-          responseSent = true;
-          clientRes.end("Injection failed: " + e.message);
-        }
+        clientRes.writeHead(500, { "content-type": "text/plain" });
+        clientRes.end("Injection failed: " + e.message);
       }
     });
   });
 
-  // Add timeout to prevent hanging requests
-  let timeoutHandled = false;
-  upReq.setTimeout(30000, () => {
-    if (timeoutHandled) return; // Prevent multiple timeout handlers
-    timeoutHandled = true;
-    parentPort?.postMessage(`[proxy] Request timeout for ${target.href}`);
-    upReq.destroy();
-    // Prevent writing headers if response has already been sent
-    if (!responseSent) {
-      clientRes.writeHead(504, { "content-type": "text/plain" });
-      responseSent = true;
-      clientRes.end("Gateway timeout: upstream server took too long to respond");
-    }
-  });
-
   clientReq.pipe(upReq);
   upReq.on("error", (e) => {
-    parentPort?.postMessage(`[proxy] Upstream error: ${e.message} for ${target?.href || 'unknown'}`);
-    // Prevent writing headers if response has already been sent
-    if (responseSent) {
-      return;
-    }
-    // Check if this is a connection refused error (server not running on that port)
-    if (e.code === 'ECONNREFUSED') {
-      clientRes.writeHead(503, {
-        "content-type": "text/html",
-        "retry-after": "5",
-        "access-control-allow-origin": "*"
-      });
-      responseSent = true;
-      clientRes.end(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>App Not Ready</title></head>
-        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h1>🚀 App is starting up...</h1>
-          <p>The development server is still starting. Please refresh in a few seconds.</p>
-          <p><small>Upstream: ${rememberedOrigin || 'unknown'}</small></p>
-          <p><small>Error: ${e.message}</small></p>
-          <p><small>Request: ${clientReq.method} ${clientReq.url}</small></p>
-          <script>
-            // Auto-refresh after 3 seconds
-            setTimeout(() => window.location.reload(), 3000);
-          </script>
-        </body>
-        </html>
-      `);
-    } else {
-      clientRes.writeHead(502, {
-        "content-type": "text/plain",
-        "access-control-allow-origin": "*"
-      });
-      responseSent = true;
-      clientRes.end("Upstream error: " + e.message);
-    }
+    clientRes.writeHead(502, { "content-type": "text/plain" });
+    clientRes.end("Upstream error: " + e.message);
   });
 });
 
@@ -373,18 +427,7 @@ server.on("upgrade", (req, socket, _head) => {
     upSocket.pipe(socket).pipe(upSocket);
   });
 
-  upReq.on("error", (e) => {
-    parentPort?.postMessage(`[proxy] WebSocket upgrade error: ${e.message}`);
-    socket.destroy();
-  });
-
-  // Add timeout to WebSocket upgrade requests
-  upReq.setTimeout(10000, () => {
-    parentPort?.postMessage(`[proxy] WebSocket upgrade timeout for ${target.href}`);
-    upReq.destroy();
-    socket.destroy();
-  });
-
+  upReq.on("error", () => socket.destroy());
   upReq.end();
 });
 
@@ -394,5 +437,4 @@ server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   parentPort?.postMessage(
     `proxy-server-start url=http://${LISTEN_HOST}:${LISTEN_PORT}`,
   );
-  console.log(`[PROXY] Server listening on http://${LISTEN_HOST}:${LISTEN_PORT}, proxying to ${rememberedOrigin}`);
 });

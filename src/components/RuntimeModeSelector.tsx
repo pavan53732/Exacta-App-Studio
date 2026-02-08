@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
 import { showError } from "@/lib/toast";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 
 export function RuntimeModeSelector() {
   const { settings, updateSettings } = useSettings();
@@ -17,15 +17,9 @@ export function RuntimeModeSelector() {
     return null;
   }
 
-  // Apps always run in host mode now - Docker is disabled for development
+  const isDockerMode = settings?.runtimeMode2 === "docker";
+
   const handleRuntimeModeChange = async (value: "host" | "docker") => {
-    // Only allow host mode - Docker is disabled for app development
-    if (value === "docker") {
-      showError(
-        "Docker mode is disabled. Apps always run in local development mode for optimal development experience.",
-      );
-      return;
-    }
     try {
       await updateSettings({ runtimeMode2: value });
     } catch (error: any) {
@@ -42,28 +36,39 @@ export function RuntimeModeSelector() {
           </Label>
           <Select
             value={settings.runtimeMode2 ?? "host"}
-            onValueChange={handleRuntimeModeChange}
+            onValueChange={(v) => v && handleRuntimeModeChange(v)}
           >
             <SelectTrigger className="w-48" id="runtime-mode">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="host">Local (default)</SelectItem>
-              <SelectItem value="docker" disabled>
-                Docker (disabled)
-              </SelectItem>
+              <SelectItem value="docker">Docker (experimental)</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Apps always run in local development mode for optimal development
-          experience. Docker mode is disabled.
+          Choose whether to run apps directly on the local machine or in Docker
+          containers
         </div>
       </div>
-      <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-        ℹ️ Docker mode is disabled for app development. Apps run directly on
-        your local machine for the best development experience.
-      </div>
+      {isDockerMode && (
+        <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+          ⚠️ Docker mode is <b>experimental</b> and requires{" "}
+          <button
+            type="button"
+            className="underline font-medium cursor-pointer"
+            onClick={() =>
+              ipc.system.openExternalUrl(
+                "https://www.docker.com/products/docker-desktop/",
+              )
+            }
+          >
+            Docker Desktop
+          </button>{" "}
+          to be installed and running
+        </div>
+      )}
     </div>
   );
 }

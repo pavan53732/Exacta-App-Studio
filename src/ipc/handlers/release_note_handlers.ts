@@ -1,17 +1,15 @@
 import log from "electron-log";
-import { createLoggedHandler } from "./safe_handle";
-import { DoesReleaseNoteExistParams } from "../ipc_types";
+import fetch from "node-fetch";
 import { IS_TEST_BUILD } from "../utils/test_utils";
-import { apiFetch } from "../utils/api_client";
+import { createTypedHandler } from "./base";
+import { systemContracts } from "../types/system";
 
 const logger = log.scope("release_note_handlers");
 
-const handle = createLoggedHandler(logger);
-
 export function registerReleaseNoteHandlers() {
-  handle(
-    "does-release-note-exist",
-    async (_, params: DoesReleaseNoteExistParams) => {
+  createTypedHandler(
+    systemContracts.doesReleaseNoteExist,
+    async (_, params) => {
       const { version } = params;
 
       if (!version || typeof version !== "string") {
@@ -23,12 +21,12 @@ export function registerReleaseNoteHandlers() {
       if (IS_TEST_BUILD) {
         return { exists: false };
       }
-      const releaseNoteUrl = `https://www.exacta-app-studio.alitech.io/docs/releases/${version}`;
+      const releaseNoteUrl = `https://www.dyad.sh/docs/releases/${version}`;
 
       logger.debug(`Checking for release note at: ${releaseNoteUrl}`);
 
       try {
-        const response = await apiFetch(releaseNoteUrl, { method: "HEAD" }); // Use HEAD to check existence without downloading content
+        const response = await fetch(releaseNoteUrl, { method: "HEAD" }); // Use HEAD to check existence without downloading content
         if (response.ok) {
           logger.debug(
             `Release note found for version ${version} at ${releaseNoteUrl}`,

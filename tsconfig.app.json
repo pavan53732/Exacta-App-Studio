@@ -22,20 +22,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     // import
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@src/*": ["./src/*"]
+      "*": ["./*"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "e2e-tests", "shared"],
-  "exclude": [
-    "**/__tests__/*",
-    "e2e-tests/fixtures",
-    "**/*.spec.ts",
-    "**/*.spec.ts",
-    "**/*.test.ts",
-    "src/components/roocode/**/*",
-    "src/hooks/roocode/**/*"
-  ]
+  "exclude": ["e2e-tests/fixtures"]
 }

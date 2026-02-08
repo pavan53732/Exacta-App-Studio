@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import type { ReleaseChannel } from "@/lib/schemas";
 
 export function ReleaseChannelSelector() {
@@ -24,12 +24,10 @@ export function ReleaseChannelSelector() {
       toast("Using Stable release channel", {
         description:
           "You'll stay on your current version until a newer stable release is available, or you can manually downgrade now.",
-          action: {
+        action: {
           label: "Download Stable",
           onClick: () => {
-            IpcClient.getInstance().openExternalUrl(
-              "https://exacta-app-studio.alitech.io/download",
-            );
+            ipc.system.openExternalUrl("https://dyad.sh/download");
           },
         },
       });
@@ -40,7 +38,7 @@ export function ReleaseChannelSelector() {
         action: {
           label: "Restart Dyad",
           onClick: () => {
-            IpcClient.getInstance().restartDyad();
+            ipc.system.restartDyad();
           },
         },
       });
@@ -58,7 +56,7 @@ export function ReleaseChannelSelector() {
         </label>
         <Select
           value={settings.releaseChannel}
-          onValueChange={handleReleaseChannelChange}
+          onValueChange={(v) => v && handleReleaseChannelChange(v)}
         >
           <SelectTrigger className="w-32" id="release-channel">
             <SelectValue />

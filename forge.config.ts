@@ -1,11 +1,16 @@
+import { windowsSign } from "./windowsSign";
 import type { ForgeConfig } from "@electron-forge/shared-types";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
+import { MakerAppImage } from "./makers/MakerAppImage";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
+
+console.log("AZURE_CODE_SIGNING_DLIB", process.env.AZURE_CODE_SIGNING_DLIB);
 
 // Based on https://github.com/electron/forge/blob/6b2d547a7216c30fde1e1fddd1118eee5d872945/packages/plugin/vite/src/VitePlugin.ts#L124
 const ignore = (file: string) => {
@@ -22,17 +27,16 @@ const ignore = (file: string) => {
     return false;
   }
 
-  if (file.startsWith("/workers")) {
-    return false;
-  }
-  // Keep worker directory in ASAR but unpack it
-  if (file.startsWith("/worker")) {
+  if (file.startsWith("/worker") && !file.startsWith("/workers")) {
     return false;
   }
   if (file.startsWith("/node_modules/stacktrace-js")) {
     return false;
   }
   if (file.startsWith("/node_modules/stacktrace-js/dist")) {
+    return false;
+  }
+  if (file.startsWith("/node_modules/html-to-image")) {
     return false;
   }
   if (file.startsWith("/node_modules/better-sqlite3")) {
@@ -52,23 +56,47 @@ const ignore = (file: string) => {
 };
 
 const isEndToEndTestBuild = process.env.E2E_TEST_BUILD === "true";
+const isWindowsSigningEnabled = process.env.WINDOWS_SIGN === "true";
+
+if (isWindowsSigningEnabled && !process.env.AZURE_CODE_SIGNING_DLIB) {
+  throw new Error(
+    "WINDOWS_SIGN is enabled but AZURE_CODE_SIGNING_DLIB is not set. " +
+      "Ensure Azure Trusted Signing tools are installed.",
+  );
+}
 
 const config: ForgeConfig = {
   packagerConfig: {
+    windowsSign: isWindowsSigningEnabled ? windowsSign : undefined,
     protocols: [
       {
-        name: "Exacta-App-Studio",
+        name: "Dyad",
         schemes: ["dyad"],
       },
     ],
     icon: "./assets/icon/logo",
 
-    executableName: "exacta-app-studio",
-
-    osxSign: undefined, // Temporarily disable signing for development build
-    osxNotarize: false, // Temporarily disable notarization for development build
+    osxSign: isEndToEndTestBuild
+      ? undefined
+      : ({
+          identity: process.env.APPLE_TEAM_ID,
+          // Surface the actual signing error instead of silently continuing
+          // (@electron/packager defaults continueOnError to true, which masks failures)
+          continueOnError: false,
+          // Skip provisioning profile search (not needed for Developer ID distribution,
+          // and the cwd scan crashes on broken symlinks like CLAUDE.md)
+          preEmbedProvisioningProfile: false,
+        } as Record<string, unknown>),
+    osxNotarize: isEndToEndTestBuild
+      ? undefined
+      : {
+          appleId: process.env.APPLE_ID!,
+          appleIdPassword: process.env.APPLE_PASSWORD!,
+          teamId: process.env.APPLE_TEAM_ID!,
+        },
     asar: true,
     ignore,
+    extraResource: ["node_modules/dugite/git", "node_modules/@vscode"],
     // ignore: [/node_modules\/(?!(better-sqlite3|bindings|file-uri-to-path)\/)/],
   },
   rebuildConfig: {
@@ -76,13 +104,35 @@ const config: ForgeConfig = {
     force: true,
   },
   makers: [
+    new MakerSquirrel(
+      // @ts-expect-error - incorrect types exported by MakerSquirrel
+      isWindowsSigningEnabled
+        ? {
+            windowsSign,
+            iconUrl:
+              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
+            setupIcon: "./assets/icon/logo.ico",
+          }
+        : {
+            iconUrl:
+              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
+            setupIcon: "./assets/icon/logo.ico",
+          },
+    ),
     new MakerZIP({}, ["darwin"]),
-    new MakerZIP({}, ["win32"]),
-    new MakerRpm({}),
+    new MakerRpm({
+      options: {
+        icon: "./assets/icon/logo.png",
+      },
+    }),
     new MakerDeb({
       options: {
         mimeType: ["x-scheme-handler/dyad"],
+        icon: "./assets/icon/logo.png",
       },
+    }),
+    new MakerAppImage({
+      icon: "./assets/icon/logo.png",
     }),
   ],
   publishers: [
@@ -90,8 +140,8 @@ const config: ForgeConfig = {
       name: "@electron-forge/publisher-github",
       config: {
         repository: {
-          owner: "SFARPak",
-          name: "Exacta-App-Studio",
+          owner: "dyad-sh",
+          name: "dyad",
         },
         draft: true,
         force: true,

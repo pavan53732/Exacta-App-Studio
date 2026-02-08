@@ -1,6 +1,6 @@
 import { createLoggedHandler } from "./safe_handle";
 import log from "electron-log";
-import { AppUpgrade } from "../ipc_types";
+import { AppUpgrade } from "@/ipc/types";
 import { db } from "../../db";
 import { apps } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -19,17 +19,15 @@ const availableUpgrades: Omit<AppUpgrade, "isNeeded">[] = [
     id: "component-tagger",
     title: "Enable select component to edit",
     description:
-      "Installs the Exacta-App-Studio component tagger Vite plugin and its dependencies.",
-    manualUpgradeUrl:
-      "https://www.exacta-app-studio.alitech.io/docs/upgrades/select-component",
+      "Installs the Dyad component tagger Vite plugin and its dependencies.",
+    manualUpgradeUrl: "https://dyad.sh/docs/upgrades/select-component",
   },
   {
     id: "capacitor",
     title: "Upgrade to hybrid mobile app with Capacitor",
     description:
       "Adds Capacitor to your app lets it run on iOS and Android in addition to the web.",
-    manualUpgradeUrl:
-      "https://www.exacta-app-studio.alitech.io/docs/guides/mobile-app#upgrade-your-app",
+    manualUpgradeUrl: "https://dyad.sh/docs/guides/mobile-app#upgrade-your-app",
   },
 ];
 
@@ -65,7 +63,7 @@ function isComponentTaggerUpgradeNeeded(appPath: string): boolean {
 
   try {
     const viteConfigContent = fs.readFileSync(viteConfigPath, "utf-8");
-    return !viteConfigContent.includes("@SFARPak/react-vite-component-tagger");
+    return !viteConfigContent.includes("@dyad-sh/react-vite-component-tagger");
   } catch (e) {
     logger.error("Error reading vite config", e);
     return false;
@@ -113,7 +111,7 @@ async function applyComponentTagger(appPath: string) {
   // Add import statement if not present
   if (
     !content.includes(
-      "import dyadComponentTagger from '@SFARPak/react-vite-component-tagger';",
+      "import dyadComponentTagger from '@dyad-sh/react-vite-component-tagger';",
     )
   ) {
     // Add it after the last import statement
@@ -128,7 +126,7 @@ async function applyComponentTagger(appPath: string) {
     lines.splice(
       lastImportIndex + 1,
       0,
-      "import dyadComponentTagger from '@SFARPak/react-vite-component-tagger';",
+      "import dyadComponentTagger from '@dyad-sh/react-vite-component-tagger';",
     );
     content = lines.join("\n");
   }
@@ -153,7 +151,7 @@ async function applyComponentTagger(appPath: string) {
   await new Promise<void>((resolve, reject) => {
     logger.info("Installing component-tagger dependency");
     const process = spawn(
-      "pnpm add -D @SFARPak/react-vite-component-tagger || npm install --save-dev --legacy-peer-deps @SFARPak/react-vite-component-tagger",
+      "pnpm add -D @dyad-sh/react-vite-component-tagger || npm install --save-dev --legacy-peer-deps @dyad-sh/react-vite-component-tagger",
       {
         cwd: appPath,
         shell: true,
@@ -169,10 +167,8 @@ async function applyComponentTagger(appPath: string) {
         logger.info("component-tagger dependency installed successfully");
         resolve();
       } else {
-        logger.warn(
-          `Failed to install component-tagger dependency (exit code ${code}). Continuing without it.`,
-        );
-        resolve(); // Don't fail the upgrade, just continue without the package
+        logger.error(`Failed to install dependency, exit code ${code}`);
+        reject(new Error("Failed to install dependency"));
       }
     });
 
@@ -188,7 +184,7 @@ async function applyComponentTagger(appPath: string) {
     await gitAddAll({ path: appPath });
     await gitCommit({
       path: appPath,
-      message: "[exacta-app-studio] add Exacta-App-Studio component tagger",
+      message: "[dyad] add Dyad component tagger",
     });
     logger.info("Successfully committed changes");
   } catch (err) {
@@ -209,7 +205,7 @@ async function applyCapacitor({
   // Install Capacitor dependencies
   await simpleSpawn({
     command:
-      "pnpm add @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android || npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android --legacy-peer-deps",
+      "pnpm add @capacitor/core@7.4.4 @capacitor/cli@7.4.4 @capacitor/ios@7.4.4 @capacitor/android@7.4.4 || npm install @capacitor/core@7.4.4 @capacitor/cli@7.4.4 @capacitor/ios@7.4.4 @capacitor/android@7.4.4 --legacy-peer-deps",
     cwd: appPath,
     successMessage: "Capacitor dependencies installed successfully",
     errorPrefix: "Failed to install Capacitor dependencies",
@@ -237,7 +233,7 @@ async function applyCapacitor({
     await gitAddAll({ path: appPath });
     await gitCommit({
       path: appPath,
-      message: "[exacta-app-studio] add Capacitor for mobile app support",
+      message: "[dyad] add Capacitor for mobile app support",
     });
     logger.info("Successfully committed Capacitor changes");
   } catch (err) {

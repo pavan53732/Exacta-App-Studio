@@ -1,6 +1,6 @@
 import { readSettings, writeSettings } from "./settings";
 
-export function handleExactaAppStudioProReturn({ apiKey }: { apiKey: string }) {
+export function handleDyadProReturn({ apiKey }: { apiKey: string }) {
   const settings = readSettings();
   writeSettings({
     providerSettings: {
@@ -12,6 +12,12 @@ export function handleExactaAppStudioProReturn({ apiKey }: { apiKey: string }) {
         },
       },
     },
-    enableExactaAppStudioPro: true,
+    enableDyadPro: true,
+    // Switch to local-agent mode and auto model for a good default experience
+    selectedChatMode: "local-agent",
+    selectedModel: {
+      name: "auto",
+      provider: "auto",
+    },
   });
 }

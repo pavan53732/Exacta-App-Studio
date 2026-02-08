@@ -2,7 +2,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 
 export function AutoUpdateSwitch() {
   const { settings, updateSettings } = useSettings();
@@ -15,6 +15,7 @@ export function AutoUpdateSwitch() {
     <div className="flex items-center space-x-2">
       <Switch
         id="enable-auto-update"
+        aria-label="Auto-update"
         checked={settings.enableAutoUpdate}
         onCheckedChange={(checked) => {
           updateSettings({ enableAutoUpdate: checked });
@@ -24,7 +25,7 @@ export function AutoUpdateSwitch() {
             action: {
               label: "Restart Dyad",
               onClick: () => {
-                IpcClient.getInstance().restartDyad();
+                ipc.system.restartDyad();
               },
             },
           });

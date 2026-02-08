@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, Menu } from "electron";
 import * as path from "node:path";
 import { registerIpcHandlers } from "./ipc/ipc_host";
 import dotenv from "dotenv";
@@ -12,13 +12,26 @@ import {
   writeSettings,
 } from "./main/settings";
 import { handleSupabaseOAuthReturn } from "./supabase_admin/supabase_return_handler";
-import { handleExactaAppStudioProReturn } from "./main/pro";
+import { handleDyadProReturn } from "./main/pro";
 import { IS_TEST_BUILD } from "./ipc/utils/test_utils";
 import { BackupManager } from "./backup_manager";
 import { getDatabasePath, initializeDatabase } from "./db";
 import { UserSettings } from "./lib/schemas";
 import { handleNeonOAuthReturn } from "./neon_admin/neon_return_handler";
-import { handleRooCodeAuthCallback } from "./ipc/handlers/roocode_auth_handlers";
+import {
+  AddMcpServerConfigSchema,
+  AddMcpServerPayload,
+  AddPromptDataSchema,
+  AddPromptPayload,
+} from "./ipc/deep_link_data";
+import {
+  startPerformanceMonitoring,
+  stopPerformanceMonitoring,
+} from "./utils/performance_monitor";
+import { cleanupOldAiMessagesJson } from "./pro/main/ipc/handlers/local_agent/ai_messages_cleanup";
+import fs from "fs";
+import { gitAddSafeDirectory } from "./ipc/utils/git_utils";
+import { getDyadAppsBaseDirectory } from "./paths/paths";
 
 log.errorHandler.startCatching();
 log.eventLogger.startLogging();
@@ -37,15 +50,31 @@ if (started) {
   app.quit();
 }
 
+// Decide the git directory depending on environment
+function resolveLocalGitDirectory() {
+  if (!app.isPackaged) {
+    // Dev: app.getAppPath() is the project root
+    return path.join(app.getAppPath(), "node_modules/dugite/git");
+  }
+
+  // Packaged app: git is bundled via extraResource
+  return path.join(process.resourcesPath, "git");
+}
+
+const gitDir = resolveLocalGitDirectory();
+if (fs.existsSync(gitDir)) {
+  process.env.LOCAL_GIT_DIRECTORY = gitDir;
+}
+
 // https://www.electronjs.org/docs/latest/tutorial/launch-app-from-url-in-another-app#main-process-mainjs
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient("exacta-app-studio", process.execPath, [
+    app.setAsDefaultProtocolClient("dyad", process.execPath, [
       path.resolve(process.argv[1]),
     ]);
   }
 } else {
-  app.setAsDefaultProtocolClient("exacta-app-studio");
+  app.setAsDefaultProtocolClient("dyad");
 }
 
 export async function onReady() {
@@ -59,9 +88,41 @@ export async function onReady() {
     logger.error("Error initializing backup manager", e);
   }
   initializeDatabase();
+
+  // Cleanup old ai_messages_json entries to prevent database bloat
+  cleanupOldAiMessagesJson();
+
   const settings = readSettings();
+
+  // Add dyad-apps directory to git safe.directory (required for Windows).
+  // The trailing /* allows access to all repositories under the named directory.
+  // See: https://git-scm.com/docs/git-config#Documentation/git-config.txt-safedirectory
+  if (settings.enableNativeGit) {
+    // Don't need to await because this only needs to run before
+    // the user starts interacting with Dyad app and uses a git-related feature.
+    gitAddSafeDirectory(`${getDyadAppsBaseDirectory()}/*`);
+  }
+
+  // Check if app was force-closed
+  if (settings.isRunning) {
+    logger.warn("App was force-closed on previous run");
+
+    // Store performance data to send after window is created
+    if (settings.lastKnownPerformance) {
+      logger.warn("Last known performance:", settings.lastKnownPerformance);
+      pendingForceCloseData = settings.lastKnownPerformance;
+    }
+  }
+
+  // Set isRunning to true at startup
+  writeSettings({ isRunning: true });
+
+  // Start performance monitoring
+  startPerformanceMonitoring();
+
   await onFirstRunMaybe(settings);
-  await createWindow();
+  createWindow();
+  createApplicationMenu();
 
   logger.info("Auto-update enabled=", settings.enableAutoUpdate);
   if (settings.enableAutoUpdate) {
@@ -69,13 +130,13 @@ export async function onReady() {
     // but this is more explicit and falls back to stable if there's an unknown
     // release channel.
     const postfix = settings.releaseChannel === "beta" ? "beta" : "stable";
-    const host = `https://api.exacta-app-studio.alitech.io/v1/update/${postfix}`;
+    const host = `https://api.dyad.sh/v1/update/${postfix}`;
     logger.info("Auto-update release channel=", postfix);
     updateElectronApp({
       logger,
       updateSource: {
         type: UpdateSourceType.ElectronPublicUpdateService,
-        repo: "SFARPak/Exacta-App-Studio",
+        repo: "dyad-sh/dyad",
         host,
       },
     }); // additional configuration options available
@@ -129,9 +190,9 @@ declare global {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let pendingDeepLink: string | null = null;
+let pendingForceCloseData: any = null;
 
-const createWindow = async () => {
+const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: process.env.NODE_ENV === "development" ? 1280 : 960,
@@ -150,6 +211,7 @@ const createWindow = async () => {
       preload: path.join(__dirname, "preload.js"),
       // transparent: true,
     },
+    icon: path.join(app.getAppPath(), "assets/icon/logo.png"),
     // backgroundColor: "#00000001",
     // frame: false,
   });
@@ -166,45 +228,192 @@ const createWindow = async () => {
     mainWindow.webContents.openDevTools();
   }
 
-  // Process any pending deep link after window is created
-  if (pendingDeepLink) {
-    await handleDeepLinkReturn(pendingDeepLink);
-    pendingDeepLink = null;
+  // Send force-close event if it was detected
+  if (pendingForceCloseData) {
+    mainWindow.webContents.once("did-finish-load", () => {
+      mainWindow?.webContents.send("force-close-detected", {
+        performanceData: pendingForceCloseData,
+      });
+      pendingForceCloseData = null;
+    });
   }
+
+  // Enable native context menu on right-click
+  mainWindow.webContents.on("context-menu", (event, params) => {
+    // Prevent any default behavior and show our own menu
+    event.preventDefault();
+
+    const template: Electron.MenuItemConstructorOptions[] = [];
+    if (params.isEditable) {
+      template.push(
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "delete" },
+      );
+      if (params.misspelledWord) {
+        const suggestions: Electron.MenuItemConstructorOptions[] =
+          params.dictionarySuggestions.slice(0, 5).map((suggestion) => ({
+            label: suggestion,
+            click: () => {
+              try {
+                mainWindow?.webContents.replaceMisspelling(suggestion);
+              } catch (error) {
+                logger.error("Failed to replace misspelling:", error);
+              }
+            },
+          }));
+        template.push(
+          { type: "separator" },
+          {
+            type: "submenu",
+            label: `Correct "${params.misspelledWord}"`,
+            submenu: suggestions,
+          },
+        );
+      }
+      template.push({ type: "separator" }, { role: "selectAll" });
+    } else {
+      if (params.selectionText && params.selectionText.length > 0) {
+        template.push({ role: "copy" });
+      }
+      template.push({ role: "selectAll" });
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      template.push(
+        { type: "separator" },
+        {
+          label: "Inspect Element",
+          click: () =>
+            mainWindow?.webContents.inspectElement(params.x, params.y),
+        },
+      );
+    }
+
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup({ window: mainWindow! });
+  });
 };
 
-const gotTheLock = app.requestSingleInstanceLock();
+/**
+ * Create application menu with Edit shortcuts (Undo, Redo, Cut, Copy, Paste, etc.)
+ * This enables standard keyboard shortcuts like Cmd/Ctrl+C, Cmd/Ctrl+V, etc.
+ */
+const createApplicationMenu = () => {
+  const isMac = process.platform === "darwin";
 
-if (!gotTheLock) {
-  app.quit();
-} else {
-  app.on("second-instance", async (_event, commandLine, _workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
-      // the commandLine is array of strings in which last element is deep link url
-      await handleDeepLinkReturn(commandLine.pop()!);
-    } else {
-      // Store the deep link to be processed when window is created
-      pendingDeepLink = commandLine.pop()!;
-    }
-  });
+  const template: Electron.MenuItemConstructorOptions[] = [
+    // App menu (macOS only)
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" as const },
+              { type: "separator" as const },
+              { role: "services" as const },
+              { type: "separator" as const },
+              { role: "hide" as const },
+              { role: "hideOthers" as const },
+              { role: "unhide" as const },
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]
+      : []),
+    // Edit menu - enables keyboard shortcuts for clipboard operations
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" as const },
+        { role: "redo" as const },
+        { type: "separator" as const },
+        { role: "cut" as const },
+        { role: "copy" as const },
+        { role: "paste" as const },
+        { role: "delete" as const },
+        { type: "separator" as const },
+        { role: "selectAll" as const },
+      ],
+    },
+    // View menu
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" as const },
+        { role: "forceReload" as const },
+        ...(process.env.NODE_ENV === "development"
+          ? [{ role: "toggleDevTools" as const }]
+          : []),
+        { type: "separator" as const },
+        { role: "resetZoom" as const },
+        { role: "zoomIn" as const },
+        { role: "zoomOut" as const },
+        { type: "separator" as const },
+        { role: "togglefullscreen" as const },
+      ],
+    },
+    // Window menu
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" as const },
+        { role: "zoom" as const },
+        ...(isMac
+          ? [
+              { type: "separator" as const },
+              { role: "front" as const },
+              { type: "separator" as const },
+              { role: "window" as const },
+            ]
+          : [{ role: "close" as const }]),
+      ],
+    },
+  ];
+
+  const appMenu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(appMenu);
+};
+
+// Skip singleton lock for E2E test builds to allow parallel test execution.
+// Deep link handling still works via the 'open-url' event registered below.
+// The 'second-instance' handler is intentionally omitted since it requires the singleton lock.
+if (IS_TEST_BUILD) {
   app.whenReady().then(onReady);
+} else {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    app.quit();
+  } else {
+    app.on("second-instance", (_event, commandLine, _workingDirectory) => {
+      // Someone tried to run a second instance, we should focus our window.
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+      // the commandLine is array of strings in which last element is deep link url
+      const url = commandLine.at(-1);
+      if (url) {
+        handleDeepLinkReturn(url);
+      }
+    });
+    app.whenReady().then(onReady);
+  }
 }
 
 // Handle the protocol. In this case, we choose to show an Error Box.
-app.on("open-url", async (event, url) => {
-  if (mainWindow) {
-    await handleDeepLinkReturn(url);
-  } else {
-    // Store the deep link to be processed when window is created
-    pendingDeepLink = url;
-  }
+app.on("open-url", (event, url) => {
+  handleDeepLinkReturn(url);
 });
 
 async function handleDeepLinkReturn(url: string) {
-  // example url: "exacta-app-studio://supabase-oauth-return?token=a&refreshToken=b"
+  // example url: "dyad://supabase-oauth-return?token=a&refreshToken=b"
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -220,10 +429,10 @@ async function handleDeepLinkReturn(url: string) {
     "hostname",
     parsed.hostname,
   );
-  if (parsed.protocol !== "exacta-app-studio:") {
+  if (parsed.protocol !== "dyad:") {
     dialog.showErrorBox(
       "Invalid Protocol",
-      `Expected exacta-app-studio://, got ${parsed.protocol}. Full URL: ${url}`,
+      `Expected dyad://, got ${parsed.protocol}. Full URL: ${url}`,
     );
     return;
   }
@@ -256,21 +465,21 @@ async function handleDeepLinkReturn(url: string) {
       );
       return;
     }
-    handleSupabaseOAuthReturn({ token, refreshToken, expiresIn });
+    await handleSupabaseOAuthReturn({ token, refreshToken, expiresIn });
     // Send message to renderer to trigger re-render
     mainWindow?.webContents.send("deep-link-received", {
       type: parsed.hostname,
     });
     return;
   }
-  // exacta-app-studio://exacta-app-studio-pro-return?key=123&budget_reset_at=2025-05-26T16:31:13.492000Z&max_budget=100
-  if (parsed.hostname === "exacta-app-studio-pro-return") {
+  // dyad://dyad-pro-return?key=123&budget_reset_at=2025-05-26T16:31:13.492000Z&max_budget=100
+  if (parsed.hostname === "dyad-pro-return") {
     const apiKey = parsed.searchParams.get("key");
     if (!apiKey) {
       dialog.showErrorBox("Invalid URL", "Expected key");
       return;
     }
-    handleExactaAppStudioProReturn({
+    handleDyadProReturn({
       apiKey,
     });
     // Send message to renderer to trigger re-render
@@ -279,32 +488,58 @@ async function handleDeepLinkReturn(url: string) {
     });
     return;
   }
-  // exacta-app-studio://roocode-auth?code=...&state=...
-  if (parsed.hostname === "roocode-auth") {
-    const code = parsed.searchParams.get("code");
-    const state = parsed.searchParams.get("state");
-    if (!code || !state) {
-      dialog.showErrorBox("Invalid URL", "Expected code and state parameters");
+  // dyad://add-mcp-server?name=Chrome%20DevTools&config=eyJjb21tYW5kIjpudWxsLCJ0eXBlIjoic3RkaW8ifQ%3D%3D
+  if (parsed.hostname === "add-mcp-server") {
+    const name = parsed.searchParams.get("name");
+    const config = parsed.searchParams.get("config");
+    if (!name || !config) {
+      dialog.showErrorBox("Invalid URL", "Expected name and config");
       return;
     }
+
     try {
-      await handleRooCodeAuthCallback(code, state);
-      // Send message to renderer to trigger re-render
+      const decodedConfigJson = atob(config);
+      const decodedConfig = JSON.parse(decodedConfigJson);
+      const parsedConfig = AddMcpServerConfigSchema.parse(decodedConfig);
+
       mainWindow?.webContents.send("deep-link-received", {
         type: parsed.hostname,
-        code,
-        state,
+        payload: {
+          name,
+          config: parsedConfig,
+        } as AddMcpServerPayload,
       });
-      // Focus the main window to bring app to front after authentication
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
-        mainWindow.show();
-      }
-    } catch (error: any) {
+    } catch (error) {
+      logger.error("Failed to parse add-mcp-server deep link:", error);
       dialog.showErrorBox(
-        "Authentication Error",
-        `Failed to complete Roo Code authentication: ${error.message}`,
+        "Invalid MCP Server Configuration",
+        "The deep link contains malformed configuration data. Please check the URL and try again.",
+      );
+    }
+    return;
+  }
+  // dyad://add-prompt?data=<base64-encoded-json>
+  if (parsed.hostname === "add-prompt") {
+    const data = parsed.searchParams.get("data");
+    if (!data) {
+      dialog.showErrorBox("Invalid URL", "Expected data parameter");
+      return;
+    }
+
+    try {
+      const decodedJson = atob(data);
+      const decoded = JSON.parse(decodedJson);
+      const parsedData = AddPromptDataSchema.parse(decoded);
+
+      mainWindow?.webContents.send("deep-link-received", {
+        type: parsed.hostname,
+        payload: parsedData as AddPromptPayload,
+      });
+    } catch (error) {
+      logger.error("Failed to parse add-prompt deep link:", error);
+      dialog.showErrorBox(
+        "Invalid Prompt Data",
+        "The deep link contains malformed data. Please check the URL and try again.",
       );
     }
     return;
@@ -321,11 +556,21 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("activate", async () => {
+// Only set isRunning to false when the app is properly quit by the user
+app.on("will-quit", () => {
+  logger.info("App is quitting, setting isRunning to false");
+
+  // Stop performance monitoring and capture final metrics
+  stopPerformanceMonitoring();
+
+  writeSettings({ isRunning: false });
+});
+
+app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    await createWindow();
+    createWindow();
   }
 });
 

@@ -18,6 +18,7 @@ import {
   getDyadAddDependencyTags,
   getDyadChatSummaryTag,
   getDyadCommandTags,
+  getDyadSearchReplaceTags,
 } from "../utils/dyad_tag_parser";
 import log from "electron-log";
 import { isServerFunction } from "../../supabase_admin/supabase_utils";
@@ -30,7 +31,7 @@ import { extractCodebase } from "../../utils/codebase";
 import { getDyadAppPath } from "../../paths/paths";
 import { withLock } from "../utils/lock_utils";
 import { createLoggedHandler } from "./safe_handle";
-import { ApproveProposalResult } from "../ipc_types";
+import { ApproveProposalResult } from "@/ipc/types";
 import { validateChatContext } from "../utils/context_paths_utils";
 import { readSettings } from "@/main/settings";
 
@@ -153,19 +154,23 @@ const getProposalHandler = async (
         const proposalTitle = getDyadChatSummaryTag(messageContent);
 
         const proposalWriteFiles = getDyadWriteTags(messageContent);
+        const proposalSearchReplaceFiles =
+          getDyadSearchReplaceTags(messageContent);
         const proposalRenameFiles = getDyadRenameTags(messageContent);
         const proposalDeleteFiles = getDyadDeleteTags(messageContent);
         const proposalExecuteSqlQueries = getDyadExecuteSqlTags(messageContent);
         const packagesAdded = getDyadAddDependencyTags(messageContent);
 
         const filesChanged = [
-          ...proposalWriteFiles.map((tag) => ({
-            name: path.basename(tag.path),
-            path: tag.path,
-            summary: tag.description ?? "(no change summary found)", // Generic summary
-            type: "write" as const,
-            isServerFunction: isServerFunction(tag.path),
-          })),
+          ...proposalWriteFiles
+            .concat(proposalSearchReplaceFiles)
+            .map((tag) => ({
+              name: path.basename(tag.path),
+              path: tag.path,
+              summary: tag.description ?? "(no change summary found)", // Generic summary
+              type: "write" as const,
+              isServerFunction: isServerFunction(tag.path),
+            })),
           ...proposalRenameFiles.map((tag) => ({
             name: path.basename(tag.to),
             path: tag.to,
@@ -293,9 +298,7 @@ const getProposalHandler = async (
         const totalTokens = messagesTokenCount + codebaseTokenCount;
         const contextWindow = Math.min(await getContextWindow(), 100_000);
         logger.log(
-          `Token usage: ${totalTokens}/${contextWindow} (${
-            (totalTokens / contextWindow) * 100
-          }%)`,
+          `Token usage: ${totalTokens}/${contextWindow} (${(totalTokens / contextWindow) * 100}%)`,
         );
 
         // If we're using more than 80% of the context window, suggest summarizing
@@ -376,6 +379,7 @@ const approveProposalHandler = async (
   }
 
   return {
+    success: true,
     extraFiles: processResult.extraFiles,
     extraFilesError: processResult.extraFilesError,
   };

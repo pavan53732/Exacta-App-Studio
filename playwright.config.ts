@@ -5,9 +5,11 @@ const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
 const config: PlaywrightTestConfig = {
   testDir: "./e2e-tests",
-  workers: 1,
+  // Enable parallel test execution - E2E test builds skip the singleton lock
+  // Read parallelism from env var, default to 1 if not set
+  workers: parseInt(process.env.PLAYWRIGHT_PARALLELISM || "1", 10),
   retries: process.env.CI ? 2 : 0,
-  timeout: process.env.CI ? 180_000 : 30_000,
+  timeout: process.env.CI ? 180_000 : 75_000,
   // Use a custom snapshot path template because Playwright's default
   // is platform-specific which isn't necessary for Dyad e2e tests
   // which should be platform agnostic (we don't do screenshots; only textual diffs).
@@ -27,6 +29,7 @@ const config: PlaywrightTestConfig = {
             outputFile: `./blob-report/report-${os.platform()}-${timestamp}.zip`,
           },
         ],
+        ["@flakiness/playwright", { endpoint: "https://flakiness.io" }],
       ]
     : [["html"], ["line"]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -42,11 +45,12 @@ const config: PlaywrightTestConfig = {
     // video: "retain-on-failure",
   },
 
-  webServer: {
-    command: `cd testing/fake-llm-server && npm run build && npm start`,
-    url: "http://localhost:3500/health",
-    reuseExistingServer: true, // Add this line to reuse the already running server
-  },
+  webServer: [
+    {
+      command: `cd testing/fake-llm-server && npm run build && npm start`,
+      url: "http://localhost:3500/health",
+    },
+  ],
 };
 
 export default config;

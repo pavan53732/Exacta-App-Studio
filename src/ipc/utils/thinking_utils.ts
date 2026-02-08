@@ -24,9 +24,17 @@ export function getExtraProviderOptions(
     return {};
   }
   if (providerId === "openai") {
-    return {
-      reasoning_effort: "medium",
-    };
+    if (settings.selectedChatMode === "local-agent") {
+      return {
+        reasoning: {
+          summary: "detailed",
+          effort: "medium",
+        },
+        include: ["reasoning.encrypted_content"],
+        store: false,
+      };
+    }
+    return { reasoning_effort: "medium" };
   }
   if (PROVIDERS_THAT_SUPPORT_THINKING.includes(providerId)) {
     const budgetTokens = getThinkingBudgetTokens(settings?.thinkingBudget);

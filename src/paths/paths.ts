@@ -2,23 +2,25 @@ import path from "node:path";
 import os from "node:os";
 import { IS_TEST_BUILD } from "../ipc/utils/test_utils";
 
-export function getExactaAppStudioAppPath(appPath: string): string {
-  const electron = getElectron();
-  if (electron) {
-    // In Electron environment (including release mode), use userData directory
-    // to ensure writability and avoid read-only installation directories
-    return path.join(
-      electron.app.getPath("userData"),
-      "exacta-app-studio-apps",
-      appPath,
-    );
+/**
+ * Gets the base dyad-apps directory path (without a specific app subdirectory)
+ */
+export function getDyadAppsBaseDirectory(): string {
+  if (IS_TEST_BUILD) {
+    const electron = getElectron();
+    return path.join(electron!.app.getPath("userData"), "dyad-apps");
   }
-  // Fallback for non-Electron environments
-  return path.join(os.homedir(), "exacta-app-studio-apps", appPath);
+  return path.join(os.homedir(), "dyad-apps");
 }
 
-// Backward compatibility alias
-export const getDyadAppPath = getExactaAppStudioAppPath;
+export function getDyadAppPath(appPath: string): string {
+  // If appPath is already absolute, use it as-is
+  if (path.isAbsolute(appPath)) {
+    return appPath;
+  }
+  // Otherwise, use the default base path
+  return path.join(getDyadAppsBaseDirectory(), appPath);
+}
 
 export function getTypeScriptCachePath(): string {
   const electron = getElectron();

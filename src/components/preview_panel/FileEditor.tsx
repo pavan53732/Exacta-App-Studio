@@ -3,21 +3,25 @@ import Editor, { OnMount } from "@monaco-editor/react";
 import { useLoadAppFile } from "@/hooks/useLoadAppFile";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ChevronRight, Circle, Save } from "lucide-react";
-import { IpcClient } from "@/ipc/ipc_client";
+import "@/components/chat/monaco";
+import { ipc } from "@/ipc/types";
 import { showError, showSuccess, showWarning } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/useSettings";
 import { useCheckProblems } from "@/hooks/useCheckProblems";
+import { getLanguage } from "@/utils/get_language";
+import { queryKeys } from "@/lib/queryKeys";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface FileEditorProps {
   appId: number | null;
   filePath: string;
+  initialLine?: number | null;
 }
 
 interface BreadcrumbProps {
@@ -55,17 +59,19 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onSave}
-                disabled={!hasUnsavedChanges || isSaving}
-                className="h-6 w-6 p-0"
-                data-testid="save-file-button"
-              >
-                <Save size={12} />
-              </Button>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onSave}
+                  disabled={!hasUnsavedChanges || isSaving}
+                  className="h-6 w-6 p-0"
+                  data-testid="save-file-button"
+                />
+              }
+            >
+              <Save size={12} />
             </TooltipTrigger>
             <TooltipContent>
               {hasUnsavedChanges ? "Save changes" : "No unsaved changes"}
@@ -84,7 +90,11 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
   );
 };
 
-export const FileEditor = ({ appId, filePath }: FileEditorProps) => {
+export const FileEditor = ({
+  appId,
+  filePath,
+  initialLine = null,
+}: FileEditorProps) => {
   const { content, loading, error } = useLoadAppFile(appId, filePath);
   const { theme } = useTheme();
   const [value, setValue] = useState<string | undefined>(undefined);
@@ -101,21 +111,9 @@ export const FileEditor = ({ appId, filePath }: FileEditorProps) => {
   const queryClient = useQueryClient();
   const { checkProblems } = useCheckProblems(appId);
 
-  // Update state when content loads or file path changes
+  // Update state when content loads
   useEffect(() => {
     if (content !== null) {
-      // Dispose of old model if file path changed
-      if (
-        originalValueRef.current !== undefined &&
-        typeof window !== "undefined"
-      ) {
-        import("@/components/chat/monaco")
-          .then(({ disposeMonacoModel }) => {
-            disposeMonacoModel(filePath);
-          })
-          .catch((err) => console.warn("Failed to dispose Monaco model:", err));
-      }
-
       setValue(content);
       originalValueRef.current = content;
       currentValueRef.current = content;
@@ -134,24 +132,31 @@ export const FileEditor = ({ appId, filePath }: FileEditorProps) => {
   const isDarkMode =
     theme === "dark" ||
     (theme === "system" &&
-      typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
   const editorTheme = isDarkMode ? "dyad-dark" : "dyad-light";
+
+  // Navigate to a specific line in the editor
+  const navigateToLine = React.useCallback((line: number | null) => {
+    if (line == null || !editorRef.current) {
+      return;
+    }
+    const lineNumber = Math.max(1, Math.floor(line));
+    const editor = editorRef.current;
+    const model = editor.getModel();
+    if (!model) return;
+    if (lineNumber > model.getLineCount()) return;
+
+    editor.revealLineInCenter(lineNumber);
+    editor.setPosition({ lineNumber, column: 1 });
+  }, []);
 
   // Handle editor mount
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
 
-    // Ensure Monaco model exists for this file
-    if (
-      currentValueRef.current !== undefined &&
-      typeof window !== "undefined"
-    ) {
-      import("@/components/chat/monaco")
-        .then(({ ensureMonacoModel }) => {
-          ensureMonacoModel(filePath, currentValueRef.current!);
-        })
-        .catch((err) => console.warn("Failed to ensure Monaco model:", err));
+    // Navigate to initialLine if provided (handles case when editor mounts after initialLine is set)
+    if (initialLine != null) {
+      navigateToLine(initialLine);
     }
 
     // Listen for model content change events
@@ -187,23 +192,14 @@ export const FileEditor = ({ appId, filePath }: FileEditorProps) => {
       isSavingRef.current = true;
       setIsSaving(true);
 
-      const ipcClient = IpcClient.getInstance();
-      const { warning } = await ipcClient.editAppFile(
+      const { warning } = await ipc.app.editAppFile({
         appId,
         filePath,
-        currentValueRef.current,
-      );
-
-      // Update Monaco model to ensure it's in sync
-      if (typeof window !== "undefined") {
-        import("@/components/chat/monaco")
-          .then(({ ensureMonacoModel }) => {
-            ensureMonacoModel(filePath, currentValueRef.current!);
-          })
-          .catch((err) => console.warn("Failed to update Monaco model:", err));
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ["versions", appId] });
+        content: currentValueRef.current,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.versions.list({ appId }),
+      });
       if (settings?.enableAutoFixProblems) {
         checkProblems();
       }
@@ -224,34 +220,15 @@ export const FileEditor = ({ appId, filePath }: FileEditorProps) => {
     }
   };
 
-  // Determine language based on file extension
-  const getLanguage = (filePath: string) => {
-    const extension = filePath.split(".").pop()?.toLowerCase() || "";
-    const languageMap: Record<string, string> = {
-      js: "javascript",
-      jsx: "javascript",
-      ts: "typescript",
-      tsx: "typescript",
-      html: "html",
-      css: "css",
-      json: "json",
-      md: "markdown",
-      py: "python",
-      java: "java",
-      c: "c",
-      cpp: "cpp",
-      cs: "csharp",
-      go: "go",
-      rs: "rust",
-      rb: "ruby",
-      php: "php",
-      swift: "swift",
-      kt: "kotlin",
-      // Add more as needed
-    };
-
-    return languageMap[extension] || "plaintext";
-  };
+  // Jump to target line if provided (e.g., from search results)
+  // This effect handles when initialLine changes after the editor is mounted
+  // Include content in dependencies to ensure navigation only occurs after file content is loaded
+  useEffect(() => {
+    // Only navigate if content is loaded (not null) to avoid navigating in old file content
+    if (content !== null) {
+      navigateToLine(initialLine ?? null);
+    }
+  }, [initialLine, filePath, content, navigateToLine]);
 
   if (loading) {
     return <div className="p-4">Loading file content...</div>;

@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import cors from "cors";
 import { createChatCompletionHandler } from "./chatCompletionHandler";
+import { createResponsesHandler } from "./responsesHandler";
 import {
   handleDeviceCode,
   handleAccessToken,
@@ -14,6 +15,7 @@ import {
   handleGitPush,
   handleGetPushEvents,
   handleClearPushEvents,
+  handleRepoCollaborators,
 } from "./githubHandler";
 
 // Create Express app
@@ -29,8 +31,13 @@ export function createStreamChunk(
   content: string,
   role: string = "assistant",
   isLast: boolean = false,
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  },
 ) {
-  const chunk = {
+  const chunk: any = {
     id: `chatcmpl-${Date.now()}`,
     object: "chat.completion.chunk",
     created: Math.floor(Date.now() / 1000),
@@ -43,6 +50,11 @@ export function createStreamChunk(
       },
     ],
   };
+
+  // Add usage info to the final chunk if provided
+  if (isLast && usage) {
+    chunk.usage = usage;
+  }
 
   return `data: ${JSON.stringify(chunk)}\n\n${isLast ? "data: [DONE]\n\n" : ""}`;
 }
@@ -142,6 +154,8 @@ app.get("/lmstudio/api/v0/models", (req, res) => {
     `/${provider}/v1/chat/completions`,
     createChatCompletionHandler(provider),
   );
+  // Also add responses API endpoints for each provider
+  app.post(`/${provider}/v1/responses`, createResponsesHandler(provider));
 });
 
 // Azure-specific endpoints (Azure client uses different URL patterns)
@@ -153,6 +167,7 @@ app.post(
 
 // Default test provider handler:
 app.post("/v1/chat/completions", createChatCompletionHandler("."));
+app.post("/v1/responses", createResponsesHandler("."));
 
 // GitHub API Mock Endpoints
 console.log("Setting up GitHub mock endpoints");
@@ -168,6 +183,18 @@ app.get("/github/api/user/repos", handleUserRepos);
 app.post("/github/api/user/repos", handleUserRepos);
 app.get("/github/api/repos/:owner/:repo", handleRepo);
 app.get("/github/api/repos/:owner/:repo/branches", handleRepoBranches);
+app.get(
+  "/github/api/repos/:owner/:repo/collaborators",
+  handleRepoCollaborators,
+);
+app.put(
+  "/github/api/repos/:owner/:repo/collaborators/:username",
+  handleRepoCollaborators,
+);
+app.delete(
+  "/github/api/repos/:owner/:repo/collaborators/:username",
+  handleRepoCollaborators,
+);
 app.post("/github/api/orgs/:org/repos", handleOrgRepos);
 
 // GitHub test endpoints for verifying push operations
@@ -176,6 +203,42 @@ app.post("/github/api/test/clear-push-events", handleClearPushEvents);
 
 // GitHub Git endpoints - intercept all paths with /github/git prefix
 app.all("/github/git/*", handleGitPush);
+
+// Dyad Engine turbo-file-edit endpoint for edit_file tool
+app.post("/engine/v1/tools/turbo-file-edit", (req, res) => {
+  const { path: filePath, description } = req.body;
+  console.log(
+    `* turbo-file-edit: ${filePath} - ${description || "no description"}`,
+  );
+
+  try {
+    res.json({ result: "TURBO EDITED filePath" });
+  } catch (error) {
+    console.error(`* turbo-file-edit error:`, error);
+    res.status(400).json({ error: String(error) });
+  }
+});
+
+// Dyad Engine code-search endpoint for code_search tool
+app.post("/engine/v1/tools/code-search", (req, res) => {
+  const { query, filesContext } = req.body;
+  console.log(
+    `* code-search: "${query}" - searching ${filesContext?.length || 0} files`,
+  );
+
+  try {
+    // Return mock relevant files based on the files provided
+    // For testing, return the first few files that exist in the context
+    const relevantFiles = (filesContext || [])
+      .slice(0, 3)
+      .map((f: { path: string }) => f.path);
+
+    res.json({ relevantFiles });
+  } catch (error) {
+    console.error(`* code-search error:`, error);
+    res.status(400).json({ error: String(error) });
+  }
+});
 
 // Start the server
 const server = createServer(app);

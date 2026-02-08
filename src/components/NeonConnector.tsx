@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import { toast } from "sonner";
 import { useSettings } from "@/hooks/useSettings";
 
@@ -11,7 +11,7 @@ import { NeonDisconnectButton } from "@/components/NeonDisconnectButton";
 
 export function NeonConnector() {
   const { settings, refreshSettings } = useSettings();
-  const { lastDeepLink } = useDeepLink();
+  const { lastDeepLink, clearLastDeepLink } = useDeepLink();
   const { isDarkMode } = useTheme();
 
   useEffect(() => {
@@ -19,10 +19,11 @@ export function NeonConnector() {
       if (lastDeepLink?.type === "neon-oauth-return") {
         await refreshSettings();
         toast.success("Successfully connected to Neon!");
+        clearLastDeepLink();
       }
     };
     handleDeepLink();
-  }, [lastDeepLink]);
+  }, [lastDeepLink?.timestamp]);
 
   if (settings?.neon?.accessToken) {
     return (
@@ -33,18 +34,12 @@ export function NeonConnector() {
             <Button
               variant="outline"
               onClick={() => {
-                IpcClient.getInstance().openExternalUrl(
-                  "https://console.neon.tech/",
-                );
+                ipc.system.openExternalUrl("https://console.neon.tech/");
               }}
-              className="ml-2 px-2 py-1 h-8 mb-2"
-              style={{ display: "inline-flex", alignItems: "center" }}
-              asChild
+              className="ml-2 px-2 py-1 h-8 mb-2 inline-flex items-center gap-1"
             >
-              <div className="flex items-center gap-1">
-                Neon
-                <ExternalLink className="h-3 w-3" />
-              </div>
+              Neon
+              <ExternalLink className="h-3 w-3" />
             </Button>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 pb-3">
@@ -66,10 +61,10 @@ export function NeonConnector() {
         <div
           onClick={async () => {
             if (settings?.isTestMode) {
-              await IpcClient.getInstance().fakeHandleNeonConnect();
+              await ipc.neon.fakeConnect();
             } else {
-              await IpcClient.getInstance().openExternalUrl(
-                "https://oauth.exacta-app-studio.alitech.io/api/integrations/neon/login",
+              await ipc.system.openExternalUrl(
+                "https://oauth.dyad.sh/api/integrations/neon/login",
               );
             }
           }}

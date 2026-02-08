@@ -1,19 +1,15 @@
 import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-  appBasePathAtom,
-  appsListAtom,
-  selectedAppIdAtom,
-} from "@/atoms/appAtoms";
-import { IpcClient } from "@/ipc/ipc_client";
+import { normalizePath } from "../../shared/normalizePath";
+import { useSetAtom } from "jotai";
+import { selectedAppIdAtom } from "@/atoms/appAtoms";
+import { ipc } from "@/ipc/types";
 import { useLoadApps } from "@/hooks/useLoadApps";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   MoreVertical,
-  Code,
-  Server,
+  MessageCircle,
   Pencil,
   Folder,
 } from "lucide-react";
@@ -22,6 +18,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -33,7 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { GitHubConnector } from "@/components/GitHubConnector";
 import { SupabaseConnector } from "@/components/SupabaseConnector";
-import { showError } from "@/lib/toast";
+import { showError, showSuccess } from "@/lib/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
@@ -42,13 +43,13 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useCheckName } from "@/hooks/useCheckName";
 import { AppUpgrades } from "@/components/AppUpgrades";
 import { CapacitorControls } from "@/components/CapacitorControls";
+import { GithubCollaboratorManager } from "@/components/GithubCollaboratorManager";
 
 export default function AppDetailsPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const search = useSearch({ from: "/app-details" as const });
-  const [appsList] = useAtom(appsListAtom);
-  const { refreshApps } = useLoadApps();
+  const { apps: appsList, refreshApps } = useLoadApps();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
@@ -60,10 +61,11 @@ export default function AppDetailsPage() {
     useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [isRenamingFolder, setIsRenamingFolder] = useState(false);
-  const appBasePath = useAtomValue(appBasePathAtom);
 
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [newCopyAppName, setNewCopyAppName] = useState("");
+  const [isChangeLocationDialogOpen, setIsChangeLocationDialogOpen] =
+    useState(false);
 
   const queryClient = useQueryClient();
   const setSelectedAppId = useSetAtom(selectedAppIdAtom);
@@ -83,7 +85,7 @@ export default function AppDetailsPage() {
 
     try {
       setIsDeleting(true);
-      await IpcClient.getInstance().deleteApp(appId);
+      await ipc.app.deleteApp({ appId });
       setIsDeleteDialogOpen(false);
       await refreshApps();
       navigate({ to: "/", search: {} });
@@ -104,7 +106,9 @@ export default function AppDetailsPage() {
 
   const handleOpenRenameFolderDialog = () => {
     if (selectedApp) {
-      setNewFolderName(selectedApp.path.split("/").pop() || selectedApp.path);
+      setNewFolderName(
+        normalizePath(selectedApp.path).split("/").pop() || selectedApp.path,
+      );
       setIsRenameFolderDialogOpen(true);
     }
   };
@@ -118,7 +122,7 @@ export default function AppDetailsPage() {
       // Determine the new path based on user's choice
       const appPath = renameFolder ? newAppName : selectedApp.path;
 
-      await IpcClient.getInstance().renameApp({
+      await ipc.app.renameApp({
         appId,
         appName: newAppName,
         appPath,
@@ -129,11 +133,10 @@ export default function AppDetailsPage() {
       await refreshApps();
     } catch (error) {
       console.error("Failed to rename app:", error);
-      alert(
-        `Error renaming app: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      const errorMessage = (
+        error instanceof Error ? error.message : String(error)
+      ).replace(/^Error invoking remote method 'rename-app': Error: /, "");
+      showError(errorMessage);
     } finally {
       setIsRenaming(false);
     }
@@ -144,8 +147,7 @@ export default function AppDetailsPage() {
 
     try {
       setIsRenamingFolder(true);
-
-      await IpcClient.getInstance().renameApp({
+      await ipc.app.renameApp({
         appId,
         appName: selectedApp.name, // Keep the app name the same
         appPath: newFolderName, // Change only the folder path
@@ -155,11 +157,10 @@ export default function AppDetailsPage() {
       await refreshApps();
     } catch (error) {
       console.error("Failed to rename folder:", error);
-      alert(
-        `Error renaming folder: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      const errorMessage = (
+        error instanceof Error ? error.message : String(error)
+      ).replace(/^Error invoking remote method 'rename-app': Error: /, "");
+      showError(errorMessage);
     } finally {
       setIsRenamingFolder(false);
     }
@@ -176,12 +177,41 @@ export default function AppDetailsPage() {
     }
   };
 
+  const handleChangeLocation = async () => {
+    if (!selectedApp || !appId) return;
+
+    try {
+      // Get the current parent directory as default
+      const currentPath = selectedApp.resolvedPath || "";
+      const currentParentDir = currentPath
+        ? currentPath.replace(/[/\\][^/\\]*$/, "") // Remove last path component
+        : undefined;
+
+      const response = await ipc.app.selectAppLocation({
+        defaultPath: currentParentDir,
+      });
+      if (!response.canceled && response.path) {
+        await changeLocationMutation.mutateAsync({
+          appId,
+          parentDirectory: response.path,
+        });
+        setIsChangeLocationDialogOpen(false);
+      } else {
+        // User canceled the file dialog, close the change location dialog
+        setIsChangeLocationDialogOpen(false);
+      }
+    } catch {
+      // Error is already shown by the mutation's onError
+      setIsChangeLocationDialogOpen(false);
+    }
+  };
+
   const copyAppMutation = useMutation({
     mutationFn: async ({ withHistory }: { withHistory: boolean }) => {
       if (!appId || !newCopyAppName.trim()) {
         throw new Error("Invalid app ID or name for copying.");
       }
-      return IpcClient.getInstance().copyApp({
+      return ipc.app.copyApp({
         appId,
         newAppName: newCopyAppName,
         withHistory,
@@ -192,9 +222,23 @@ export default function AppDetailsPage() {
       setSelectedAppId(appId);
       await invalidateAppQuery(queryClient, { appId });
       await refreshApps();
-      await IpcClient.getInstance().createChat(appId);
+      await ipc.chat.createChat(appId);
       setIsCopyDialogOpen(false);
       navigate({ to: "/app-details", search: { appId } });
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
+  const changeLocationMutation = useMutation({
+    mutationFn: async (params: { appId: number; parentDirectory: string }) => {
+      return ipc.app.changeAppLocation(params);
+    },
+    onSuccess: async () => {
+      await invalidateAppQuery(queryClient, { appId });
+      await refreshApps();
+      showSuccess("App location updated");
     },
     onError: (error) => {
       showError(error);
@@ -208,7 +252,7 @@ export default function AppDetailsPage() {
           onClick={() => router.history.back()}
           variant="outline"
           size="sm"
-          className="absolute top-4 left-4 flex items-center gap-1 bg-[var(--background-lightest)] py-5"
+          className="absolute top-4 left-4 flex items-center gap-1 bg-(--background-lightest) py-5"
         >
           <ArrowLeft className="h-3 w-4" />
           Back
@@ -220,7 +264,7 @@ export default function AppDetailsPage() {
     );
   }
 
-  const fullAppPath = appBasePath.replace("$APP_BASE_PATH", selectedApp.path);
+  const currentAppPath = selectedApp.resolvedPath || "";
 
   return (
     <div
@@ -231,7 +275,7 @@ export default function AppDetailsPage() {
         onClick={() => router.history.back()}
         variant="outline"
         size="sm"
-        className="absolute top-4 left-4 flex items-center gap-1 bg-[var(--background-lightest)] py-2"
+        className="absolute top-4 left-4 flex items-center gap-1 bg-(--background-lightest) py-2"
       >
         <ArrowLeft className="h-3 w-4" />
         Back
@@ -254,15 +298,11 @@ export default function AppDetailsPage() {
         {/* Overflow Menu in top right */}
         <div className="absolute top-2 right-2">
           <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                data-testid="app-details-more-options-button"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+            <PopoverTrigger
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"
+              data-testid="app-details-more-options-button"
+            >
+              <MoreVertical className="h-4 w-4" />
             </PopoverTrigger>
             <PopoverContent className="w-40 p-2" align="end">
               <div className="flex flex-col space-y-0.5">
@@ -273,6 +313,14 @@ export default function AppDetailsPage() {
                   className="h-8 justify-start text-xs"
                 >
                   Rename folder
+                </Button>
+                <Button
+                  onClick={() => setIsChangeLocationDialogOpen(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 justify-start text-xs"
+                >
+                  Move folder
                 </Button>
                 <Button
                   onClick={handleOpenCopyDialog}
@@ -300,92 +348,62 @@ export default function AppDetailsPage() {
             <span className="block text-gray-500 dark:text-gray-400 mb-0.5 text-xs">
               Created
             </span>
-            <span>{new Date().toLocaleString()}</span>
+            <span>{selectedApp.createdAt.toString()}</span>
           </div>
           <div>
             <span className="block text-gray-500 dark:text-gray-400 mb-0.5 text-xs">
               Last Updated
             </span>
-            <span>{new Date().toLocaleString()}</span>
+            <span>{selectedApp.updatedAt.toString()}</span>
           </div>
           <div className="col-span-2">
             <span className="block text-gray-500 dark:text-gray-400 mb-0.5 text-xs">
               Path
             </span>
             <div className="flex items-center gap-1">
-              <span className="text-sm break-all">{fullAppPath}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="p-0.5 h-auto cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                onClick={() => {
-                  IpcClient.getInstance().showItemInFolder(fullAppPath);
-                }}
-                title="Show in folder"
-              >
-                <Folder className="h-3.5 w-3.5" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-[-8px] p-0.5 h-auto cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => {
+                        ipc.system.showItemInFolder(currentAppPath);
+                      }}
+                    />
+                  }
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Show in folder</TooltipContent>
+              </Tooltip>
+              <span className="text-sm break-all">{currentAppPath}</span>
             </div>
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-2">
           <Button
-            onClick={async () => {
+            onClick={() => {
               if (!appId) {
                 console.error("No app id found");
                 return;
               }
-              // Set chat mode to fullstack before navigating
-              await IpcClient.getInstance().setUserSettings({
-                selectedChatMode: "fullstack",
-              });
-              navigate({ to: "/chat" });
-            }}
-            className="cursor-pointer w-full py-5 flex justify-center items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-            size="lg"
-          >
-            Full Stack Development
-            <Code className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={async () => {
-              if (!appId) {
-                console.error("No app id found");
-                return;
-              }
-              // Set chat mode to frontend (build) before navigating
-              await IpcClient.getInstance().setUserSettings({
-                selectedChatMode: "build",
-              });
               navigate({ to: "/chat" });
             }}
             className="cursor-pointer w-full py-5 flex justify-center items-center gap-2"
             size="lg"
           >
-            Frontend Development
-            <Code className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={async () => {
-              if (!appId) {
-                console.error("No app id found");
-                return;
-              }
-              // Set chat mode to backend before navigating
-              await IpcClient.getInstance().setUserSettings({
-                selectedChatMode: "backend",
-              });
-              navigate({ to: "/chat" });
-            }}
-            className="cursor-pointer w-full py-5 flex justify-center items-center gap-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800"
-            size="lg"
-            variant="outline"
-          >
-            Backend Development
-            <Server className="h-4 w-4" />
+            Open in Chat
+            <MessageCircle className="h-4 w-4" />
           </Button>
           <div className="border border-gray-200 rounded-md p-4">
             <GitHubConnector appId={appId} folderName={selectedApp.path} />
+            {selectedApp.githubOrg && selectedApp.githubRepo && appId && (
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                <GithubCollaboratorManager appId={appId} />
+              </div>
+            )}
           </div>
           {appId && <SupabaseConnector appId={appId} />}
           {appId && <CapacitorControls appId={appId} />}
@@ -670,6 +688,46 @@ export default function AppDetailsPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Change Location Dialog */}
+        <Dialog
+          open={isChangeLocationDialogOpen}
+          onOpenChange={setIsChangeLocationDialogOpen}
+        >
+          <DialogContent className="max-w-sm p-4">
+            <DialogHeader className="pb-2">
+              <DialogTitle>Change App Location</DialogTitle>
+              <DialogDescription className="text-xs">
+                Select a folder where this app will be stored. The app folder
+                name will remain the same.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsChangeLocationDialogOpen(false)}
+                disabled={changeLocationMutation.isPending}
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleChangeLocation}
+                disabled={changeLocationMutation.isPending}
+                size="sm"
+              >
+                {changeLocationMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Moving...
+                  </>
+                ) : (
+                  "Select Folder"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

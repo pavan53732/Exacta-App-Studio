@@ -4,8 +4,6 @@ import {
   localTemplatesData,
 } from "../../shared/templates";
 import log from "electron-log";
-import { apiFetch } from "./api_client";
-import { getAvailableScaffolds } from "../handlers/createFromTemplate";
 
 const logger = log.scope("template_utils");
 
@@ -40,9 +38,7 @@ export async function fetchApiTemplates(): Promise<Template[]> {
   // Start new fetch
   apiTemplatesFetchPromise = (async (): Promise<Template[]> => {
     try {
-      const response = await apiFetch(
-        "https://api.exacta-app-studio.alitech.io/v1/templates",
-      );
+      const response = await fetch("https://api.dyad.sh/v1/templates");
       if (!response.ok) {
         throw new Error(
           `Failed to fetch templates: ${response.status} ${response.statusText}`,
@@ -66,32 +62,10 @@ export async function fetchApiTemplates(): Promise<Template[]> {
   return apiTemplatesFetchPromise;
 }
 
-// Get all templates (local + API + Scaffolds)
+// Get all templates (local + API)
 export async function getAllTemplates(): Promise<Template[]> {
   const apiTemplates = await fetchApiTemplates();
-  const scaffolds = await getAvailableScaffolds();
-  
-  // Convert scaffolds to Template interface
-  const scaffoldTemplates: Template[] = scaffolds.map(s => ({
-    id: s.config.id,
-    title: s.config.name,
-    description: s.config.description,
-    imageUrl: s.config.icon || "https://cdn-icons-png.flaticon.com/512/2621/2621040.png",
-    isOfficial: true,
-    isFrontend: true // Assume scaffolds are primarily project templates
-  }));
-
-  const allTemplates = [...scaffoldTemplates, ...localTemplatesData, ...apiTemplates];
-  
-  // Deduplicate by ID, preferring the first occurrence (scaffolds > local > api)
-  const uniqueTemplates = new Map<string, Template>();
-  for (const template of allTemplates) {
-    if (!uniqueTemplates.has(template.id)) {
-      uniqueTemplates.set(template.id, template);
-    }
-  }
-  
-  return Array.from(uniqueTemplates.values());
+  return [...localTemplatesData, ...apiTemplates];
 }
 
 export async function getTemplateOrThrow(

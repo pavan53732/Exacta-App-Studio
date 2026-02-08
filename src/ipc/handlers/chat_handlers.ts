@@ -1,23 +1,18 @@
-import { ipcMain } from "electron";
 import { db } from "../../db";
-import { startBackendServer, startFrontendServer } from "./createFromTemplate";
 import { apps, chats, messages } from "../../db/schema";
 import { desc, eq, and, like } from "drizzle-orm";
 import type { ChatSearchResult, ChatSummary } from "../../lib/schemas";
-import * as git from "isomorphic-git";
-import * as fs from "fs";
-import * as path from "path";
-import { createLoggedHandler } from "./safe_handle";
 
 import log from "electron-log";
 import { getDyadAppPath } from "../../paths/paths";
-import { UpdateChatParams } from "../ipc_types";
+import { getCurrentCommitHash } from "../utils/git_utils";
+import { createTypedHandler } from "./base";
+import { chatContracts } from "../types/chat";
 
 const logger = log.scope("chat_handlers");
-const handle = createLoggedHandler(logger);
 
 export function registerChatHandlers() {
-  handle("create-chat", async (_, appId: number): Promise<number> => {
+  createTypedHandler(chatContracts.createChat, async (_, appId) => {
     // Get the app's path first
     const app = await db.query.apps.findFirst({
       where: eq(apps.id, appId),
@@ -32,11 +27,9 @@ export function registerChatHandlers() {
 
     let initialCommitHash = null;
     try {
-      // Get the current git revision of main branch
-      initialCommitHash = await git.resolveRef({
-        fs,
-        dir: getDyadAppPath(app.path),
-        ref: "main",
+      // Get the current git revision of the currently checked-out branch
+      initialCommitHash = await getCurrentCommitHash({
+        path: getDyadAppPath(app.path),
       });
     } catch (error) {
       logger.error("Error getting git revision:", error);
@@ -62,7 +55,7 @@ export function registerChatHandlers() {
     return chat.id;
   });
 
-  ipcMain.handle("get-chat", async (_, chatId: number) => {
+  createTypedHandler(chatContracts.getChat, async (_, chatId) => {
     const chat = await db.query.chats.findFirst({
       where: eq(chats.id, chatId),
       with: {
@@ -76,10 +69,17 @@ export function registerChatHandlers() {
       throw new Error("Chat not found");
     }
 
-    return chat;
+    return {
+      ...chat,
+      title: chat.title ?? "",
+      messages: chat.messages.map((m) => ({
+        ...m,
+        role: m.role as "user" | "assistant",
+      })),
+    };
   });
 
-  handle("get-chats", async (_, appId?: number): Promise<ChatSummary[]> => {
+  createTypedHandler(chatContracts.getChats, async (_, appId) => {
     // If appId is provided, filter chats for that app
     const query = appId
       ? db.query.chats.findMany({
@@ -103,152 +103,74 @@ export function registerChatHandlers() {
         });
 
     const allChats = await query;
-    return allChats;
+    return allChats as ChatSummary[];
   });
 
-  handle("delete-chat", async (_, chatId: number): Promise<void> => {
+  createTypedHandler(chatContracts.deleteChat, async (_, chatId) => {
     await db.delete(chats).where(eq(chats.id, chatId));
   });
 
-  handle("update-chat", async (_, { chatId, title }: UpdateChatParams) => {
+  createTypedHandler(chatContracts.updateChat, async (_, params) => {
+    const { chatId, title } = params;
     await db.update(chats).set({ title }).where(eq(chats.id, chatId));
   });
 
-  handle("delete-messages", async (_, chatId: number): Promise<void> => {
+  createTypedHandler(chatContracts.deleteMessages, async (_, chatId) => {
     await db.delete(messages).where(eq(messages.chatId, chatId));
   });
 
-  handle(
-    "search-chats",
-    async (_, appId: number, query: string): Promise<ChatSearchResult[]> => {
-      // 1) Find chats by title and map to ChatSearchResult with no matched message
-      const chatTitleMatches = await db
-        .select({
-          id: chats.id,
-          appId: chats.appId,
-          title: chats.title,
-          createdAt: chats.createdAt,
-        })
-        .from(chats)
-        .where(and(eq(chats.appId, appId), like(chats.title, `%${query}%`)))
-        .orderBy(desc(chats.createdAt))
-        .limit(10);
+  createTypedHandler(chatContracts.searchChats, async (_, params) => {
+    const { appId, query } = params;
+    // 1) Find chats by title and map to ChatSearchResult with no matched message
+    const chatTitleMatches = await db
+      .select({
+        id: chats.id,
+        appId: chats.appId,
+        title: chats.title,
+        createdAt: chats.createdAt,
+      })
+      .from(chats)
+      .where(and(eq(chats.appId, appId), like(chats.title, `%${query}%`)))
+      .orderBy(desc(chats.createdAt))
+      .limit(10);
 
-      const titleResults: ChatSearchResult[] = chatTitleMatches.map((c) => ({
-        id: c.id,
-        appId: c.appId,
-        title: c.title,
-        createdAt: c.createdAt,
-        matchedMessageContent: null,
-      }));
+    const titleResults: ChatSearchResult[] = chatTitleMatches.map((c) => ({
+      id: c.id,
+      appId: c.appId,
+      title: c.title,
+      createdAt: c.createdAt,
+      matchedMessageContent: null,
+    }));
 
-      // 2) Find messages that match and join to chats to build one result per message
-      const messageResults = await db
-        .select({
-          id: chats.id,
-          appId: chats.appId,
-          title: chats.title,
-          createdAt: chats.createdAt,
-          matchedMessageContent: messages.content,
-        })
-        .from(messages)
-        .innerJoin(chats, eq(messages.chatId, chats.id))
-        .where(
-          and(eq(chats.appId, appId), like(messages.content, `%${query}%`)),
-        )
-        .orderBy(desc(chats.createdAt))
-        .limit(10);
+    // 2) Find messages that match and join to chats to build one result per message
+    const messageResults = await db
+      .select({
+        id: chats.id,
+        appId: chats.appId,
+        title: chats.title,
+        createdAt: chats.createdAt,
+        matchedMessageContent: messages.content,
+      })
+      .from(messages)
+      .innerJoin(chats, eq(messages.chatId, chats.id))
+      .where(and(eq(chats.appId, appId), like(messages.content, `%${query}%`)))
+      .orderBy(desc(chats.createdAt))
+      .limit(10);
 
-      // Combine: keep title matches and per-message matches
-      const combined: ChatSearchResult[] = [...titleResults, ...messageResults];
-      const uniqueChats = Array.from(
-        new Map(combined.map((item) => [item.id, item])).values(),
-      );
+    // Combine: keep title matches and per-message matches
+    const combined: ChatSearchResult[] = [...titleResults, ...messageResults];
+    const uniqueChats = Array.from(
+      new Map(combined.map((item) => [item.id, item])).values(),
+    );
 
-      // Sort newest chats first
-      uniqueChats.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+    // Sort newest chats first
+    uniqueChats.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
-      return uniqueChats;
-    },
-  );
-
-  handle("start-backend-server", async (_, appId: number): Promise<void> => {
-    // Get the app's path
-    const app = await db.query.apps.findFirst({
-      where: eq(apps.id, appId),
-      columns: {
-        path: true,
-      },
-    });
-
-    if (!app) {
-      throw new Error("App not found");
-    }
-
-    const backendPath = path.join(getDyadAppPath(app.path), "backend");
-
-    // Check if backend directory exists
-    if (!fs.existsSync(backendPath)) {
-      logger.warn(`Backend directory not found: ${backendPath}`);
-      return;
-    }
-
-    // Determine framework type from backend files
-    let framework: string | null = null;
-    if (fs.existsSync(path.join(backendPath, "package.json"))) {
-      framework = "nodejs";
-    } else if (fs.existsSync(path.join(backendPath, "requirements.txt"))) {
-      // Check for framework-specific files
-      if (fs.existsSync(path.join(backendPath, "manage.py"))) {
-        framework = "django";
-      } else if (fs.existsSync(path.join(backendPath, "main.py"))) {
-        framework = "fastapi";
-      } else if (fs.existsSync(path.join(backendPath, "app.py"))) {
-        framework = "flask";
-      } else {
-        framework = "python";
-      }
-    }
-
-    if (framework) {
-      logger.info(`Starting backend server for framework: ${framework}`);
-      await startBackendServer(backendPath, framework, appId);
-    } else {
-      logger.warn("No recognized backend framework found");
-    }
+    return uniqueChats;
   });
 
-  handle("start-frontend-server", async (_, appId: number): Promise<void> => {
-    // Get the app's path
-    const app = await db.query.apps.findFirst({
-      where: eq(apps.id, appId),
-      columns: {
-        path: true,
-      },
-    });
-
-    if (!app) {
-      throw new Error("App not found");
-    }
-
-    const frontendPath = path.join(getDyadAppPath(app.path), "frontend");
-
-    // Check if frontend directory exists
-    if (!fs.existsSync(frontendPath)) {
-      logger.warn(`Frontend directory not found: ${frontendPath}`);
-      return;
-    }
-
-    // Check if package.json exists (frontend should have it)
-    if (!fs.existsSync(path.join(frontendPath, "package.json"))) {
-      logger.warn(`Frontend package.json not found: ${frontendPath}`);
-      return;
-    }
-
-    logger.info("Starting frontend development server");
-    await startFrontendServer(frontendPath, appId);
-  });
+  logger.debug("Registered chat IPC handlers");
 }

@@ -1,7 +1,10 @@
-import { ipcMain } from "electron";
+import { BrowserWindow, clipboard } from "electron";
 import { platform, arch } from "os";
-import { SystemDebugInfo, ChatLogsData } from "../ipc_types";
 import { readSettings } from "../../main/settings";
+import { createTypedHandler } from "./base";
+import { systemContracts } from "../types/system";
+import { miscContracts } from "../types/misc";
+import type { SystemDebugInfo } from "../types/system";
 
 import log from "electron-log";
 import path from "path";
@@ -115,87 +118,95 @@ async function getSystemDebugInfo({
 }
 
 export function registerDebugHandlers() {
-  ipcMain.handle(
-    "get-system-debug-info",
-    async (): Promise<SystemDebugInfo> => {
-      console.log("IPC: get-system-debug-info called");
-      return getSystemDebugInfo({
-        linesOfLogs: 20,
-        level: "warn",
+  createTypedHandler(systemContracts.getSystemDebugInfo, async () => {
+    console.log("IPC: get-system-debug-info called");
+    return getSystemDebugInfo({
+      linesOfLogs: 20,
+      level: "warn",
+    });
+  });
+
+  createTypedHandler(miscContracts.getChatLogs, async (_, chatId) => {
+    console.log(`IPC: get-chat-logs called for chat ${chatId}`);
+
+    try {
+      // We can retrieve a lot more lines here because we're not limited by the
+      // GitHub issue URL length limit.
+      const debugInfo = await getSystemDebugInfo({
+        linesOfLogs: 1_000,
+        level: "info",
       });
-    },
-  );
 
-  ipcMain.handle(
-    "get-chat-logs",
-    async (_, chatId: number): Promise<ChatLogsData> => {
-      console.log(`IPC: get-chat-logs called for chat ${chatId}`);
-
-      try {
-        // We can retrieve a lot more lines here because we're not limited by the
-        // GitHub issue URL length limit.
-        const debugInfo = await getSystemDebugInfo({
-          linesOfLogs: 1_000,
-          level: "info",
-        });
-
-        // Get chat data from database
-        const chatRecord = await db.query.chats.findFirst({
-          where: eq(chats.id, chatId),
-          with: {
-            messages: {
-              orderBy: (messages, { asc }) => [asc(messages.createdAt)],
-            },
+      // Get chat data from database
+      const chatRecord = await db.query.chats.findFirst({
+        where: eq(chats.id, chatId),
+        with: {
+          messages: {
+            orderBy: (messages, { asc }) => [asc(messages.createdAt)],
           },
-        });
+        },
+      });
 
-        if (!chatRecord) {
-          throw new Error(`Chat with ID ${chatId} not found`);
-        }
-
-        // Format the chat to match the Chat interface
-        const chat = {
-          id: chatRecord.id,
-          title: chatRecord.title || "Untitled Chat",
-          messages: chatRecord.messages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            approvalState: msg.approvalState,
-          })),
-        };
-
-        // Get app data from database
-        const app = await db.query.apps.findFirst({
-          where: eq(apps.id, chatRecord.appId),
-        });
-
-        if (!app) {
-          throw new Error(`App with ID ${chatRecord.appId} not found`);
-        }
-
-        // Extract codebase
-        const appPath = getDyadAppPath(app.path);
-        const codebase = (
-          await extractCodebase({
-            appPath,
-            chatContext: validateChatContext(app.chatContext),
-          })
-        ).formattedOutput;
-
-        return {
-          debugInfo,
-          chat,
-          codebase,
-        };
-      } catch (error) {
-        console.error(`Error in get-chat-logs:`, error);
-        throw error;
+      if (!chatRecord) {
+        throw new Error(`Chat with ID ${chatId} not found`);
       }
-    },
-  );
+
+      // Format the chat to match the Chat interface
+      const chat = {
+        id: chatRecord.id,
+        title: chatRecord.title || "Untitled Chat",
+        messages: chatRecord.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          approvalState: msg.approvalState,
+        })),
+      };
+
+      // Get app data from database
+      const app = await db.query.apps.findFirst({
+        where: eq(apps.id, chatRecord.appId),
+      });
+
+      if (!app) {
+        throw new Error(`App with ID ${chatRecord.appId} not found`);
+      }
+
+      // Extract codebase
+      const appPath = getDyadAppPath(app.path);
+      const codebase = (
+        await extractCodebase({
+          appPath,
+          chatContext: validateChatContext(app.chatContext),
+        })
+      ).formattedOutput;
+
+      return {
+        debugInfo,
+        chat,
+        codebase,
+      };
+    } catch (error) {
+      console.error(`Error in get-chat-logs:`, error);
+      throw error;
+    }
+  });
 
   console.log("Registered debug IPC handlers");
+
+  createTypedHandler(systemContracts.takeScreenshot, async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) throw new Error("No focused window to capture");
+
+    // Capture the window's current contents as a NativeImage
+    const image = await win.capturePage();
+    // Validate image
+    if (!image || image.isEmpty()) {
+      throw new Error("Failed to capture screenshot");
+    }
+    // Write the image to the clipboard
+    clipboard.writeImage(image);
+  });
 }
 
 function serializeModelForDebug(model: LargeLanguageModel): string {

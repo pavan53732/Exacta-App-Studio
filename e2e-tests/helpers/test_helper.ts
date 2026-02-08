@@ -18,7 +18,122 @@ export const Timeout = {
   EXTRA_LONG: process.env.CI ? 120_000 : 60_000,
   LONG: process.env.CI ? 60_000 : 30_000,
   MEDIUM: process.env.CI ? 30_000 : 15_000,
+  SHORT: process.env.CI ? 5_000 : 2_000,
 };
+
+/**
+ * Normalizes item_reference IDs in the input array to be deterministic.
+ * item_reference objects have the shape { type: "item_reference", id: "msg_..." }
+ * where the ID is a timestamp-based value that changes between test runs.
+ */
+function normalizeItemReferences(dump: any): void {
+  const input = dump?.body?.input;
+  if (!Array.isArray(input)) {
+    return;
+  }
+
+  let refIndex = 0;
+  for (const item of input) {
+    if (item?.type === "item_reference" && item?.id) {
+      item.id = `[[ITEM_REF_${refIndex}]]`;
+      refIndex++;
+    }
+  }
+}
+
+/**
+ * Normalizes tool_call IDs and tool_call_id references to be deterministic.
+ * Tool call IDs have the format "call_[timestamp]_[index]" which changes between runs.
+ */
+function normalizeToolCallIds(dump: any): void {
+  const messages = dump?.body?.messages;
+  if (!Array.isArray(messages)) {
+    return;
+  }
+
+  const oldToNewId: Record<string, string> = {};
+  let toolCallIndex = 0;
+
+  // First pass: collect all tool_call IDs and create mapping
+  for (const message of messages) {
+    if (message?.tool_calls && Array.isArray(message.tool_calls)) {
+      for (const toolCall of message.tool_calls) {
+        if (toolCall?.id && !oldToNewId[toolCall.id]) {
+          oldToNewId[toolCall.id] = `[[TOOL_CALL_${toolCallIndex}]]`;
+          toolCallIndex++;
+        }
+      }
+    }
+  }
+
+  // Second pass: replace all IDs
+  for (const message of messages) {
+    if (message?.tool_calls && Array.isArray(message.tool_calls)) {
+      for (const toolCall of message.tool_calls) {
+        if (toolCall?.id && oldToNewId[toolCall.id]) {
+          toolCall.id = oldToNewId[toolCall.id];
+        }
+      }
+    }
+    if (message?.tool_call_id && oldToNewId[message.tool_call_id]) {
+      message.tool_call_id = oldToNewId[message.tool_call_id];
+    }
+  }
+}
+
+/**
+ * Normalizes fileId hashes in versioned_files to be deterministic.
+ * FileIds are SHA-256 hashes that may include non-deterministic components
+ * like app paths with timestamps. This replaces them with stable placeholders
+ * based on content sorting.
+ */
+function normalizeVersionedFiles(dump: any): void {
+  const vf = dump?.body?.dyad_options?.versioned_files;
+  if (!vf?.fileIdToContent) {
+    return;
+  }
+
+  const fileIdToContent = vf.fileIdToContent as Record<string, string>;
+
+  // Create mapping from old fileId to new deterministic fileId
+  // Sort by content to ensure deterministic ordering
+  const entries = Object.entries(fileIdToContent).sort((a, b) =>
+    String(a[1]).localeCompare(String(b[1])),
+  );
+
+  const oldToNewId: Record<string, string> = {};
+  const newFileIdToContent: Record<string, string> = {};
+
+  entries.forEach(([oldId, content], index) => {
+    const newId = `[[FILE_ID_${index}]]`;
+    oldToNewId[oldId] = newId;
+    newFileIdToContent[newId] = content;
+  });
+
+  vf.fileIdToContent = newFileIdToContent;
+
+  // Update fileReferences
+  if (vf.fileReferences) {
+    vf.fileReferences = vf.fileReferences.map((ref: any) => ({
+      ...ref,
+      fileId: oldToNewId[ref.fileId] ?? ref.fileId,
+    }));
+  }
+
+  // Update messageIndexToFilePathToFileId
+  if (vf.messageIndexToFilePathToFileId) {
+    for (const pathToId of Object.values(
+      vf.messageIndexToFilePathToFileId as Record<
+        string,
+        Record<string, string>
+      >,
+    )) {
+      for (const [filePath, id] of Object.entries(pathToId)) {
+        pathToId[filePath] = oldToNewId[id] ?? id;
+      }
+    }
+  }
+}
 
 export class ContextFilesPickerDialog {
   constructor(
@@ -71,16 +186,25 @@ class ProModesDialog {
     public close: () => Promise<void>,
   ) {}
 
-  async setSmartContextMode(mode: "balanced" | "off" | "conservative") {
+  async setSmartContextMode(mode: "balanced" | "off" | "deep") {
     await this.page
+      .getByTestId("smart-context-selector")
       .getByRole("button", {
         name: mode.charAt(0).toUpperCase() + mode.slice(1),
       })
       .click();
   }
 
-  async toggleTurboEdits() {
-    await this.page.getByRole("switch", { name: "Turbo Edits" }).click();
+  async setTurboEditsMode(mode: "off" | "classic" | "search-replace") {
+    await this.page
+      .getByTestId("turbo-edits-selector")
+      .getByRole("button", {
+        name:
+          mode === "search-replace"
+            ? "Search & replace"
+            : mode.charAt(0).toUpperCase() + mode.slice(1),
+      })
+      .click();
   }
 }
 
@@ -224,19 +348,21 @@ export class PageObject {
 
   async setUp({
     autoApprove = false,
-    nativeGit = false,
+    disableNativeGit = false,
     enableAutoFixProblems = false,
+    enableBasicAgent = false,
   }: {
     autoApprove?: boolean;
-    nativeGit?: boolean;
+    disableNativeGit?: boolean;
     enableAutoFixProblems?: boolean;
+    enableBasicAgent?: boolean;
   } = {}) {
     await this.baseSetup();
     await this.goToSettingsTab();
     if (autoApprove) {
       await this.toggleAutoApprove();
     }
-    if (nativeGit) {
+    if (disableNativeGit) {
       await this.toggleNativeGit();
     }
     if (enableAutoFixProblems) {
@@ -244,12 +370,22 @@ export class PageObject {
     }
     await this.setUpTestProvider();
     await this.setUpTestModel();
-
     await this.goToAppsTab();
+    if (!enableBasicAgent) {
+      await this.selectChatMode("build");
+    }
     await this.selectTestModel();
   }
 
-  async setUpDyadPro({ autoApprove = false }: { autoApprove?: boolean } = {}) {
+  async setUpDyadPro({
+    autoApprove = false,
+    localAgent = false,
+    localAgentUseAutoModel = false,
+  }: {
+    autoApprove?: boolean;
+    localAgent?: boolean;
+    localAgentUseAutoModel?: boolean;
+  } = {}) {
     await this.baseSetup();
     await this.goToSettingsTab();
     if (autoApprove) {
@@ -257,6 +393,17 @@ export class PageObject {
     }
     await this.setUpDyadProvider();
     await this.goToAppsTab();
+    if (!localAgent) {
+      await this.selectChatMode("build");
+    }
+    // Select a non-openAI model for local agent mode,
+    // since openAI models go to the responses API.
+    if (localAgent && !localAgentUseAutoModel) {
+      await this.selectModel({
+        provider: "Anthropic",
+        model: "Claude Opus 4.5",
+      });
+    }
   }
 
   async ensurePnpmInstall() {
@@ -330,16 +477,71 @@ export class PageObject {
     await this.page.getByRole("button", { name: "Import" }).click();
   }
 
-  async selectChatMode(mode: "build" | "ask") {
+  async selectChatMode(
+    mode: "build" | "ask" | "agent" | "local-agent" | "basic-agent" | "plan",
+  ) {
     await this.page.getByTestId("chat-mode-selector").click();
-    await this.page.getByRole("option", { name: mode }).click();
+    const mapping: Record<string, string> = {
+      build: "Build Generate and edit code",
+      ask: "Ask Ask",
+      agent: "Build with MCP",
+      "local-agent": "Agent v2",
+      "basic-agent": "Basic Agent", // For free users
+      plan: "Plan.*Design before you build",
+    };
+    const optionName = mapping[mode];
+    await this.page
+      .getByRole("option", {
+        name: new RegExp(optionName),
+      })
+      .click();
+  }
+
+  async selectLocalAgentMode() {
+    await this.selectChatMode("local-agent");
   }
 
   async openContextFilesPicker() {
-    const contextButton = this.page.getByTestId("codebase-context-button");
-    await contextButton.click();
+    // Programmatically dismiss toasts using the sonner API by clicking any visible close buttons
+    const toastCloseButtons = this.page.locator(
+      "[data-sonner-toast] button[data-close-button]",
+    );
+    const closeCount = await toastCloseButtons.count();
+    for (let i = 0; i < closeCount; i++) {
+      await toastCloseButtons
+        .nth(i)
+        .click()
+        .catch(() => {});
+    }
+
+    // If close buttons don't work, click outside to dismiss
+    if ((await this.page.locator("[data-sonner-toast]").count()) > 0) {
+      // Click somewhere safe to dismiss toasts
+      await this.page.mouse.click(10, 10);
+      await this.page.waitForTimeout(300);
+    }
+
+    // Open the auxiliary actions menu
+    await this.getChatInputContainer()
+      .getByTestId("auxiliary-actions-menu")
+      .click();
+
+    // Click on "Codebase context" to open the popover
+    await this.page.getByTestId("codebase-context-trigger").click();
+
+    // Wait for the popover content to be visible
+    await this.page
+      .getByTestId("manual-context-files-input")
+      .waitFor({ state: "visible" });
+
     return new ContextFilesPickerDialog(this.page, async () => {
-      await contextButton.click();
+      // Close the popover first
+      await this.page.keyboard.press("Escape");
+      // Wait a bit for the popover to close, then close the dropdown menu
+      await this.page
+        .getByTestId("manual-context-files-input")
+        .waitFor({ state: "hidden" });
+      await this.page.keyboard.press("Escape");
     });
   }
 
@@ -362,7 +564,7 @@ export class PageObject {
     await expect(this.page.getByRole("dialog")).toMatchAriaSnapshot();
   }
 
-  async snapshotAppFiles({ name }: { name: string }) {
+  async snapshotAppFiles({ name, files }: { name: string; files?: string[] }) {
     const currentAppName = await this.getCurrentAppName();
     if (!currentAppName) {
       throw new Error("No app selected");
@@ -374,10 +576,17 @@ export class PageObject {
     }
 
     await expect(() => {
-      const filesData = generateAppFilesSnapshotData(appPath, appPath);
+      let filesData = generateAppFilesSnapshotData(appPath, appPath);
 
       // Sort by relative path to ensure deterministic output
       filesData.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      if (files) {
+        filesData = filesData.filter((file) =>
+          files.some(
+            (f) => normalizePath(f) === normalizePath(file.relativePath),
+          ),
+        );
+      }
 
       const snapshotContent = filesData
         .map(
@@ -400,10 +609,10 @@ export class PageObject {
 
   async snapshotMessages({
     replaceDumpPath = false,
-  }: { replaceDumpPath?: boolean } = {}) {
+    timeout,
+  }: { replaceDumpPath?: boolean; timeout?: number } = {}) {
+    // NOTE: once you have called this, you can NOT manipulate the UI anymore or React will break.
     if (replaceDumpPath) {
-      // Update page so that "[[dyad-dump-path=*]]" is replaced with a placeholder path
-      // which is stable across runs.
       await this.page.evaluate(() => {
         const messagesList = document.querySelector(
           "[data-testid=messages-list]",
@@ -411,13 +620,22 @@ export class PageObject {
         if (!messagesList) {
           throw new Error("Messages list not found");
         }
+        // Scrub compaction backup paths embedded in message text
+        // e.g. .dyad/chats/1/compaction-2026-02-05T21-25-24-285Z.md
+        messagesList.innerHTML = messagesList.innerHTML.replace(
+          /\.dyad\/chats\/\d+\/compaction-[^\s<"]+\.md/g,
+          "[[compaction-backup-path]]",
+        );
+
         messagesList.innerHTML = messagesList.innerHTML.replace(
           /\[\[dyad-dump-path=([^\]]+)\]\]/g,
           "[[dyad-dump-path=*]]",
         );
       });
     }
-    await expect(this.page.getByTestId("messages-list")).toMatchAriaSnapshot();
+    await expect(this.page.getByTestId("messages-list")).toMatchAriaSnapshot({
+      timeout,
+    });
   }
 
   async approveProposal() {
@@ -457,8 +675,26 @@ export class PageObject {
   // Preview panel
   ////////////////////////////////
 
-  async selectPreviewMode(mode: "code" | "problems" | "preview" | "configure") {
+  async selectPreviewMode(
+    mode:
+      | "code"
+      | "problems"
+      | "preview"
+      | "configure"
+      | "security"
+      | "publish",
+  ) {
     await this.page.getByTestId(`${mode}-mode-button`).click();
+  }
+
+  async clickChatActivityButton() {
+    await this.page.getByTestId("chat-activity-button").click();
+  }
+
+  async snapshotChatActivityList() {
+    await expect(
+      this.page.getByTestId("chat-activity-list"),
+    ).toMatchAriaSnapshot();
   }
 
   async clickRecheckProblems() {
@@ -491,8 +727,15 @@ export class PageObject {
       .click({ timeout: Timeout.EXTRA_LONG });
   }
 
-  async clickDeselectComponent() {
-    await this.page.getByRole("button", { name: "Deselect component" }).click();
+  async clickDeselectComponent(options?: { index?: number }) {
+    const buttons = this.page.getByRole("button", {
+      name: "Deselect component",
+    });
+    if (options?.index !== undefined) {
+      await buttons.nth(options.index).click();
+    } else {
+      await buttons.first().click();
+    }
   }
 
   async clickPreviewMoreOptions() {
@@ -515,6 +758,24 @@ export class PageObject {
     await this.page.getByTestId("preview-open-browser-button").click();
   }
 
+  async clickPreviewAnnotatorButton() {
+    await this.page
+      .getByTestId("preview-annotator-button")
+      .click({ timeout: Timeout.EXTRA_LONG });
+  }
+
+  async waitForAnnotatorMode() {
+    // Wait for the annotator toolbar to be visible
+    await expect(this.page.getByRole("button", { name: "Select" })).toBeVisible(
+      {
+        timeout: Timeout.MEDIUM,
+      },
+    );
+  }
+
+  async clickAnnotatorSubmit() {
+    await this.page.getByRole("button", { name: "Add to Chat" }).click();
+  }
   locateLoadingAppPreview() {
     return this.page.getByText("Preparing app preview...");
   }
@@ -537,6 +798,20 @@ export class PageObject {
     await this.page.getByRole("button", { name: "Fix error with AI" }).click();
   }
 
+  async clickCopyErrorMessage() {
+    await this.page
+      .getByTestId("preview-error-banner")
+      .getByRole("button", { name: /Copy/ })
+      .click();
+  }
+
+  async getClipboardText(): Promise<string> {
+    return await this.page.evaluate(() => navigator.clipboard.readText());
+  }
+  async clickFixAllErrors() {
+    await this.page.getByRole("button", { name: /Fix All Errors/ }).click();
+  }
+
   async snapshotPreviewErrorBanner() {
     await expect(this.locatePreviewErrorBanner()).toMatchAriaSnapshot({
       timeout: Timeout.LONG,
@@ -551,12 +826,12 @@ export class PageObject {
     await expect(this.getChatInputContainer()).toMatchAriaSnapshot();
   }
 
-  getSelectedComponentDisplay() {
+  getSelectedComponentsDisplay() {
     return this.page.getByTestId("selected-component-display");
   }
 
-  async snapshotSelectedComponentDisplay() {
-    await expect(this.getSelectedComponentDisplay()).toMatchAriaSnapshot();
+  async snapshotSelectedComponentsDisplay() {
+    await expect(this.getSelectedComponentsDisplay()).toMatchAriaSnapshot();
   }
 
   async snapshotPreview({ name }: { name?: string } = {}) {
@@ -567,10 +842,29 @@ export class PageObject {
     });
   }
 
+  ////////////////////////////////
+  // Security review
+  ////////////////////////////////
+  async clickRunSecurityReview() {
+    const runSecurityReviewButton = this.page
+      .getByRole("button", { name: "Run Security Review" })
+      .first();
+    await runSecurityReviewButton.click();
+    await runSecurityReviewButton.waitFor({ state: "hidden" });
+    await this.waitForChatCompletion();
+  }
+
+  async snapshotSecurityFindingsTable() {
+    await expect(
+      this.page.getByTestId("security-findings-table"),
+    ).toMatchAriaSnapshot();
+  }
+
   async snapshotServerDump(
     type: "all-messages" | "last-message" | "request" = "all-messages",
     { name = "", dumpIndex = -1 }: { name?: string; dumpIndex?: number } = {},
   ) {
+    await this.waitForChatCompletion();
     // Get the text content of the messages list
     const messagesListText = await this.page
       .getByTestId("messages-list")
@@ -611,29 +905,58 @@ export class PageObject {
     }
 
     // Read the JSON file
-    const dumpContent: string = (
-      fs.readFileSync(dumpFilePath, "utf-8") as any
-    ).replaceAll(/\[\[dyad-dump-path=([^\]]+)\]\]/g, "[[dyad-dump-path=*]]");
+    const dumpContent: string = (fs.readFileSync(dumpFilePath, "utf-8") as any)
+      .replaceAll(/\[\[dyad-dump-path=([^\]]+)\]\]/g, "[[dyad-dump-path=*]]")
+      // Stabilize compaction backup file paths embedded in message text
+      // e.g. .dyad/chats/1/compaction-2026-02-05T21-25-24-285Z.md
+      .replaceAll(
+        /\.dyad\/chats\/\d+\/compaction-[^\s"\\]+\.md/g,
+        "[[compaction-backup-path]]",
+      );
     // Perform snapshot comparison
     const parsedDump = JSON.parse(dumpContent);
     if (type === "request") {
-      parsedDump["body"]["messages"] = parsedDump["body"]["messages"].map(
-        (message: any) => {
-          if (message.role === "system") {
-            message.content = "[[SYSTEM_MESSAGE]]";
-          }
-          return message;
-        },
-      );
+      if (parsedDump["body"]["input"]) {
+        parsedDump["body"]["input"] = parsedDump["body"]["input"].map(
+          (input: any) => {
+            if (input.role === "system") {
+              input.content = "[[SYSTEM_MESSAGE]]";
+            }
+            return input;
+          },
+        );
+      }
+      if (parsedDump["body"]["messages"]) {
+        parsedDump["body"]["messages"] = parsedDump["body"]["messages"].map(
+          (message: any) => {
+            if (message.role === "system") {
+              message.content = "[[SYSTEM_MESSAGE]]";
+            }
+            return message;
+          },
+        );
+      }
+      // Normalize fileIds to be deterministic based on content
+      normalizeVersionedFiles(parsedDump);
+      // Normalize item_reference IDs (e.g., msg_1234567890) to be deterministic
+      normalizeItemReferences(parsedDump);
+      // Normalize tool_call IDs (e.g., call_1234567890_0) to be deterministic
+      normalizeToolCallIds(parsedDump);
       expect(
         JSON.stringify(parsedDump, null, 2).replace(/\\r\\n/g, "\\n"),
       ).toMatchSnapshot(name);
       return;
     }
     expect(
-      prettifyDump(parsedDump["body"]["messages"], {
-        onlyLastMessage: type === "last-message",
-      }),
+      prettifyDump(
+        // responses API
+        parsedDump["body"]["input"] ??
+          // chat completion API
+          parsedDump["body"]["messages"],
+        {
+          onlyLastMessage: type === "last-message",
+        },
+      ),
     ).toMatchSnapshot(name);
   }
 
@@ -669,8 +992,37 @@ export class PageObject {
 
   getChatInput() {
     return this.page.locator(
-      '[data-lexical-editor="true"][aria-placeholder="Ask Exacta-App-Studio to build..."]',
+      '[data-lexical-editor="true"][aria-placeholder^="Ask Dyad to build"]',
     );
+  }
+
+  /**
+   * Clears the Lexical chat input using keyboard shortcuts (Meta+A, Backspace).
+   * Uses toPass() for resilience since Lexical may need time to update its state.
+   */
+  async clearChatInput() {
+    const chatInput = this.getChatInput();
+    await chatInput.click();
+    await this.page.keyboard.press("ControlOrMeta+a");
+    await this.page.keyboard.press("Backspace");
+    await expect(async () => {
+      const text = await chatInput.textContent();
+      expect(text?.trim()).toBe("");
+    }).toPass({ timeout: Timeout.SHORT });
+  }
+
+  /**
+   * Opens the chat history menu by clearing the input and pressing ArrowUp.
+   * Uses toPass() for resilience since the Lexical editor may need time to
+   * update its state before the history menu can be triggered.
+   */
+  async openChatHistoryMenu() {
+    const historyMenu = this.page.locator('[data-mentions-menu="true"]');
+    await expect(async () => {
+      await this.clearChatInput();
+      await this.page.keyboard.press("ArrowUp");
+      await expect(historyMenu).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: Timeout.SHORT });
   }
 
   clickNewChat({ index = 0 }: { index?: number } = {}) {
@@ -685,34 +1037,49 @@ export class PageObject {
     await this.page.getByRole("button", { name: "Back" }).click();
   }
 
-  async sendPrompt(prompt: string) {
+  async toggleTokenBar() {
+    // Need to make sure it's NOT visible yet to avoid a race when we opened
+    // the auxiliary actions menu earlier.
+    await expect(this.page.getByTestId("token-bar-toggle")).not.toBeVisible();
+    await this.getChatInputContainer()
+      .getByTestId("auxiliary-actions-menu")
+      .click();
+    await this.page.getByTestId("token-bar-toggle").click();
+  }
+
+  async sendPrompt(
+    prompt: string,
+    { skipWaitForCompletion = false }: { skipWaitForCompletion?: boolean } = {},
+  ) {
     await this.getChatInput().click();
     await this.getChatInput().fill(prompt);
     await this.page.getByRole("button", { name: "Send message" }).click();
-    await this.waitForChatCompletion();
+    if (!skipWaitForCompletion) {
+      await this.waitForChatCompletion();
+    }
   }
 
   async selectModel({ provider, model }: { provider: string; model: string }) {
-    await this.page.getByRole("button", { name: "Model: Auto" }).click();
+    await this.page.getByTestId("model-picker").click();
     await this.page.getByText(provider, { exact: true }).click();
     await this.page.getByText(model, { exact: true }).click();
   }
 
   async selectTestModel() {
-    await this.page.getByRole("button", { name: "Model: Auto" }).click();
+    await this.page.getByTestId("model-picker").click();
     await this.page.getByText("test-provider").click();
     await this.page.getByText("test-model").click();
   }
 
   async selectTestOllamaModel() {
-    await this.page.getByRole("button", { name: "Model: Auto" }).click();
+    await this.page.getByTestId("model-picker").click();
     await this.page.getByText("Local models").click();
     await this.page.getByText("Ollama", { exact: true }).click();
     await this.page.getByText("Testollama", { exact: true }).click();
   }
 
   async selectTestLMStudioModel() {
-    await this.page.getByRole("button", { name: "Model: Auto" }).click();
+    await this.page.getByTestId("model-picker").click();
     await this.page.getByText("Local models").click();
     await this.page.getByText("LM Studio", { exact: true }).click();
     // Both of the elements that match "lmstudio-model-1" are the same button, so we just pick the first.
@@ -723,7 +1090,7 @@ export class PageObject {
   }
 
   async selectTestAzureModel() {
-    await this.page.getByRole("button", { name: "Model: Auto" }).click();
+    await this.page.getByTestId("model-picker").click();
     await this.page.getByText("Other AI providers").click();
     await this.page.getByText("Azure OpenAI", { exact: true }).click();
     await this.page.getByText("GPT-5", { exact: true }).click();
@@ -758,9 +1125,7 @@ export class PageObject {
   }
 
   async setUpTestModel() {
-    await this.page
-      .getByRole("heading", { name: "test-provider Needs Setup" })
-      .click();
+    await this.page.getByRole("heading", { name: "test-provider" }).click();
     await this.page.getByRole("button", { name: "Add Custom Model" }).click();
     await this.page
       .getByRole("textbox", { name: "Model ID*" })
@@ -768,6 +1133,34 @@ export class PageObject {
     await this.page.getByRole("textbox", { name: "Model ID*" }).press("Tab");
     await this.page.getByRole("textbox", { name: "Name*" }).fill("test-model");
     await this.page.getByRole("button", { name: "Add Model" }).click();
+  }
+
+  async addCustomTestModel({
+    name,
+    contextWindow,
+  }: {
+    name: string;
+    contextWindow?: number;
+  }) {
+    await this.page.getByRole("heading", { name: "test-provider" }).click();
+    await this.page.getByRole("button", { name: "Add Custom Model" }).click();
+    await this.page.getByRole("textbox", { name: "Model ID*" }).fill(name);
+    await this.page.getByRole("textbox", { name: "Model ID*" }).press("Tab");
+    await this.page.getByRole("textbox", { name: "Name*" }).fill(name);
+    if (contextWindow) {
+      await this.page.locator("#context-window").fill(String(contextWindow));
+    }
+    await this.page.getByRole("button", { name: "Add Model" }).click();
+  }
+
+  async setUpTestProviderApiKey() {
+    // Fill in a test API key for the custom provider
+    await this.page
+      .getByPlaceholder(/Enter new.*API Key here/)
+      .fill("test-api-key-12345");
+    await this.page.getByRole("button", { name: "Save Key" }).click();
+    // Wait for the key to be saved
+    await expect(this.page.getByText("test-api-key-12345")).toBeVisible();
   }
 
   async goToSettingsTab() {
@@ -835,6 +1228,27 @@ export class PageObject {
     return this.getAppPath({ appName: currentAppName });
   }
 
+  async configureGitUser({
+    email = "test@example.com",
+    name = "Test User",
+    disableGpgSign = true,
+  }: {
+    email?: string;
+    name?: string;
+    disableGpgSign?: boolean;
+  } = {}) {
+    const appPath = await this.getCurrentAppPath();
+    if (!appPath) {
+      throw new Error("App path not found");
+    }
+
+    execSync(`git config user.email '${email}'`, { cwd: appPath });
+    execSync(`git config user.name '${name}'`, { cwd: appPath });
+    if (disableGpgSign) {
+      execSync("git config commit.gpgsign false", { cwd: appPath });
+    }
+  }
+
   getAppPath({ appName }: { appName: string }) {
     return path.join(this.userDataDir, "dyad-apps", appName);
   }
@@ -895,6 +1309,10 @@ export class PageObject {
     await this.page.getByRole("switch", { name: "Auto-approve" }).click();
   }
 
+  async toggleLocalAgentMode() {
+    await this.page.getByRole("switch", { name: "Enable Agent v2" }).click();
+  }
+
   async toggleNativeGit() {
     await this.page.getByRole("switch", { name: "Enable Native Git" }).click();
   }
@@ -903,19 +1321,69 @@ export class PageObject {
     await this.page.getByRole("switch", { name: "Auto-fix problems" }).click();
   }
 
-  async snapshotSettings() {
-    const settings = path.join(this.userDataDir, "user-settings.json");
-    const settingsContent = fs.readFileSync(settings, "utf-8");
-    //  Sanitize the "telemetryUserId" since it's a UUID
-    const sanitizedSettingsContent = settingsContent
-      .replace(/"telemetryUserId": "[^"]*"/g, '"telemetryUserId": "[UUID]"')
-      // Don't snapshot this otherwise it'll diff with every release.
-      .replace(
-        /"lastShownReleaseNotesVersion": "[^"]*"/g,
-        '"lastShownReleaseNotesVersion": "[scrubbed]"',
-      );
+  /**
+   * Records the current settings state for later comparison.
+   * Use with `snapshotSettingsDelta()` to snapshot only what changed.
+   */
+  recordSettings(): Record<string, unknown> {
+    const settingsPath = path.join(this.userDataDir, "user-settings.json");
+    const settingsContent = fs.readFileSync(settingsPath, "utf-8");
+    return JSON.parse(settingsContent);
+  }
 
-    expect(sanitizedSettingsContent).toMatchSnapshot();
+  /**
+   * Snapshots only the differences between the current settings and a previously recorded state.
+   * Output is in git diff style for easy reading.
+   */
+  snapshotSettingsDelta(beforeSettings: Record<string, unknown>) {
+    const afterSettings = this.recordSettings();
+
+    const diffLines: string[] = [];
+
+    const allKeys = new Set([
+      ...Object.keys(beforeSettings),
+      ...Object.keys(afterSettings),
+    ]);
+
+    // Sort keys for deterministic output
+    const sortedKeys = Array.from(allKeys).sort();
+
+    // Keys whose values should be redacted for deterministic snapshots
+    const redactedKeys: Record<string, string> = {
+      telemetryUserId: "[UUID]",
+      lastShownReleaseNotesVersion: "[scrubbed]",
+    };
+
+    for (const key of sortedKeys) {
+      const beforeValue = beforeSettings[key];
+      const afterValue = afterSettings[key];
+      const beforeExists = key in beforeSettings;
+      const afterExists = key in afterSettings;
+
+      // Format value with diff marker on each line for multiline values
+      // Redact certain keys for deterministic snapshots
+      const formatValue = (val: unknown, marker: "+" | "-") => {
+        const displayVal = key in redactedKeys ? redactedKeys[key] : val;
+        const lines = JSON.stringify(displayVal, null, 2).split("\n");
+        return lines
+          .map((line, i) => (i === 0 ? line : `${marker}   ${line}`))
+          .join("\n");
+      };
+
+      if (!beforeExists && afterExists) {
+        // Added
+        diffLines.push(`+ "${key}": ${formatValue(afterValue, "+")}`);
+      } else if (beforeExists && !afterExists) {
+        // Removed
+        diffLines.push(`- "${key}": ${formatValue(beforeValue, "-")}`);
+      } else if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+        // Changed
+        diffLines.push(`- "${key}": ${formatValue(beforeValue, "-")}`);
+        diffLines.push(`+ "${key}": ${formatValue(afterValue, "+")}`);
+      }
+    }
+
+    expect(diffLines.join("\n")).toMatchSnapshot();
   }
 
   async toggleAutoUpdate() {
@@ -945,7 +1413,7 @@ export class PageObject {
 
   async goToAppsTab() {
     await this.page.getByRole("link", { name: "Apps" }).click();
-    await expect(this.page.getByText("Build your dream app")).toBeVisible();
+    await expect(this.page.getByText("Build a new app")).toBeVisible();
   }
 
   async goToChatTab() {
@@ -985,7 +1453,7 @@ export class PageObject {
     await this.page.waitForSelector(selector, { timeout });
   }
 
-  async waitForToastWithText(text: string, timeout = 5000) {
+  async waitForToastWithText(text: string, timeout = Timeout.MEDIUM) {
     await this.page.waitForSelector(`[data-sonner-toast]:has-text("${text}")`, {
       timeout,
     });
@@ -1019,73 +1487,50 @@ export class PageObject {
   async sleep(ms: number) {
     await new Promise((resolve) => setTimeout(resolve, ms));
   }
-}
-// Helper functions for e2e tests
 
-export async function createApp(page: Page, appName: string, options: { isFullStack: boolean; selectedBackendFramework: string }): Promise<number> {
-  await page.getByRole("link", { name: "Chat" }).click();
-  const prompt = `Create a ${options.isFullStack ? 'fullstack' : 'frontend'} app named ${appName}${options.isFullStack ? ` with ${options.selectedBackendFramework} backend` : ''}`;
-  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
-  await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
-  return 0;
-}
+  ////////////////////////////////
+  // Agent Tool Consent Banner
+  ////////////////////////////////
 
-export async function deleteApp(page: Page, appId: number): Promise<void> {
-  await page.getByRole("link", { name: "Apps" }).click();
-  const appItems = page.locator('[data-testid^="app-list-item-"]');
-  await appItems.nth(appId).click();
-  await page.getByTestId("app-details-more-options-button").click();
-  await page.getByRole("button", { name: "Delete" }).click();
-  await page.getByRole("button", { name: "Delete App" }).click();
-}
+  getAgentConsentBanner() {
+    return this.page
+      .getByRole("button", { name: "Always allow" })
+      .locator("..");
+  }
 
-export async function startApp(page: Page, appId: number, mode: string): Promise<void> {
-  await page.getByRole("link", { name: "Chat" }).click();
-  const prompt = `Start the app in ${mode} mode`;
-  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
-  await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
-}
+  async waitForAgentConsentBanner(timeout = Timeout.MEDIUM) {
+    await expect(
+      this.page.getByRole("button", { name: "Always allow" }),
+    ).toBeVisible({ timeout });
+  }
 
-export async function stopApp(page: Page, appId: number): Promise<void> {
-  await page.getByRole("link", { name: "Chat" }).click();
-  const prompt = `Stop the app`;
-  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
-  await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
-}
+  async clickAgentConsentAlwaysAllow() {
+    await this.page.getByRole("button", { name: "Always allow" }).click();
+  }
 
-export async function getAppOutput(page: Page, appId: number): Promise<string> {
-  const messagesList = page.getByTestId("messages-list");
-  return (await messagesList.textContent()) || '';
-}
+  async clickAgentConsentAllowOnce() {
+    await this.page.getByRole("button", { name: "Allow once" }).click();
+  }
 
-export async function switchTerminal(page: Page, terminal: string): Promise<void> {
-  await page.getByRole("tab", { name: terminal }).click();
-}
+  async clickAgentConsentDecline() {
+    await this.page.getByRole("button", { name: "Decline" }).click();
+  }
 
-export async function getTerminalOutput(page: Page, appId: number, terminal: string): Promise<string> {
-  // Assume the terminal content is in a locator after switching
-  // This might need adjustment based on actual UI
-  const terminalLocator = page.locator('.terminal');
-  return (await terminalLocator.textContent()) || '';
-}
+  ////////////////////////////////
+  // Test-only: Node.js Mock Control
+  ////////////////////////////////
 
-export async function createBackendFile(page: Page, appId: number, filePath: string, content: string): Promise<void> {
-  await page.getByRole("link", { name: "Chat" }).click();
-  const prompt = `Create a backend file ${filePath} with the following content:\n${content}`;
-  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
-  await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
-}
-
-export async function createFrontendFile(page: Page, appId: number, filePath: string, content: string): Promise<void> {
-  await page.getByRole("link", { name: "Chat" }).click();
-  const prompt = `Create a frontend file ${filePath} with the following content:\n${content}`;
-  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
-  await page.getByRole("button", { name: "Send message" }).click();
-  await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
+  /**
+   * Set the mock state for Node.js installation status.
+   * @param installed - true = mock as installed, false = mock as not installed, null = use real check
+   */
+  async setNodeMock(installed: boolean | null) {
+    await this.page.evaluate(async (installed) => {
+      await (window as any).electron.ipcRenderer.invoke("test:set-node-mock", {
+        installed,
+      });
+    }, installed);
+  }
 }
 
 interface ElectronConfig {
@@ -1150,8 +1595,8 @@ export const test = base.extend<{
       process.env.OLLAMA_HOST = "http://localhost:3500/ollama";
       process.env.LM_STUDIO_BASE_URL_FOR_TESTING =
         "http://localhost:3500/lmstudio";
-      process.env.EXACTA_APP_STUDIO_ENGINE_URL = "http://localhost:3500/engine/v1";
-      process.env.EXACTA_APP_STUDIO_GATEWAY_URL = "http://localhost:3500/gateway/v1";
+      process.env.DYAD_ENGINE_URL = "http://localhost:3500/engine/v1";
+      process.env.DYAD_GATEWAY_URL = "http://localhost:3500/gateway/v1";
       process.env.E2E_TEST_BUILD = "true";
       if (!electronConfig.showSetupScreen) {
         // This is just a hack to avoid the AI setup screen.
@@ -1282,4 +1727,8 @@ function prettifyDump(
       return `===\nrole: ${message.role}\nmessage: ${content}`;
     })
     .join("\n\n");
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/");
 }

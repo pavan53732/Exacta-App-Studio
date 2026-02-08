@@ -14,18 +14,21 @@ import {
   Database,
   ChevronsUpDown,
   ChevronsDownUp,
-  ChartColumnIncreasing,
   SendHorizontalIcon,
+  Lock,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 
 import { useSettings } from "@/hooks/useSettings";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import {
   chatInputValueAtom,
-  chatMessagesAtom,
+  chatMessagesByIdAtom,
   selectedChatIdAtom,
+  pendingAgentConsentsAtom,
+  agentTodosByChatIdAtom,
+  needsFreshPlanChatAtom,
 } from "@/atoms/chatAtoms";
 import { atom, useAtom, useSetAtom, useAtomValue } from "jotai";
 import { useStreamChat } from "@/hooks/useStreamChat";
@@ -39,32 +42,54 @@ import {
   FileChange,
   SqlQuery,
 } from "@/lib/schemas";
-import type { Message } from "@/ipc/ipc_types";
+
 import { isPreviewOpenAtom } from "@/atoms/viewAtoms";
 import { useRunApp } from "@/hooks/useRunApp";
 import { AutoApproveSwitch } from "../AutoApproveSwitch";
 import { usePostHog } from "posthog-js/react";
 import { CodeHighlight } from "./CodeHighlight";
 import { TokenBar } from "./TokenBar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
-import { useNavigate } from "@tanstack/react-router";
+
 import { useVersions } from "@/hooks/useVersions";
 import { useAttachments } from "@/hooks/useAttachments";
 import { AttachmentsList } from "./AttachmentsList";
 import { DragDropOverlay } from "./DragDropOverlay";
-import { FileAttachmentDropdown } from "./FileAttachmentDropdown";
-import { showError, showExtraFilesToast } from "@/lib/toast";
+import { showExtraFilesToast, showInfo } from "@/lib/toast";
+import { useSummarizeInNewChat } from "./SummarizeInNewChatButton";
 import { ChatInputControls } from "../ChatInputControls";
 import { ChatErrorBox } from "./ChatErrorBox";
-import { selectedComponentPreviewAtom } from "@/atoms/previewAtoms";
-import { SelectedComponentDisplay } from "./SelectedComponentDisplay";
+import { AgentConsentBanner } from "./AgentConsentBanner";
+import { TodoList } from "./TodoList";
+import { QuestionnaireInput } from "./QuestionnaireInput";
+import {
+  selectedComponentsPreviewAtom,
+  previewIframeRefAtom,
+  visualEditingSelectedComponentAtom,
+  currentComponentCoordinatesAtom,
+  pendingVisualChangesAtom,
+} from "@/atoms/previewAtoms";
+import { SelectedComponentsDisplay } from "./SelectedComponentDisplay";
 import { useCheckProblems } from "@/hooks/useCheckProblems";
 import { LexicalChatInput } from "./LexicalChatInput";
+import { AuxiliaryActionsMenu } from "./AuxiliaryActionsMenu";
+import { useChatModeToggle } from "@/hooks/useChatModeToggle";
+import { VisualEditingChangesDialog } from "@/components/preview_panel/VisualEditingChangesDialog";
+import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  ContextLimitBanner,
+  shouldShowContextLimitBanner,
+} from "./ContextLimitBanner";
+import { useCountTokens } from "@/hooks/useCountTokens";
+import { useChats } from "@/hooks/useChats";
+import { useRouter } from "@tanstack/react-router";
+import { showError as showErrorToast } from "@/lib/toast";
 
 const showTokenBarAtom = atom(false);
 
@@ -79,13 +104,43 @@ export function ChatInput({ chatId }: { chatId?: number }) {
   const [showError, setShowError] = useState(true);
   const [isApproving, setIsApproving] = useState(false); // State for approving
   const [isRejecting, setIsRejecting] = useState(false); // State for rejecting
-  const [, setMessages] = useAtom<Message[]>(chatMessagesAtom);
+  const messagesById = useAtomValue(chatMessagesByIdAtom);
+  const setMessagesById = useSetAtom(chatMessagesByIdAtom);
   const setIsPreviewOpen = useSetAtom(isPreviewOpenAtom);
   const [showTokenBar, setShowTokenBar] = useAtom(showTokenBarAtom);
-  const [selectedComponent, setSelectedComponent] = useAtom(
-    selectedComponentPreviewAtom,
+  const queryClient = useQueryClient();
+  const toggleShowTokenBar = useCallback(() => {
+    setShowTokenBar((prev) => !prev);
+    queryClient.invalidateQueries({ queryKey: queryKeys.tokenCount.all });
+  }, [setShowTokenBar, queryClient]);
+  const [selectedComponents, setSelectedComponents] = useAtom(
+    selectedComponentsPreviewAtom,
   );
+  const previewIframeRef = useAtomValue(previewIframeRefAtom);
+  const setVisualEditingSelectedComponent = useSetAtom(
+    visualEditingSelectedComponentAtom,
+  );
+  const setCurrentComponentCoordinates = useSetAtom(
+    currentComponentCoordinatesAtom,
+  );
+  const setPendingVisualChanges = useSetAtom(pendingVisualChangesAtom);
+  const [pendingAgentConsents, setPendingAgentConsents] = useAtom(
+    pendingAgentConsentsAtom,
+  );
+  // Get the first consent in the queue for this chat (if any)
+  const consentsForThisChat = pendingAgentConsents.filter(
+    (c) => c.chatId === chatId,
+  );
+  const pendingAgentConsent = consentsForThisChat[0] ?? null;
+
+  // Get todos for this chat
+  const agentTodosByChatId = useAtomValue(agentTodosByChatIdAtom);
+  const chatTodos = chatId ? (agentTodosByChatId.get(chatId) ?? []) : [];
   const { checkProblems } = useCheckProblems(appId);
+  const { refreshAppIframe } = useRunApp();
+  const { navigate } = useRouter();
+  const setSelectedChatId = useSetAtom(selectedChatIdAtom);
+  const { invalidateChats } = useChats(appId);
   // Use the attachments hook
   const {
     attachments,
@@ -107,6 +162,60 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     refreshProposal,
   } = useProposal(chatId);
   const { proposal, messageId } = proposalResult ?? {};
+  useChatModeToggle();
+
+  const lastMessage = (chatId ? (messagesById.get(chatId) ?? []) : []).at(-1);
+  const disableSendButton =
+    settings?.selectedChatMode !== "local-agent" &&
+    lastMessage?.role === "assistant" &&
+    !lastMessage.approvalState &&
+    !!proposal &&
+    proposal.type === "code-proposal" &&
+    messageId === lastMessage.id;
+
+  // Extract user message history for terminal-style navigation
+  const userMessageHistory = useMemo(() => {
+    if (!chatId) return [];
+    const messages = messagesById.get(chatId) ?? [];
+    return messages
+      .filter((msg) => msg.role === "user")
+      .map((msg) => msg.content)
+      .reverse(); // Most recent first
+  }, [chatId, messagesById]);
+
+  const { userBudget } = useUserBudgetInfo();
+  const [needsFreshPlanChat, setNeedsFreshPlanChat] = useAtom(
+    needsFreshPlanChatAtom,
+  );
+
+  // Detect transition to plan mode from another mode in a chat with messages
+  const prevModeRef = useRef(settings?.selectedChatMode);
+  useEffect(() => {
+    const prevMode = prevModeRef.current;
+    const currentMode = settings?.selectedChatMode;
+    prevModeRef.current = currentMode;
+
+    if (prevMode && prevMode !== "plan" && currentMode === "plan") {
+      const messages = chatId ? (messagesById.get(chatId) ?? []) : [];
+      if (messages.length > 0) {
+        setNeedsFreshPlanChat(true);
+      }
+    }
+  }, [settings?.selectedChatMode, chatId, messagesById, setNeedsFreshPlanChat]);
+
+  // Token counting for context limit banner
+  const { result: tokenCountResult } = useCountTokens(
+    !isStreaming ? (chatId ?? null) : null,
+    "",
+  );
+
+  const showBanner =
+    !isStreaming &&
+    tokenCountResult &&
+    shouldShowContextLimitBanner({
+      totalTokens: tokenCountResult.actualMaxTokens,
+      contextWindow: tokenCountResult.contextWindow,
+    });
 
   useEffect(() => {
     if (error) {
@@ -116,12 +225,15 @@ export function ChatInput({ chatId }: { chatId?: number }) {
 
   const fetchChatMessages = useCallback(async () => {
     if (!chatId) {
-      setMessages([]);
       return;
     }
-    const chat = await IpcClient.getInstance().getChat(chatId);
-    setMessages(chat.messages);
-  }, [chatId, setMessages]);
+    const chat = await ipc.chat.getChat(chatId);
+    setMessagesById((prev) => {
+      const next = new Map(prev);
+      next.set(chatId, chat.messages);
+      return next;
+    });
+  }, [chatId, setMessagesById]);
 
   const handleSubmit = async () => {
     if (
@@ -132,9 +244,47 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       return;
     }
 
+    // If switching to plan mode from another mode in a chat with messages,
+    // create a new chat for a clean context.
+    if (needsFreshPlanChat && settings?.selectedChatMode === "plan" && appId) {
+      const currentInput = inputValue;
+      setInputValue("");
+      setNeedsFreshPlanChat(false);
+
+      const newChatId = await ipc.chat.createChat(appId);
+      setSelectedChatId(newChatId);
+      navigate({ to: "/chat", search: { id: newChatId } });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chats.all });
+      showInfo("We've switched you to a new chat for a clean context");
+
+      await streamMessage({
+        prompt: currentInput,
+        chatId: newChatId,
+        attachments,
+        redo: false,
+      });
+      clearAttachments();
+      posthog.capture("chat:submit", { chatMode: settings?.selectedChatMode });
+      return;
+    }
+
     const currentInput = inputValue;
     setInputValue("");
-    setSelectedComponent(null);
+
+    // Use all selected components for multi-component editing
+    const componentsToSend =
+      selectedComponents && selectedComponents.length > 0
+        ? selectedComponents
+        : [];
+    setSelectedComponents([]);
+    setVisualEditingSelectedComponent(null);
+    // Clear overlays in the preview iframe
+    if (previewIframeRef?.contentWindow) {
+      previewIframeRef.contentWindow.postMessage(
+        { type: "clear-dyad-component-overlays" },
+        "*",
+      );
+    }
 
     // Send message with attachments and clear them after sending
     await streamMessage({
@@ -142,21 +292,41 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       chatId,
       attachments,
       redo: false,
-      selectedComponent,
+      selectedComponents: componentsToSend,
     });
     clearAttachments();
-    posthog.capture("chat:submit");
+    posthog.capture("chat:submit", { chatMode: settings?.selectedChatMode });
   };
 
   const handleCancel = () => {
     if (chatId) {
-      IpcClient.getInstance().cancelChatStream(chatId);
+      ipc.chat.cancelStream(chatId);
     }
     setIsStreaming(false);
   };
 
   const dismissError = () => {
     setShowError(false);
+  };
+
+  const handleNewChat = async () => {
+    if (appId) {
+      try {
+        const newChatId = await ipc.chat.createChat(appId);
+        setSelectedChatId(newChatId);
+        navigate({
+          to: "/chat",
+          search: { id: newChatId },
+        });
+        await invalidateChats();
+      } catch (err) {
+        showErrorToast(
+          `Failed to create new chat: ${(err as Error).toString()}`,
+        );
+      }
+    } else {
+      navigate({ to: "/" });
+    }
   };
 
   const handleApprove = async () => {
@@ -168,7 +338,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     setIsApproving(true);
     posthog.capture("chat:approve");
     try {
-      const result = await IpcClient.getInstance().approveProposal({
+      const result = await ipc.proposal.approveProposal({
         chatId,
         messageId,
       });
@@ -184,7 +354,9 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       setError((err as Error)?.message || "An error occurred while approving");
     } finally {
       setIsApproving(false);
-      setIsPreviewOpen(true);
+      if (settings?.autoExpandPreviewPanel) {
+        setIsPreviewOpen(true);
+      }
       refreshVersions();
       if (settings?.enableAutoFixProblems) {
         checkProblems();
@@ -205,7 +377,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
     setIsRejecting(true);
     posthog.capture("chat:reject");
     try {
-      await IpcClient.getInstance().rejectProposal({
+      await ipc.proposal.rejectProposal({
         chatId,
         messageId,
       });
@@ -214,7 +386,6 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       setError((err as Error)?.message || "An error occurred while rejecting");
     } finally {
       setIsRejecting(false);
-
       // Keep same as handleApprove
       refreshProposal();
       fetchChatMessages();
@@ -231,7 +402,8 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         <ChatErrorBox
           onDismiss={dismissError}
           error={error}
-          isExactaAppStudioProEnabled={settings.enableExactaAppStudioPro ?? false}
+          isDyadProEnabled={settings.enableDyadPro ?? false}
+          onStartNewChat={handleNewChat}
         />
       )}
       {/* Display loading or error state for proposal */}
@@ -242,22 +414,67 @@ export function ChatInput({ chatId }: { chatId?: number }) {
       )}
       {proposalError && (
         <div className="p-4 text-sm text-red-600">
-          Error loading proposal: {proposalError}
+          Error loading proposal: {proposalError.message}
         </div>
       )}
       <div className="p-4" data-testid="chat-input-container">
+        {/* Show context limit banner above chat input for visibility */}
+        {showBanner && tokenCountResult && (
+          <ContextLimitBanner
+            totalTokens={tokenCountResult.actualMaxTokens}
+            contextWindow={tokenCountResult.contextWindow}
+          />
+        )}
         <div
-          className={`relative flex flex-col border border-border rounded-lg bg-[var(--background-lighter)] shadow-sm ${
+          className={`relative flex flex-col border border-border rounded-lg bg-(--background-lighter) shadow-sm ${
             isDraggingOver ? "ring-2 ring-blue-500 border-blue-500" : ""
-          }`}
+          } ${showBanner ? "rounded-t-none border-t-0" : ""}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {/* Only render ChatInputActions if proposal is loaded */}
-          {proposal &&
+          {/* Show active questionnaire if exists */}
+          <QuestionnaireInput />
+
+          {/* Show todo list if there are todos for this chat */}
+          {chatTodos.length > 0 && <TodoList todos={chatTodos} />}
+          {/* Show agent consent banner if there's a pending consent request */}
+          {pendingAgentConsent && (
+            <AgentConsentBanner
+              consent={pendingAgentConsent}
+              queueTotal={consentsForThisChat.length}
+              onDecision={(decision) => {
+                ipc.agent.respondToConsent({
+                  requestId: pendingAgentConsent.requestId,
+                  decision,
+                });
+                // Remove this consent from the queue by requestId
+                setPendingAgentConsents((prev) =>
+                  prev.filter(
+                    (c) => c.requestId !== pendingAgentConsent.requestId,
+                  ),
+                );
+              }}
+              onClose={() => {
+                ipc.agent.respondToConsent({
+                  requestId: pendingAgentConsent.requestId,
+                  decision: "decline",
+                });
+                // Remove this consent from the queue by requestId
+                setPendingAgentConsents((prev) =>
+                  prev.filter(
+                    (c) => c.requestId !== pendingAgentConsent.requestId,
+                  ),
+                );
+              }}
+            />
+          )}
+          {/* Only render ChatInputActions if proposal is loaded and no pending consent */}
+          {!pendingAgentConsent &&
+            proposal &&
             proposalResult?.chatId === chatId &&
-            settings.selectedChatMode !== "ask" && (
+            settings.selectedChatMode !== "ask" &&
+            settings.selectedChatMode !== "local-agent" && (
               <ChatInputActions
                 proposal={proposal}
                 onApprove={handleApprove}
@@ -275,7 +492,57 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               />
             )}
 
-          <SelectedComponentDisplay />
+          {userBudget ? (
+            <VisualEditingChangesDialog
+              iframeRef={
+                previewIframeRef
+                  ? { current: previewIframeRef }
+                  : { current: null }
+              }
+              onReset={() => {
+                // Exit component selection mode and visual editing
+                setSelectedComponents([]);
+                setVisualEditingSelectedComponent(null);
+                setCurrentComponentCoordinates(null);
+                setPendingVisualChanges(new Map());
+                refreshAppIframe();
+
+                // Deactivate component selector in iframe
+                if (previewIframeRef?.contentWindow) {
+                  previewIframeRef.contentWindow.postMessage(
+                    { type: "deactivate-dyad-component-selector" },
+                    "*",
+                  );
+                }
+              }}
+            />
+          ) : (
+            selectedComponents.length > 0 && (
+              <div className="border-b border-border p-3 bg-muted/30">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        onClick={() => {
+                          ipc.system.openExternalUrl("https://dyad.sh/pro");
+                        }}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      />
+                    }
+                  >
+                    <Lock size={16} />
+                    <span className="font-medium">Visual editor (Pro)</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Visual editing lets you make UI changes without AI and is a
+                    Pro-only feature
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )
+          )}
+
+          <SelectedComponentsDisplay />
 
           {/* Use the AttachmentsList component */}
           <AttachmentsList
@@ -292,61 +559,59 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               onChange={setInputValue}
               onSubmit={handleSubmit}
               onPaste={handlePaste}
-              placeholder="Ask Exacta-App-Studio to build..."
+              placeholder="Ask Dyad to build..."
               excludeCurrentApp={true}
+              disableSendButton={disableSendButton}
+              messageHistory={userMessageHistory}
             />
 
             {isStreaming ? (
-              <button
-                onClick={handleCancel}
-                className="px-2 py-2 mt-1 mr-1 hover:bg-[var(--background-darkest)] text-[var(--sidebar-accent-fg)] rounded-lg"
-                title="Cancel generation"
-              >
-                <StopCircleIcon size={20} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={handleCancel}
+                      aria-label="Cancel generation"
+                      className="px-2 py-2 mt-1 mr-1 hover:bg-(--background-darkest) text-(--sidebar-accent-fg) rounded-lg"
+                    />
+                  }
+                >
+                  <StopCircleIcon size={20} />
+                </TooltipTrigger>
+                <TooltipContent>Cancel generation</TooltipContent>
+              </Tooltip>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={!inputValue.trim() && attachments.length === 0}
-                className="px-2 py-2 mt-1 mr-1 hover:bg-[var(--background-darkest)] text-[var(--sidebar-accent-fg)] rounded-lg disabled:opacity-50"
-                title="Send message"
-              >
-                <SendHorizontalIcon size={20} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={handleSubmit}
+                      disabled={
+                        (!inputValue.trim() && attachments.length === 0) ||
+                        disableSendButton
+                      }
+                      aria-label="Send message"
+                      className="px-2 py-2 mt-1 mr-1 hover:bg-(--background-darkest) text-(--sidebar-accent-fg) rounded-lg disabled:opacity-50"
+                    />
+                  }
+                >
+                  <SendHorizontalIcon size={20} />
+                </TooltipTrigger>
+                <TooltipContent>Send message</TooltipContent>
+              </Tooltip>
             )}
           </div>
           <div className="pl-2 pr-1 flex items-center justify-between pb-2">
             <div className="flex items-center">
-              <ChatInputControls
-                showContextFilesPicker={true}
-                appId={appId ?? undefined}
-              />
-              {/* File attachment dropdown */}
-              <FileAttachmentDropdown
-                onFileSelect={handleFileSelect}
-                disabled={isStreaming}
-              />
+              <ChatInputControls showContextFilesPicker={false} />
             </div>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => setShowTokenBar(!showTokenBar)}
-                    variant="ghost"
-                    className={`has-[>svg]:px-2 ${
-                      showTokenBar ? "text-purple-500 bg-purple-100" : ""
-                    }`}
-                    size="sm"
-                  >
-                    <ChartColumnIncreasing size={14} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {showTokenBar ? "Hide token usage" : "Show token usage"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <AuxiliaryActionsMenu
+              onFileSelect={handleFileSelect}
+              showTokenBar={showTokenBar}
+              toggleShowTokenBar={toggleShowTokenBar}
+              appId={appId ?? undefined}
+            />
           </div>
           {/* TokenBar is only displayed when showTokenBar is true */}
           {showTokenBar && <TokenBar chatId={chatId} />}
@@ -367,49 +632,29 @@ function SuggestionButton({
 }) {
   const { isStreaming } = useStreamChat();
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
+    <Tooltip>
+      <TooltipTrigger
+        render={
           <Button
             disabled={isStreaming}
             variant="outline"
             size="sm"
             onClick={onClick}
-          >
-            {children}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{tooltipText}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{tooltipText}</TooltipContent>
+    </Tooltip>
   );
 }
 
 function SummarizeInNewChatButton() {
-  const chatId = useAtomValue(selectedChatIdAtom);
-  const appId = useAtomValue(selectedAppIdAtom);
-  const { streamMessage } = useStreamChat();
-  const navigate = useNavigate();
-  const onClick = async () => {
-    if (!appId) {
-      console.error("No app id found");
-      return;
-    }
-    try {
-      const newChatId = await IpcClient.getInstance().createChat(appId);
-      // navigate to new chat
-      await navigate({ to: "/chat", search: { id: newChatId } });
-      await streamMessage({
-        prompt: "Summarize from chat-id=" + chatId,
-        chatId: newChatId,
-      });
-    } catch (err) {
-      showError(err);
-    }
-  };
+  const { handleSummarize } = useSummarizeInNewChat();
   return (
     <SuggestionButton
-      onClick={onClick}
+      onClick={handleSummarize}
       tooltipText="Creating a new chat makes the AI more focused and efficient"
     >
       Summarize to new chat
@@ -434,9 +679,9 @@ function RefactorFileButton({ path }: { path: string }) {
   return (
     <SuggestionButton
       onClick={onClick}
-      tooltipText="Refactor the file to improve maintainability"
+      tooltipText={`Refactor the file to improve maintainability: \n${path}`}
     >
-      <span className="max-w-[180px] overflow-hidden whitespace-nowrap text-ellipsis">
+      <span className="max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis">
         Refactor {path.split("/").slice(-2).join("/")}
       </span>
     </SuggestionButton>
@@ -547,7 +792,7 @@ function KeepGoingButton() {
   );
 }
 
-function mapActionToButton(action: SuggestedAction) {
+export function mapActionToButton(action: SuggestedAction) {
   switch (action.id) {
     case "summarize-in-new-chat":
       return <SummarizeInNewChatButton />;
@@ -577,9 +822,7 @@ function ActionProposalActions({ proposal }: { proposal: ActionProposal }) {
   return (
     <div className="border-b border-border p-2 pb-0 flex items-center justify-between">
       <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-        {proposal.actions.map((action) => (
-          <div key={action.id}>{mapActionToButton(action)}</div>
-        ))}
+        {proposal.actions.map((action) => mapActionToButton(action))}
       </div>
     </div>
   );
@@ -754,7 +997,7 @@ function ChatInputActions({
                       key={index}
                       className="flex items-center space-x-2"
                       onClick={() => {
-                        IpcClient.getInstance().openExternalUrl(
+                        ipc.system.openExternalUrl(
                           `https://www.npmjs.com/package/${pkg}`,
                         );
                       }}
@@ -866,25 +1109,19 @@ function ProposalSummary({
 
   if (sqlQueries.length) {
     parts.push(
-      `${sqlQueries.length} SQL ${
-        sqlQueries.length === 1 ? "query" : "queries"
-      }`,
+      `${sqlQueries.length} SQL ${sqlQueries.length === 1 ? "query" : "queries"}`,
     );
   }
 
   if (serverFunctions.length) {
     parts.push(
-      `${serverFunctions.length} Server ${
-        serverFunctions.length === 1 ? "Function" : "Functions"
-      }`,
+      `${serverFunctions.length} Server ${serverFunctions.length === 1 ? "Function" : "Functions"}`,
     );
   }
 
   if (packagesAdded.length) {
     parts.push(
-      `${packagesAdded.length} ${
-        packagesAdded.length === 1 ? "package" : "packages"
-      }`,
+      `${packagesAdded.length} ${packagesAdded.length === 1 ? "package" : "packages"}`,
     );
   }
 
@@ -907,7 +1144,7 @@ function SqlQueryItem({ query }: { query: SqlQuery }) {
 
   return (
     <li
-      className="bg-[var(--background-lightest)] hover:bg-[var(--background-lighter)] rounded-lg px-3 py-2 border border-border cursor-pointer"
+      className="bg-(--background-lightest) hover:bg-(--background-lighter) rounded-lg px-3 py-2 border border-border cursor-pointer"
       onClick={() => setIsExpanded(!isExpanded)}
     >
       <div className="flex items-center justify-between">

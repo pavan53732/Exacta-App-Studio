@@ -1,6 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,17 +11,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { buttonVariants } from "@/components/ui/button";
 
 interface DeleteConfirmationDialogProps {
   itemName: string;
   itemType?: string;
   onDelete: () => void | Promise<void>;
   trigger?: React.ReactNode;
+  isDeleting?: boolean;
 }
 
 export function DeleteConfirmationDialog({
@@ -30,28 +26,21 @@ export function DeleteConfirmationDialog({
   itemType = "item",
   onDelete,
   trigger,
+  isDeleting = false,
 }: DeleteConfirmationDialogProps) {
   return (
     <AlertDialog>
       {trigger ? (
-        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+        <AlertDialogTrigger>{trigger}</AlertDialogTrigger>
       ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <AlertDialogTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                data-testid="delete-prompt-button"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete {itemType.toLowerCase()}</p>
-          </TooltipContent>
-        </Tooltip>
+        <AlertDialogTrigger
+          className={buttonVariants({ variant: "ghost", size: "icon" })}
+          data-testid="delete-prompt-button"
+          disabled={isDeleting}
+          title={`Delete ${itemType.toLowerCase()}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </AlertDialogTrigger>
       )}
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -62,8 +51,17 @@ export function DeleteConfirmationDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onDelete} disabled={isDeleting}>
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

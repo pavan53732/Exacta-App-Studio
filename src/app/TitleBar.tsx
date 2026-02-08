@@ -5,22 +5,23 @@ import { useRouter, useLocation } from "@tanstack/react-router";
 import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 // @ts-ignore
-import logo from "../../assets/ai-logos/Exacta-App-Studio-Logo.gif";
+import logo from "../../assets/logo.svg";
 import { providerSettingsRoute } from "@/routes/settings/providers/$provider";
 import { cn } from "@/lib/utils";
 import { useDeepLink } from "@/contexts/DeepLinkContext";
 import { useEffect, useState } from "react";
 import { DyadProSuccessDialog } from "@/components/DyadProSuccessDialog";
 import { useTheme } from "@/contexts/ThemeContext";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
+import { useSystemPlatform } from "@/hooks/useSystemPlatform";
 import { useUserBudgetInfo } from "@/hooks/useUserBudgetInfo";
-import { UserBudgetInfo } from "@/ipc/ipc_types";
+import type { UserBudgetInfo } from "@/ipc/types";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PreviewHeader } from "@/components/preview_panel/PreviewHeader";
+import { ActionHeader } from "@/components/preview_panel/ActionHeader";
 
 export const TitleBar = () => {
   const [selectedAppId] = useAtom(selectedAppIdAtom);
@@ -29,36 +30,24 @@ export const TitleBar = () => {
   const location = useLocation();
   const { settings, refreshSettings } = useSettings();
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
-  const [showWindowControls, setShowWindowControls] = useState(false);
-
-  useEffect(() => {
-    // Check if we're running on Windows
-    const checkPlatform = async () => {
-      try {
-        const platform = await IpcClient.getInstance().getSystemPlatform();
-        setShowWindowControls(platform !== "darwin");
-      } catch (error) {
-        console.error("Failed to get platform info:", error);
-      }
-    };
-
-    checkPlatform();
-  }, []);
+  const platform = useSystemPlatform();
+  const showWindowControls = platform !== null && platform !== "darwin";
 
   const showDyadProSuccessDialog = () => {
     setIsSuccessDialogOpen(true);
   };
 
-  const { lastDeepLink } = useDeepLink();
+  const { lastDeepLink, clearLastDeepLink } = useDeepLink();
   useEffect(() => {
     const handleDeepLink = async () => {
       if (lastDeepLink?.type === "dyad-pro-return") {
         await refreshSettings();
         showDyadProSuccessDialog();
+        clearLastDeepLink();
       }
     };
     handleDeepLink();
-  }, [lastDeepLink]);
+  }, [lastDeepLink?.timestamp]);
 
   // Get selected app name
   const selectedApp = apps.find((app) => app.id === selectedAppId);
@@ -73,43 +62,35 @@ export const TitleBar = () => {
   };
 
   const isDyadPro = !!settings?.providerSettings?.auto?.apiKey?.value;
-  const isExactaAppStudioProEnabled = Boolean(settings?.enableExactaAppStudioPro);
+  const isDyadProEnabled = Boolean(settings?.enableDyadPro);
 
   return (
     <>
-      <div className="@container z-11 w-full h-11 bg-[var(--sidebar)] absolute top-0 left-0 app-region-drag flex items-center">
-        <div className="flex items-center flex-shrink-0">
-          <div className={`${showWindowControls ? "pl-2" : "pl-18"}`}></div>
-          <img src={logo} alt="Exacta-App-Studio Logo" className="w-12 h-8" />
-          <Button
-            data-testid="title-bar-app-name-button"
-            variant="outline"
-            size="sm"
-            className={`hidden @2xl:block no-app-region-drag text-xs max-w-38 truncate font-medium ml-2 ${
-              selectedApp ? "cursor-pointer" : ""
-            }`}
-            onClick={handleAppClick}
-          >
-            {displayText}
-          </Button>
-        </div>
+      <div className="@container z-11 w-full h-11 bg-(--sidebar) absolute top-0 left-0 app-region-drag flex items-center">
+        <div className={`${showWindowControls ? "pl-2" : "pl-18"}`}></div>
 
-        <div className="flex-1 flex justify-center items-center absolute inset-0 pointer-events-none">
-          <span className="text-lg font-semibold no-app-region-drag pointer-events-auto">Exacta-App-Studio</span>
-        </div>
+        <img src={logo} alt="Dyad Logo" className="w-6 h-6 mr-0.5" />
+        <Button
+          data-testid="title-bar-app-name-button"
+          variant="outline"
+          size="sm"
+          className={`hidden @2xl:block no-app-region-drag text-xs max-w-38 truncate font-medium ${
+            selectedApp ? "cursor-pointer" : ""
+          }`}
+          onClick={handleAppClick}
+        >
+          {displayText}
+        </Button>
+        {isDyadPro && <DyadProButton isDyadProEnabled={isDyadProEnabled} />}
 
-        <div className="flex items-center flex-shrink-0 ml-auto">
-          {isDyadPro && <DyadProButton isExactaAppStudioProEnabled={isExactaAppStudioProEnabled} />}
+        {/* Preview Header */}
+        {location.pathname === "/chat" && (
+          <div className="flex-1 flex justify-end">
+            <ActionHeader />
+          </div>
+        )}
 
-          {/* Preview Header */}
-          {location.pathname === "/chat" && (
-            <div className="flex justify-end">
-              <PreviewHeader />
-            </div>
-          )}
-
-          {showWindowControls && <WindowsControls />}
-        </div>
+        {showWindowControls && <WindowsControls />}
       </div>
 
       <DyadProSuccessDialog
@@ -122,18 +103,17 @@ export const TitleBar = () => {
 
 function WindowsControls() {
   const { isDarkMode } = useTheme();
-  const ipcClient = IpcClient.getInstance();
 
   const minimizeWindow = () => {
-    ipcClient.minimizeWindow();
+    ipc.system.minimizeWindow();
   };
 
   const maximizeWindow = () => {
-    ipcClient.maximizeWindow();
+    ipc.system.maximizeWindow();
   };
 
   const closeWindow = () => {
-    ipcClient.closeWindow();
+    ipc.system.closeWindow();
   };
 
   return (
@@ -202,9 +182,9 @@ function WindowsControls() {
 }
 
 export function DyadProButton({
-  isExactaAppStudioProEnabled,
+  isDyadProEnabled,
 }: {
-  isExactaAppStudioProEnabled: boolean;
+  isDyadProEnabled: boolean;
 }) {
   const { navigate } = useRouter();
   const { userBudget } = useUserBudgetInfo();
@@ -220,19 +200,27 @@ export function DyadProButton({
       variant="outline"
       className={cn(
         "hidden @2xl:block ml-1 no-app-region-drag h-7 bg-indigo-600 text-white dark:bg-indigo-600 dark:text-white text-xs px-2 pt-1 pb-1",
-        !isExactaAppStudioProEnabled && "bg-zinc-600 dark:bg-zinc-600",
+        !isDyadProEnabled && "bg-zinc-600 dark:bg-zinc-600",
       )}
       size="sm"
     >
-      {isExactaAppStudioProEnabled ? "Pro" : "Pro (off)"}
-      {userBudget && isExactaAppStudioProEnabled && (
+      {isDyadProEnabled
+        ? userBudget?.isTrial
+          ? "Pro Trial"
+          : "Pro"
+        : "Pro (off)"}
+      {userBudget && isDyadProEnabled && (
         <AICreditStatus userBudget={userBudget} />
       )}
     </Button>
   );
 }
 
-export function AICreditStatus({ userBudget }: { userBudget: UserBudgetInfo }) {
+export function AICreditStatus({
+  userBudget,
+}: {
+  userBudget: NonNullable<UserBudgetInfo>;
+}) {
   const remaining = Math.round(
     userBudget.totalCredits - userBudget.usedCredits,
   );
@@ -243,14 +231,6 @@ export function AICreditStatus({ userBudget }: { userBudget: UserBudgetInfo }) {
       </TooltipTrigger>
       <TooltipContent>
         <div>
-          <p>
-            You have used {Math.round(userBudget.usedCredits)} credits out of{" "}
-            {userBudget.totalCredits}.
-          </p>
-          <p>
-            Your budget resets on{" "}
-            {userBudget.budgetResetDate.toLocaleDateString()}
-          </p>
           <p>Note: there is a slight delay in updating the credit status.</p>
         </div>
       </TooltipContent>

@@ -1,7 +1,6 @@
-import fs from "node:fs";
 import fsAsync from "node:fs/promises";
 import path from "node:path";
-import { isIgnored } from "isomorphic-git";
+import { gitIsIgnored } from "../ipc/utils/git_utils";
 import log from "electron-log";
 import { IS_TEST_BUILD } from "../ipc/utils/test_utils";
 import { glob } from "glob";
@@ -44,9 +43,9 @@ const ALLOWED_EXTENSIONS = [
   ".gradle",
   ".swift",
   // Edge cases
-  // https://github.com/pavan53732/Exacta-App-Studio/issues/880
+  // https://github.com/dyad-sh/dyad/issues/880
   ".py",
-  // https://github.com/pavan53732/Exacta-App-Studio/issues/1221
+  // https://github.com/dyad-sh/dyad/issues/1221
   ".php",
 ];
 
@@ -55,8 +54,16 @@ const ALLOWED_EXTENSIONS = [
 // people don't have their gitignore setup correctly so we want to
 // be conservative and never include these directories.
 //
-// ex: https://github.com/pavan53732/Exacta-App-Studio/issues/727
-const EXCLUDED_DIRS = ["node_modules", ".git", "dist", "build", ".next"];
+// ex: https://github.com/dyad-sh/dyad/issues/727
+const EXCLUDED_DIRS = [
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  ".venv",
+  "venv",
+];
 
 // Files to always exclude
 const EXCLUDED_FILES = ["pnpm-lock.yaml", "package-lock.json"];
@@ -168,9 +175,8 @@ async function isGitIgnored(
     }
 
     const relativePath = path.relative(baseDir, filePath);
-    const result = await isIgnored({
-      fs,
-      dir: baseDir,
+    const result = await gitIsIgnored({
+      path: baseDir,
       filepath: relativePath,
     });
 
@@ -403,11 +409,19 @@ ${content}
   }
 }
 
-export type CodebaseFile = {
+export interface BaseFile {
   path: string;
-  content: string;
+  focused?: boolean;
   force?: boolean;
-};
+}
+
+export interface CodebaseFile extends BaseFile {
+  content: string;
+}
+
+export interface CodebaseFileReference extends BaseFile {
+  fileId: string;
+}
 
 /**
  * Extract and format codebase files as a string to be included in prompts
@@ -429,7 +443,7 @@ export async function extractCodebase({
 }> {
   const settings = readSettings();
   const isSmartContextEnabled =
-    settings?.enableExactaAppStudioPro && settings?.enableProSmartFilesContextMode;
+    settings?.enableDyadPro && settings?.enableProSmartFilesContextMode;
 
   try {
     await fsAsync.access(appPath);

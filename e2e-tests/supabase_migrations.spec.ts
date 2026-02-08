@@ -1,10 +1,10 @@
 import { expect } from "@playwright/test";
-import { test, testSkipIfWindows } from "./helpers/test_helper";
+import { testSkipIfWindows, Timeout } from "./helpers/test_helper";
 import fs from "fs-extra";
 import path from "path";
 import { execSync } from "child_process";
 
-test("supabase migrations", async ({ po }) => {
+testSkipIfWindows("supabase migrations", async ({ po }) => {
   await po.setUp({ autoApprove: true });
   await po.sendPrompt("tc=add-supabase");
 
@@ -25,8 +25,13 @@ test("supabase migrations", async ({ po }) => {
   // --- SCENARIO 2: TOGGLE ON ---
   // Go to settings to find the Supabase integration
   await po.goToSettingsTab();
-  const migrationsSwitch = po.page.locator("#supabase-migrations");
+  const migrationsSwitch = po.page.getByRole("switch", {
+    name: "Write SQL migration files",
+  });
+  await expect(migrationsSwitch).toBeVisible({ timeout: Timeout.MEDIUM });
   await migrationsSwitch.click();
+  // Wait for the setting to be persisted
+  await expect(migrationsSwitch).toBeChecked();
   await po.goToChatTab();
 
   // Send a prompt that triggers a migration
@@ -64,9 +69,9 @@ test("supabase migrations", async ({ po }) => {
 // Skip this test on Windows because git isn't configured and
 // the mac test will catch this regression.
 testSkipIfWindows("supabase migrations with native git", async ({ po }) => {
-  // Turning on native Git to catch this edge case:
-  // https://github.com/SFARPak/dyad/issues/608
-  await po.setUp({ autoApprove: true, nativeGit: true });
+  // Keep native Git on to catch this edge case:
+  // https://github.com/dyad-sh/dyad/issues/608
+  await po.setUp({ autoApprove: true, disableNativeGit: false });
   await po.sendPrompt("tc=add-supabase");
 
   // Connect to Supabase
@@ -86,8 +91,13 @@ testSkipIfWindows("supabase migrations with native git", async ({ po }) => {
   // --- SCENARIO 2: TOGGLE ON ---
   // Go to settings to find the Supabase integration
   await po.goToSettingsTab();
-  const migrationsSwitch = po.page.locator("#supabase-migrations");
+  const migrationsSwitch = po.page.getByRole("switch", {
+    name: "Write SQL migration files",
+  });
+  await expect(migrationsSwitch).toBeVisible({ timeout: Timeout.MEDIUM });
   await migrationsSwitch.click();
+  // Wait for the setting to be persisted
+  await expect(migrationsSwitch).toBeChecked();
   await po.goToChatTab();
 
   // Send a prompt that triggers a migration

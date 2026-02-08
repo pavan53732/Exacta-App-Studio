@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { IpcClient, DeepLinkData } from "../ipc/ipc_client";
+import { useNavigate } from "@tanstack/react-router";
+import { ipc, DeepLinkData } from "../ipc/types";
+import { useScrollAndNavigateTo } from "@/hooks/useScrollAndNavigateTo";
+import { SECTION_IDS } from "@/lib/settingsSearchIndex";
 
 type DeepLinkContextType = {
   lastDeepLink: (DeepLinkData & { timestamp: number }) | null;
@@ -12,37 +15,37 @@ const DeepLinkContext = createContext<DeepLinkContextType>({
 });
 
 export function DeepLinkProvider({ children }: { children: React.ReactNode }) {
-  console.log("DeepLinkProvider rendering");
   const [lastDeepLink, setLastDeepLink] = useState<
     (DeepLinkData & { timestamp: number }) | null
   >(null);
-
+  const navigate = useNavigate();
+  const scrollAndNavigateTo = useScrollAndNavigateTo("/settings", {
+    behavior: "smooth",
+    block: "start",
+  });
   useEffect(() => {
-    if (!(window as any).electron) {
-      console.warn("DeepLinkProvider: window.electron not available, skipping deep link setup");
-      return;
-    }
-    console.log("DeepLinkProvider useEffect starting");
-    try {
-      const ipcClient = IpcClient.getInstance();
-      console.log("IPC client instance obtained");
-      const unsubscribe = ipcClient.onDeepLinkReceived((data) => {
-        console.log("Deep link received:", data);
-        // Update with timestamp to ensure state change even if same type comes twice
-        setLastDeepLink({ ...data, timestamp: Date.now() });
-      });
-      console.log("DeepLinkProvider useEffect completed");
-      return unsubscribe;
-    } catch (error) {
-      console.error("Error in DeepLinkProvider useEffect:", error);
-      return () => {};
-    }
-  }, []);
+    const unsubscribe = ipc.events.misc.onDeepLinkReceived((data) => {
+      // Update with timestamp to ensure state change even if same type comes twice
+      setLastDeepLink({ ...data, timestamp: Date.now() });
+      if (data.type === "add-mcp-server") {
+        // Navigate to tools-mcp section
+        scrollAndNavigateTo(SECTION_IDS.toolsMcp);
+      } else if (data.type === "add-prompt") {
+        // Navigate to library page
+        navigate({ to: "/library" });
+      }
+    });
 
-  const clearLastDeepLink = () => setLastDeepLink(null);
+    return unsubscribe;
+  }, [navigate, scrollAndNavigateTo]);
 
   return (
-    <DeepLinkContext.Provider value={{ lastDeepLink, clearLastDeepLink }}>
+    <DeepLinkContext.Provider
+      value={{
+        lastDeepLink,
+        clearLastDeepLink: () => setLastDeepLink(null),
+      }}
+    >
       {children}
     </DeepLinkContext.Provider>
   );

@@ -1,40 +1,6 @@
-import { editor } from "monaco-editor";
-
+import type { editor } from "monaco-editor";
 import { loader } from "@monaco-editor/react";
 
-import * as monaco from "monaco-editor";
-// @ts-ignore
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-// @ts-ignore
-import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
-// @ts-ignore
-import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
-// @ts-ignore
-import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
-// @ts-ignore
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-
-self.MonacoEnvironment = {
-  getWorker(_, label) {
-    if (label === "json") {
-      return new jsonWorker();
-    }
-    if (label === "css" || label === "scss" || label === "less") {
-      return new cssWorker();
-    }
-    if (label === "html" || label === "handlebars" || label === "razor") {
-      return new htmlWorker();
-    }
-    if (label === "typescript" || label === "javascript") {
-      return new tsWorker();
-    }
-    return new editorWorker();
-  },
-};
-
-loader.config({ monaco });
-
-// loader.init().then(/* ... */);
 export const customLight: editor.IStandaloneThemeData = {
   base: "vs",
   inherit: false,
@@ -106,8 +72,6 @@ export const customLight: editor.IStandaloneThemeData = {
   },
 };
 
-editor.defineTheme("dyad-light", customLight);
-
 export const customDark: editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: false,
@@ -178,99 +142,15 @@ export const customDark: editor.IStandaloneThemeData = {
   },
 };
 
-editor.defineTheme("dyad-dark", customDark);
+loader.init().then((monaco) => {
+  monaco.editor.defineTheme("dyad-light", customLight);
+  monaco.editor.defineTheme("dyad-dark", customDark);
 
-// Function to dispose of Monaco models for a specific file path
-export function disposeMonacoModel(filePath: string) {
-  try {
-    const uri = monaco.Uri.file(filePath);
-    const model = monaco.editor.getModel(uri);
-    if (model) {
-      model.dispose();
-      console.log(`Disposed Monaco model for ${filePath}`);
-    }
-  } catch (error) {
-    console.warn(`Failed to dispose Monaco model for ${filePath}:`, error);
-  }
-}
-
-// Function to invalidate Monaco models for a directory (useful when many files change)
-export function invalidateMonacoModelsForDirectory(directoryPath: string) {
-  try {
-    const models = monaco.editor.getModels();
-    models.forEach((model) => {
-      const modelPath = model.uri.path;
-      if (modelPath.startsWith(directoryPath)) {
-        model.dispose();
-        console.log(`Disposed Monaco model for ${modelPath}`);
-      }
-    });
-  } catch (error) {
-    console.warn(
-      `Failed to invalidate Monaco models for directory ${directoryPath}:`,
-      error,
-    );
-  }
-}
-
-// Function to create or update a Monaco model for a file
-export function ensureMonacoModel(
-  filePath: string,
-  content: string,
-  language?: string,
-) {
-  try {
-    const uri = monaco.Uri.file(filePath);
-    let model = monaco.editor.getModel(uri);
-
-    if (model) {
-      // Update existing model
-      model.setValue(content);
-    } else {
-      // Create new model
-      const detectedLanguage = language || getLanguageFromPath(filePath);
-      model = monaco.editor.createModel(content, detectedLanguage, uri);
-    }
-
-    return model;
-  } catch (error) {
-    console.warn(`Failed to ensure Monaco model for ${filePath}:`, error);
-    return null;
-  }
-}
-
-// Helper function to detect language from file path
-function getLanguageFromPath(filePath: string): string {
-  const extension = filePath.split(".").pop()?.toLowerCase();
-  const languageMap: Record<string, string> = {
-    js: "javascript",
-    jsx: "javascript",
-    ts: "typescript",
-    tsx: "typescript",
-    html: "html",
-    css: "css",
-    json: "json",
-    md: "markdown",
-    py: "python",
-    java: "java",
-    c: "c",
-    cpp: "cpp",
-    cs: "csharp",
-    go: "go",
-    rs: "rust",
-    rb: "ruby",
-    php: "php",
-    swift: "swift",
-    kt: "kotlin",
-  };
-
-  return languageMap[extension || ""] || "plaintext";
-}
-
-monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-  jsx: monaco.languages.typescript.JsxEmit.React, // Enable JSX
-});
-monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-  // Too noisy because we don't have the full TS environment.
-  noSemanticValidation: true,
+  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+    jsx: monaco.languages.typescript.JsxEmit.React, // Enable JSX
+  });
+  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+    // Too noisy because we don't have the full TS environment.
+    noSemanticValidation: true,
+  });
 });

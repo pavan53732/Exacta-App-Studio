@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -16,7 +16,7 @@ import {
 import { chatInputValueAtom } from "@/atoms/chatAtoms";
 import { useAtom } from "jotai";
 import { useSettings } from "@/hooks/useSettings";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 
 interface TokenBarProps {
   chatId?: number;
@@ -24,31 +24,15 @@ interface TokenBarProps {
 
 export function TokenBar({ chatId }: TokenBarProps) {
   const [inputValue] = useAtom(chatInputValueAtom);
-  const { countTokens, result } = useCountTokens();
-  const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
-  useEffect(() => {
-    if (!chatId) return;
-    // Mark this as used, we need to re-trigger token count
-    // when selected model changes.
-    void settings?.selectedModel;
-
-    const debounceTimer = setTimeout(() => {
-      countTokens(chatId, inputValue).catch((err) => {
-        setError("Failed to count tokens");
-        console.error("Token counting error:", err);
-      });
-    }, 500);
-
-    return () => clearTimeout(debounceTimer);
-  }, [chatId, inputValue, countTokens, settings?.selectedModel]);
+  const { result, error } = useCountTokens(chatId ?? null, inputValue);
 
   if (!chatId || !result) {
     return null;
   }
 
   const {
-    totalTokens,
+    estimatedTotalTokens: totalTokens,
     messageHistoryTokens,
     codebaseTokens,
     mentionedAppsTokens,
@@ -67,10 +51,10 @@ export function TokenBar({ chatId }: TokenBarProps) {
   const inputPercent = (inputTokens / contextWindow) * 100;
 
   return (
-    <div className="px-4 pb-2 text-xs">
+    <div className="px-4 pb-2 text-xs" data-testid="token-bar">
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger>
             <div className="w-full">
               <div className="flex justify-between mb-1 text-xs text-muted-foreground">
                 <span>Tokens: {totalTokens.toLocaleString()}</span>
@@ -142,20 +126,20 @@ export function TokenBar({ chatId }: TokenBarProps) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-xs mt-1">Failed to count tokens</div>
+      )}
       {(!settings?.enableProSmartFilesContextMode ||
-        !settings?.enableExactaAppStudioPro) && (
+        !settings?.enableDyadPro) && (
         <div className="text-xs text-center text-muted-foreground mt-2">
           Optimize your tokens with{" "}
           <a
             onClick={() =>
-              settings?.enableExactaAppStudioPro
-                ? IpcClient.getInstance().openExternalUrl(
-                    "https://www.exacta-app-studio.alitech.io/docs/guides/ai-models/pro-modes#smart-context",
+              settings?.enableDyadPro
+                ? ipc.system.openExternalUrl(
+                    "https://www.dyad.sh/docs/guides/ai-models/pro-modes#smart-context",
                   )
-                : IpcClient.getInstance().openExternalUrl(
-                    "https://exacta-app-studio.alitech.io/no-pro#ai",
-                  )
+                : ipc.system.openExternalUrl("https://dyad.sh/pro#ai")
             }
             className="text-blue-500 dark:text-blue-400 cursor-pointer hover:underline"
           >

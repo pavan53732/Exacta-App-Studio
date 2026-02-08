@@ -15,6 +15,7 @@ import {
   UserSettings,
   AzureProviderSetting,
   VertexProviderSetting,
+  hasDyadProKey,
 } from "@/lib/schemas";
 
 import { ProviderSettingsHeader } from "./ProviderSettingsHeader";
@@ -55,22 +56,20 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
   const supportsCustomModels =
     providerData?.type === "custom" || providerData?.type === "cloud";
 
-  const isExacta = provider === "auto";
+  const isDyad = provider === "auto";
 
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Use fetched data (or defaults for Exacta)
-  const providerDisplayName = isExacta
-    ? "Exacta"
+  // Use fetched data (or defaults for Dyad)
+  const providerDisplayName = isDyad
+    ? "Dyad"
     : (providerData?.name ?? "Unknown Provider");
-  const providerWebsiteUrl = isExacta
-    ? "https://exacta.alitech.io/settings"
-    : providerData?.websiteUrl;
-  const hasFreeTier = isExacta ? false : providerData?.hasFreeTier;
-  const envVarName = isExacta ? undefined : providerData?.envVarName;
+  const providerWebsiteUrl = providerData?.websiteUrl;
+  const hasFreeTier = isDyad ? false : providerData?.hasFreeTier;
+  const envVarName = isDyad ? undefined : providerData?.envVarName;
 
   // Use provider ID (which is the 'provider' prop)
   const userApiKey = settings?.providerSettings?.[provider]?.apiKey?.value;
@@ -101,8 +100,8 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     | undefined;
   const isVertexConfigured = Boolean(
     vertexSettings?.projectId &&
-      vertexSettings?.location &&
-      vertexSettings?.serviceAccountKey?.value,
+    vertexSettings?.location &&
+    vertexSettings?.serviceAccountKey?.value,
   );
 
   const isAzureConfigured =
@@ -126,6 +125,9 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     setIsSaving(true);
     setSaveError(null);
     try {
+      // Check if this is the first time user is setting up Dyad Pro
+      const isNewDyadProSetup = isDyad && settings && !hasDyadProKey(settings);
+
       const settingsUpdate: Partial<UserSettings> = {
         providerSettings: {
           ...settings?.providerSettings,
@@ -137,8 +139,12 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
           },
         },
       };
-      if (isExacta) {
-        settingsUpdate.enableExactaAppStudioPro = true;
+      if (isDyad) {
+        settingsUpdate.enableDyadPro = true;
+        // Set default chat mode to local-agent when user upgrades to pro
+        if (isNewDyadProSetup) {
+          settingsUpdate.defaultChatMode = "local-agent";
+        }
       }
       await updateSettings(settingsUpdate);
       setApiKeyInput(""); // Clear input on success
@@ -174,15 +180,15 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     }
   };
 
-  // --- Toggle Exacta Pro Handler ---
-  const handleToggleExactaPro = async (enabled: boolean) => {
+  // --- Toggle Dyad Pro Handler ---
+  const handleToggleDyadPro = async (enabled: boolean) => {
     setIsSaving(true);
     try {
       await updateSettings({
-        enableExactaAppStudioPro: enabled,
+        enableDyadPro: enabled,
       });
     } catch (error: any) {
-      showError(`Error toggling Exacta Pro: ${error}`);
+      showError(`Error toggling Dyad Pro: ${error}`);
     } finally {
       setIsSaving(false);
     }
@@ -241,7 +247,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
   }
 
   // Handle case where provider is not found (e.g., invalid ID in URL)
-  if (!providerData && !isExacta) {
+  if (!providerData && !isDyad) {
     return (
       <div className="min-h-screen px-8 py-4">
         <div className="max-w-4xl mx-auto">
@@ -278,7 +284,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
           isLoading={settingsLoading}
           hasFreeTier={hasFreeTier}
           providerWebsiteUrl={providerWebsiteUrl}
-          isDyad={isExacta}
+          isDyad={isDyad}
           onBackClick={() => router.history.back()}
         />
 
@@ -306,22 +312,23 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
             onApiKeyInputChange={setApiKeyInput}
             onSaveKey={handleSaveKey}
             onDeleteKey={handleDeleteKey}
-            isDyad={isExacta}
+            isDyad={isDyad}
             updateSettings={updateSettings}
           />
         )}
 
-        {isExacta && !settingsLoading && (
+        {isDyad && !settingsLoading && (
           <div className="mt-6 flex items-center justify-between p-4 bg-(--background-lightest) rounded-lg border">
             <div>
-              <h3 className="font-medium">Enable Exacta Pro</h3>
+              <h3 className="font-medium">Enable Dyad Pro</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Toggle to enable Exacta Pro
+                Toggle to enable Dyad Pro
               </p>
             </div>
             <Switch
-              checked={settings?.enableExactaAppStudioPro}
-              onCheckedChange={handleToggleExactaPro}
+              aria-label="Enable Dyad Pro"
+              checked={settings?.enableDyadPro}
+              onCheckedChange={handleToggleDyadPro}
               disabled={isSaving}
             />
           </div>

@@ -4,7 +4,6 @@ import {
   PlusCircle,
   GitBranch,
   Info,
-  CheckSquare,
 } from "lucide-react";
 import { PanelRightClose } from "lucide-react";
 import { useAtom, useAtomValue } from "jotai";
@@ -17,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { IpcClient } from "@/ipc/ipc_client";
+import { ipc } from "@/ipc/types";
 import { useRouter } from "@tanstack/react-router";
 import { selectedChatIdAtom } from "@/atoms/chatAtoms";
 import { useChats } from "@/hooks/useChats";
@@ -29,15 +28,13 @@ import { useCheckoutVersion } from "@/hooks/useCheckoutVersion";
 import { useRenameBranch } from "@/hooks/useRenameBranch";
 import { isAnyCheckoutVersionInProgressAtom } from "@/store/appAtoms";
 import { LoadingBar } from "../ui/LoadingBar";
+import { UncommittedFilesBanner } from "./UncommittedFilesBanner";
 
 interface ChatHeaderProps {
   isVersionPaneOpen: boolean;
   isPreviewOpen: boolean;
   onTogglePreview: () => void;
   onVersionClick: () => void;
-  showTodoToggle?: boolean;
-  isTodoPanelOpen?: boolean;
-  onToggleTodo?: () => void;
 }
 
 export function ChatHeader({
@@ -45,15 +42,12 @@ export function ChatHeader({
   isPreviewOpen,
   onTogglePreview,
   onVersionClick,
-  showTodoToggle = false,
-  isTodoPanelOpen = false,
-  onToggleTodo,
 }: ChatHeaderProps) {
   const appId = useAtomValue(selectedAppIdAtom);
   const { versions, loading: versionsLoading } = useVersions(appId);
   const { navigate } = useRouter();
   const [selectedChatId, setSelectedChatId] = useAtom(selectedChatIdAtom);
-  const { refreshChats } = useChats(appId);
+  const { invalidateChats } = useChats(appId);
   const { isStreaming } = useStreamChat();
   const isAnyCheckoutVersionInProgress = useAtomValue(
     isAnyCheckoutVersionInProgressAtom,
@@ -90,13 +84,13 @@ export function ChatHeader({
   const handleNewChat = async () => {
     if (appId) {
       try {
-        const chatId = await IpcClient.getInstance().createChat(appId);
+        const chatId = await ipc.chat.createChat(appId);
         setSelectedChatId(chatId);
         navigate({
           to: "/chat",
           search: { id: chatId },
         });
-        await refreshChats();
+        await invalidateChats();
       } catch (error) {
         showError(`Failed to create new chat: ${(error as any).toString()}`);
       }
@@ -108,7 +102,7 @@ export function ChatHeader({
   // REMINDER: KEEP UP TO DATE WITH app_handlers.ts
   const versionPostfix = versions.length === 100_000 ? `+` : "";
 
-  const isNotMainBranch = branchInfo && branchInfo.branch !== "main" && branchInfo.branch !== "<no-git-repo>";
+  const isNotMainBranch = branchInfo && branchInfo.branch !== "main";
 
   const currentBranchName = branchInfo?.branch;
 
@@ -125,7 +119,7 @@ export function ChatHeader({
                 <>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger>
                         <span className="flex items-center  gap-1">
                           {isAnyCheckoutVersionInProgress ? (
                             <>
@@ -147,26 +141,6 @@ export function ChatHeader({
                           {isAnyCheckoutVersionInProgress
                             ? "Version checkout is currently in progress"
                             : "Checkout main branch, otherwise changes will not be saved properly"}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </>
-              )}
-              {currentBranchName === "<no-git-repo>" && (
-                <>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="flex items-center gap-1">
-                          <strong>Info:</strong>
-                          <span>Version control not initialized</span>
-                          <Info size={14} />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          This app does not have git version control initialized yet.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -205,6 +179,12 @@ export function ChatHeader({
         </div>
       )}
 
+      {/* Show uncommitted files banner when on a branch and there are uncommitted changes */}
+      {/* Hide while streaming to avoid distracting the user */}
+      {!isVersionPaneOpen && branchInfo?.branch && !isStreaming && (
+        <UncommittedFilesBanner appId={appId} />
+      )}
+
       {/* Why is this pt-0.5? Because the loading bar is h-1 (it always takes space) and we want the vertical spacing to be consistent.*/}
       <div className="@container flex items-center justify-between pb-1.5 pt-0.5">
         <div className="flex items-center space-x-2">
@@ -228,28 +208,17 @@ export function ChatHeader({
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {showTodoToggle && onToggleTodo && (
-            <button
-              data-testid="toggle-todo-panel-button"
-              onClick={onToggleTodo}
-              className="cursor-pointer p-2 hover:bg-[var(--background-lightest)] rounded-md"
-            >
-              <CheckSquare size={20} className={isTodoPanelOpen ? "text-primary" : ""} />
-            </button>
+        <button
+          data-testid="toggle-preview-panel-button"
+          onClick={onTogglePreview}
+          className="cursor-pointer p-2 hover:bg-(--background-lightest) rounded-md"
+        >
+          {isPreviewOpen ? (
+            <PanelRightClose size={20} />
+          ) : (
+            <PanelRightOpen size={20} />
           )}
-          <button
-            data-testid="toggle-preview-panel-button"
-            onClick={onTogglePreview}
-            className="cursor-pointer p-2 hover:bg-[var(--background-lightest)] rounded-md"
-          >
-            {isPreviewOpen ? (
-              <PanelRightClose size={20} />
-            ) : (
-              <PanelRightOpen size={20} />
-            )}
-          </button>
-        </div>
+        </button>
       </div>
     </div>
   );

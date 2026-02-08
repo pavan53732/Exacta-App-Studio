@@ -28,6 +28,7 @@ import { ChatList } from "./ChatList";
 import { AppList } from "./AppList";
 import { HelpDialog } from "./HelpDialog"; // Import the new dialog
 import { SettingsList } from "./SettingsList";
+import { LibraryList } from "./LibraryList";
 
 // Menu items.
 const items = [
@@ -48,7 +49,7 @@ const items = [
   },
   {
     title: "Library",
-    to: "/library",
+    to: "/themes",
     icon: BookOpen,
   },
   {
@@ -97,6 +98,9 @@ export function AppSidebar() {
     routerState.location.pathname.startsWith("/app-details");
   const isChatRoute = routerState.location.pathname === "/chat";
   const isSettingsRoute = routerState.location.pathname.startsWith("/settings");
+  const isLibraryRoute =
+    routerState.location.pathname.startsWith("/library") ||
+    routerState.location.pathname.startsWith("/themes");
 
   let selectedItem: string | null = null;
   if (hoverState === "start-hover:app") {
@@ -114,6 +118,8 @@ export function AppSidebar() {
       selectedItem = "Chat";
     } else if (isSettingsRoute) {
       selectedItem = "Settings";
+    } else if (isLibraryRoute) {
+      selectedItem = "Library";
     }
   }
 
@@ -138,10 +144,11 @@ export function AppSidebar() {
             <AppIcons onHoverChange={setHoverState} />
           </div>
           {/* Right Column: Chat List Section */}
-          <div className="w-[240px]">
+          <div className="w-[272px]">
             <AppList show={selectedItem === "Apps"} />
             <ChatList show={selectedItem === "Chat"} />
             <SettingsList show={selectedItem === "Settings"} />
+            <LibraryList show={selectedItem === "Library"} />
           </div>
         </div>
       </SidebarContent>
@@ -194,32 +201,28 @@ function AppIcons({
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
-                  asChild
+                  as={Link}
+                  to={item.to}
                   size="sm"
-                  className="font-medium w-14"
+                  className={`font-medium w-14 flex flex-col items-center gap-1 h-14 mb-2 rounded-2xl ${
+                    isActive ? "bg-sidebar-accent" : ""
+                  }`}
+                  onMouseEnter={() => {
+                    if (item.title === "Apps") {
+                      onHoverChange("start-hover:app");
+                    } else if (item.title === "Chat") {
+                      onHoverChange("start-hover:chat");
+                    } else if (item.title === "Settings") {
+                      onHoverChange("start-hover:settings");
+                    } else if (item.title === "Library") {
+                      onHoverChange("start-hover:library");
+                    }
+                  }}
                 >
-                  <Link
-                    to={item.to}
-                    className={`flex flex-col items-center gap-1 h-14 mb-2 rounded-2xl ${
-                      isActive ? "bg-sidebar-accent" : ""
-                    }`}
-                    onMouseEnter={() => {
-                      if (item.title === "Apps") {
-                        onHoverChange("start-hover:app");
-                      } else if (item.title === "Chat") {
-                        onHoverChange("start-hover:chat");
-                      } else if (item.title === "Settings") {
-                        onHoverChange("start-hover:settings");
-                      } else if (item.title === "Library") {
-                        onHoverChange("start-hover:library");
-                      }
-                    }}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <item.icon className="h-5 w-5" />
-                      <span className={"text-xs"}>{item.title}</span>
-                    </div>
-                  </Link>
+                  <div className="flex flex-col items-center gap-1">
+                    <item.icon className="h-5 w-5" />
+                    <span className={"text-xs"}>{item.title}</span>
+                  </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

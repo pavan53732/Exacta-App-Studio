@@ -3,7 +3,6 @@ import { readSettings, writeSettings } from "../main/settings";
 import { Api, createApiClient } from "@neondatabase/api-client";
 import log from "electron-log";
 import { IS_TEST_BUILD } from "../ipc/utils/test_utils";
-import { apiFetch } from "../ipc/utils/api_client";
 
 const logger = log.scope("neon_management_client");
 
@@ -41,8 +40,8 @@ export async function refreshNeonToken(): Promise<void> {
 
   try {
     // Make request to Neon refresh endpoint
-    const response = await apiFetch(
-      "https://oauth.exacta-app-studio.alitech.io/api/integrations/neon/refresh",
+    const response = await fetch(
+      "https://oauth.dyad.sh/api/integrations/neon/refresh",
 
       {
         method: "POST",

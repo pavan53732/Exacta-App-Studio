@@ -3,7 +3,7 @@ import { selectedAppIdAtom, selectedVersionIdAtom } from "@/atoms/appAtoms";
 import { useVersions } from "@/hooks/useVersions";
 import { formatDistanceToNow } from "date-fns";
 import { RotateCcw, X, Database, Loader2 } from "lucide-react";
-import type { Version } from "@/ipc/ipc_types";
+import type { Version } from "@/ipc/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useCheckoutVersion } from "@/hooks/useCheckoutVersion";
@@ -109,7 +109,7 @@ export function VersionPane({ isVisible, onClose }: VersionPaneProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="p-1 hover:bg-[var(--background-lightest)] rounded-md  "
+            className="p-1 hover:bg-(--background-lightest) rounded-md  "
             aria-label="Close version pane"
           >
             <X size={20} />
@@ -125,9 +125,9 @@ export function VersionPane({ isVisible, onClose }: VersionPaneProps) {
               <div
                 key={version.oid}
                 className={cn(
-                  "px-4 py-2 hover:bg-[var(--background-lightest)] cursor-pointer",
+                  "px-4 py-2 hover:bg-(--background-lightest) cursor-pointer",
                   selectedVersionId === version.oid &&
-                    "bg-[var(--background-lightest)]",
+                    "bg-(--background-lightest)",
                   isCheckingOutVersion &&
                     selectedVersionId === version.oid &&
                     "opacity-50 cursor-not-allowed",
@@ -154,7 +154,7 @@ export function VersionPane({ isVisible, onClose }: VersionPaneProps) {
                           Date.now() - timestampMs > 24 * 60 * 60 * 1000;
                         return (
                           <Tooltip>
-                            <TooltipTrigger asChild>
+                            <TooltipTrigger>
                               <div
                                 className={cn(
                                   "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md",
@@ -221,47 +221,42 @@ export function VersionPane({ isVisible, onClose }: VersionPaneProps) {
 
                   <div className="flex items-center gap-1">
                     {/* Restore button */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
 
-                            await revertVersion({
-                              versionId: version.oid,
-                            });
-                            setSelectedVersionId(null);
-                            // Close the pane after revert to force a refresh on next open
-                            onClose();
-                            if (version.dbTimestamp) {
-                              await restartApp();
-                            }
-                          }}
-                          disabled={isRevertingVersion}
-                          className={cn(
-                            "invisible mt-1 flex items-center gap-1 px-2 py-0.5 text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-background-lightest rounded-md transition-colors",
-                            selectedVersionId === version.oid && "visible",
-                            isRevertingVersion &&
-                              "opacity-50 cursor-not-allowed",
-                          )}
-                          aria-label="Restore to this version"
-                        >
-                          {isRevertingVersion ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <RotateCcw size={12} />
-                          )}
-                          <span>
-                            {isRevertingVersion ? "Restoring..." : "Restore"}
-                          </span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {isRevertingVersion
+                        await revertVersion({
+                          versionId: version.oid,
+                        });
+                        setSelectedVersionId(null);
+                        // Close the pane after revert to force a refresh on next open
+                        onClose();
+                        if (version.dbTimestamp) {
+                          await restartApp();
+                        }
+                      }}
+                      disabled={isRevertingVersion}
+                      className={cn(
+                        "invisible mt-1 flex items-center gap-1 px-2 py-0.5 text-sm font-medium bg-(--primary) text-(--primary-foreground) hover:bg-background-lightest rounded-md transition-colors",
+                        selectedVersionId === version.oid && "visible",
+                        isRevertingVersion && "opacity-50 cursor-not-allowed",
+                      )}
+                      aria-label="Restore to this version"
+                      title={
+                        isRevertingVersion
                           ? "Restoring to this version..."
-                          : "Restore to this version"}
-                      </TooltipContent>
-                    </Tooltip>
+                          : "Restore to this version"
+                      }
+                    >
+                      {isRevertingVersion ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <RotateCcw size={12} />
+                      )}
+                      <span>
+                        {isRevertingVersion ? "Restoring..." : "Restore"}
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
