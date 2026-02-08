@@ -3464,8 +3464,33 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 |                 |            | - Defined Index Lifecycle & Staleness (14.4-5)           |
 |                 |            | - Standardized Embedding Models (14.6)                   |
 |                 |            | - Added 5 new invariants (Context, Search, Index)        |
-| 2.4.0 (CURRENT) | 2026-02-01 | Asset Forge & Protocol Expansion                         |
+| 2.4.0           | 2026-02-01 | Asset Forge & Protocol Expansion                         |
 |                 |            | - Added Section 1.6: The Asset Forge (Generative Assets) |
 |                 |            | - Added Section 4.3: UI-to-Core JSON-RPC Bridge          |
 |                 |            | - Added 'ImageMagick' to Toolchain Manifest (1.1)        |
 |                 |            | - Added 'ASSET_GEN' Capability (Appendix A.4)            |
+| 2.5.0 (CURRENT) | 2026-02-08 | Web Development Capabilities Expansion                   |
+|                 |            | - **Product Scope**: Expanded to 5 application types     |
+|                 |            | \* Windows Desktop Applications (existing)               |
+|                 |            | \* Web Applications (Full-stack) [NEW]                   |
+|                 |            | \* Static Websites [NEW]                                 |
+|                 |            | \* Single Page Applications (SPA) [NEW]                  |
+|                 |            | \* Server-Side Rendered (SSR) Applications [NEW]         |
+|                 |            | - **Section 1.1.1**: Web Development Toolchain           |
+|                 |            | \* Added Vite, Next.js, TypeScript, Playwright           |
+|                 |            | \* Development servers, browser testing, build outputs   |
+|                 |            | - **Section 28**: Getting Started                        |
+|                 |            | \* 28.1 UI Visibility Mandate (Settings Icon)            |
+|                 |            | - **Section 29**: Features (Web Project Types)           |
+|                 |            | \* 29.1 Web Project Types (Static, SPA, SSR, Full-stack) |
+|                 |            | \* 29.2 Web Development Workflow (Init, Preview, Deploy) |
+|                 |            | \* 29.3 Web Development Examples (2 concrete examples)   |
+|                 |            | - **Section 30**: Build Export Model                     |
+|                 |            | \* Export rules for web applications                     |
+|                 |            | \* INV-EXPORT-1: Clean Export invariant                  |
+|                 |            | - **Appendix A.4**: Web Capability Tokens                |
+|                 |            | \* NET_LOCALHOST, WEB_DEV_SERVER, WEB_BUILD              |
+|                 |            | \* WEB_PREVIEW, WEB_DEPLOY, WEB_TEST                     |
+|                 |            | \* WEB_PACKAGE_INSTALL (7 new capabilities)              |
+|                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel  |
+|                 |            | Railway, Render, Cloudflare Pages, DigitalOcean          |
