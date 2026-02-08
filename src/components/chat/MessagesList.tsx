@@ -238,7 +238,7 @@ export const MessagesList = forwardRef<HTMLDivElement, MessagesListProps>(
         )}
 
         {isStreaming &&
-          !settings?.enableAliFullStackPro &&
+          !settings?.enableExactaAppStudioPro &&
           !userBudget &&
           safeMessages.length > 0 && (
             <PromoMessage

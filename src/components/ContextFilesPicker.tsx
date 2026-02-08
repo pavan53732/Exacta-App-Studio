@@ -113,7 +113,7 @@ export function ContextFilesPicker() {
   };
 
   const isSmartContextEnabled =
-    settings?.enableAliFullStackPro && settings?.enableProSmartFilesContextMode;
+    settings?.enableExactaAppStudioPro && settings?.enableProSmartFilesContextMode;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>

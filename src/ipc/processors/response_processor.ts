@@ -522,7 +522,7 @@ export async function processFullResponseActions(
             });
             const commitHash = await gitCommit({
               path: appPath,
-              message: `[alifullstack] Deleted file: ${filePath}`,
+              message: `[exacta-app-studio] Deleted file: ${filePath}`,
             });
             logger.log(`Committed file deletion: ${filePath} with hash ${commitHash}`);
             return commitHash;
@@ -586,7 +586,7 @@ export async function processFullResponseActions(
             }
             const commitHash = await gitCommit({
               path: appPath,
-              message: `[alifullstack] Renamed file: ${tag.from} -> ${tag.to}`,
+              message: `[exacta-app-studio] Renamed file: ${tag.from} -> ${tag.to}`,
             });
             logger.log(`Committed file rename: ${tag.from} -> ${tag.to} with hash ${commitHash}`);
             return commitHash;
@@ -675,7 +675,7 @@ export async function processFullResponseActions(
                   });
                   const commitHash = await gitCommit({
                     path: appPath,
-                    message: `[alifullstack] Applied search_replace to: ${filePath}`,
+                    message: `[exacta-app-studio] Applied search_replace to: ${filePath}`,
                   });
                   logger.log(`Committed search_replace operation: ${filePath} with hash ${commitHash}`);
                   return commitHash;
@@ -755,7 +755,7 @@ export async function processFullResponseActions(
             });
             const commitHash = await gitCommit({
               path: appPath,
-              message: `[alifullstack] Wrote file: ${filePath}`,
+              message: `[exacta-app-studio] Wrote file: ${filePath}`,
             });
             logger.log(`Committed file write: ${filePath} with hash ${commitHash}`);
             return commitHash;
@@ -843,7 +843,7 @@ export async function processFullResponseActions(
           });
           const commitHash = await gitCommit({
             path: appPath,
-            message: `[alifullstack] Wrote file via write_to_file tag: ${filePath}`,
+            message: `[exacta-app-studio] Wrote file via write_to_file tag: ${filePath}`,
           });
           logger.log(`Committed write_to_file tag: ${filePath} with hash ${commitHash}`);
           return commitHash;
@@ -898,7 +898,7 @@ export async function processFullResponseActions(
               });
               const commitHash = await gitCommit({
                 path: appPath,
-                message: `[alifullstack] Applied search_replace to: ${filePath}`,
+                message: `[exacta-app-studio] Applied search_replace to: ${filePath}`,
               });
               logger.log(`Committed search_replace: ${filePath} with hash ${commitHash}`);
               return commitHash;

@@ -236,7 +236,7 @@ export function LexicalChatInput({
   onSubmit,
   onPaste,
   excludeCurrentApp,
-  placeholder = "Ask AliFullStack to build...",
+  placeholder = "Ask Exacta-App-Studio to build...",
   disabled = false,
 }: LexicalChatInputProps) {
   const { apps } = useLoadApps();

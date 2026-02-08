@@ -429,7 +429,7 @@ export async function extractCodebase({
 }> {
   const settings = readSettings();
   const isSmartContextEnabled =
-    settings?.enableAliFullStackPro && settings?.enableProSmartFilesContextMode;
+    settings?.enableExactaAppStudioPro && settings?.enableProSmartFilesContextMode;
 
   try {
     await fsAsync.access(appPath);

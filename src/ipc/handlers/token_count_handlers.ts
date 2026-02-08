@@ -92,7 +92,7 @@ export function registerTokenCountHandlers() {
         });
         codebaseInfo = formattedOutput;
         if (
-          settings.enableAliFullStackPro &&
+          settings.enableExactaAppStudioPro &&
           settings.enableProSmartFilesContextMode
         ) {
           codebaseTokens = estimateTokens(

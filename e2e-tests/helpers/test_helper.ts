@@ -669,7 +669,7 @@ export class PageObject {
 
   getChatInput() {
     return this.page.locator(
-      '[data-lexical-editor="true"][aria-placeholder="Ask AliFullStack to build..."]',
+      '[data-lexical-editor="true"][aria-placeholder="Ask Exacta-App-Studio to build..."]',
     );
   }
 
@@ -1025,7 +1025,7 @@ export class PageObject {
 export async function createApp(page: Page, appName: string, options: { isFullStack: boolean; selectedBackendFramework: string }): Promise<number> {
   await page.getByRole("link", { name: "Chat" }).click();
   const prompt = `Create a ${options.isFullStack ? 'fullstack' : 'frontend'} app named ${appName}${options.isFullStack ? ` with ${options.selectedBackendFramework} backend` : ''}`;
-  await page.getByRole("textbox", { name: "Ask AliFullStack to build..." }).fill(prompt);
+  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
   await page.getByRole("button", { name: "Send message" }).click();
   await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
   return 0;
@@ -1043,7 +1043,7 @@ export async function deleteApp(page: Page, appId: number): Promise<void> {
 export async function startApp(page: Page, appId: number, mode: string): Promise<void> {
   await page.getByRole("link", { name: "Chat" }).click();
   const prompt = `Start the app in ${mode} mode`;
-  await page.getByRole("textbox", { name: "Ask AliFullStack to build..." }).fill(prompt);
+  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
   await page.getByRole("button", { name: "Send message" }).click();
   await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
 }
@@ -1051,7 +1051,7 @@ export async function startApp(page: Page, appId: number, mode: string): Promise
 export async function stopApp(page: Page, appId: number): Promise<void> {
   await page.getByRole("link", { name: "Chat" }).click();
   const prompt = `Stop the app`;
-  await page.getByRole("textbox", { name: "Ask AliFullStack to build..." }).fill(prompt);
+  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
   await page.getByRole("button", { name: "Send message" }).click();
   await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
 }
@@ -1075,7 +1075,7 @@ export async function getTerminalOutput(page: Page, appId: number, terminal: str
 export async function createBackendFile(page: Page, appId: number, filePath: string, content: string): Promise<void> {
   await page.getByRole("link", { name: "Chat" }).click();
   const prompt = `Create a backend file ${filePath} with the following content:\n${content}`;
-  await page.getByRole("textbox", { name: "Ask AliFullStack to build..." }).fill(prompt);
+  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
   await page.getByRole("button", { name: "Send message" }).click();
   await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
 }
@@ -1083,7 +1083,7 @@ export async function createBackendFile(page: Page, appId: number, filePath: str
 export async function createFrontendFile(page: Page, appId: number, filePath: string, content: string): Promise<void> {
   await page.getByRole("link", { name: "Chat" }).click();
   const prompt = `Create a frontend file ${filePath} with the following content:\n${content}`;
-  await page.getByRole("textbox", { name: "Ask AliFullStack to build..." }).fill(prompt);
+  await page.getByRole("textbox", { name: "Ask Exacta-App-Studio to build..." }).fill(prompt);
   await page.getByRole("button", { name: "Send message" }).click();
   await page.waitForSelector('[data-testid="retry-button"]', { timeout: Timeout.MEDIUM });
 }
@@ -1150,8 +1150,8 @@ export const test = base.extend<{
       process.env.OLLAMA_HOST = "http://localhost:3500/ollama";
       process.env.LM_STUDIO_BASE_URL_FOR_TESTING =
         "http://localhost:3500/lmstudio";
-      process.env.ALIFULLSTACK_ENGINE_URL = "http://localhost:3500/engine/v1";
-      process.env.ALIFULLSTACK_GATEWAY_URL = "http://localhost:3500/gateway/v1";
+      process.env.EXACTA_APP_STUDIO_ENGINE_URL = "http://localhost:3500/engine/v1";
+      process.env.EXACTA_APP_STUDIO_GATEWAY_URL = "http://localhost:3500/gateway/v1";
       process.env.E2E_TEST_BUILD = "true";
       if (!electronConfig.showSetupScreen) {
         // This is just a hack to avoid the AI setup screen.

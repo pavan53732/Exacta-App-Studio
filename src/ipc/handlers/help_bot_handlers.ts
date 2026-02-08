@@ -47,7 +47,7 @@ export function registerHelpBotHandlers() {
         const settings = await readSettings();
         const apiKey = settings.providerSettings?.["auto"]?.apiKey?.value;
         const provider = createOpenAI({
-          baseURL: "https://helpchat.alifullstack.alitech.io/v1",
+          baseURL: "https://helpchat.exacta-app-studio.alitech.io/v1",
           apiKey,
         });
 

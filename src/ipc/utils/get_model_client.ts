@@ -29,8 +29,8 @@ import {
   clerkCreateSessionToken,
 } from "../handlers/roocode_auth_handlers";
 
-const dyadEngineUrl = process.env.ALIFULLSTACK_ENGINE_URL;
-const dyadGatewayUrl = process.env.ALIFULLSTACK_GATEWAY_URL;
+const dyadEngineUrl = process.env.EXACTA_APP_STUDIO_ENGINE_URL;
+const dyadGatewayUrl = process.env.EXACTA_APP_STUDIO_GATEWAY_URL;
 
 const AUTO_MODELS = [
   {
@@ -82,7 +82,7 @@ export async function getModelClient(
   }
 
   // Handle Dyad Pro override
-  if (dyadApiKey && settings.enableAliFullStackPro) {
+  if (dyadApiKey && settings.enableExactaAppStudioPro) {
     // Check if the selected provider supports Dyad Pro (has a gateway prefix) OR
     // we're using local engine.
     // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,
@@ -95,7 +95,7 @@ export async function getModelClient(
         ? createDyadEngine({
             apiKey: dyadApiKey,
             baseURL:
-              dyadEngineUrl ?? "https://engine.alifullstack.alitech.io/v1",
+              dyadEngineUrl ?? "https://engine.exacta-app-studio.alitech.io/v1",
             originalProviderId: model.provider,
             dyadOptions: {
               enableLazyEdits:
@@ -113,7 +113,7 @@ export async function getModelClient(
             apiKey: dyadApiKey,
             baseURL:
               dyadGatewayUrl ??
-              "https://llm-gateway.alifullstack.alitech.io/v1",
+              "https://llm-gateway.exacta-app-studio.alitech.io/v1",
           });
 
       logger.info(

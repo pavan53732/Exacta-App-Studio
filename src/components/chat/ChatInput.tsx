@@ -231,7 +231,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
         <ChatErrorBox
           onDismiss={dismissError}
           error={error}
-          isAliFullStackProEnabled={settings.enableAliFullStackPro ?? false}
+          isExactaAppStudioProEnabled={settings.enableExactaAppStudioPro ?? false}
         />
       )}
       {/* Display loading or error state for proposal */}
@@ -292,7 +292,7 @@ export function ChatInput({ chatId }: { chatId?: number }) {
               onChange={setInputValue}
               onSubmit={handleSubmit}
               onPaste={handlePaste}
-              placeholder="Ask AliFullStack to build..."
+              placeholder="Ask Exacta-App-Studio to build..."
               excludeCurrentApp={true}
             />
 

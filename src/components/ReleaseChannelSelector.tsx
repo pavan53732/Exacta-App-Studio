@@ -24,11 +24,11 @@ export function ReleaseChannelSelector() {
       toast("Using Stable release channel", {
         description:
           "You'll stay on your current version until a newer stable release is available, or you can manually downgrade now.",
-        action: {
+          action: {
           label: "Download Stable",
           onClick: () => {
             IpcClient.getInstance().openExternalUrl(
-              "https://alifullstack.alitech.io/download",
+              "https://exacta-app-studio.alitech.io/download",
             );
           },
         },

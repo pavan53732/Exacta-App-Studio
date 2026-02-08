@@ -28,7 +28,7 @@ export interface Scaffold {
 }
 
 /**
- * Discover available scaffolds by looking for scaffold-*/config.json
+ * Discover available scaffolds by looking for scaffold directories containing config.json
  */
 export async function getAvailableScaffolds(): Promise<Scaffold[]> {
   const appPath = app.getAppPath();
@@ -106,7 +106,7 @@ async function getEffectiveScaffoldPath(scaffoldPath: string): Promise<string> {
     logger.warn(`Cannot read from scaffold path ${scaffoldPath}, likely read-only ASAR:`, readError instanceof Error ? readError.message : String(readError));
 
     // Extract scaffold to temporary directory
-    const tempDir = path.join(os.tmpdir(), 'alifullstack-scaffolds');
+    const tempDir = path.join(os.tmpdir(), 'exacta-app-studio-scaffolds');
     const scaffoldName = path.basename(scaffoldPath);
     const tempScaffoldPath = path.join(tempDir, scaffoldName);
 
@@ -189,7 +189,7 @@ export default defineConfig({
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AliFullStack App</title>
+    <title>Exacta-App-Studio App</title>
   </head>
   <body>
     <div id="root"></div>
@@ -433,7 +433,7 @@ async function setupDjango(backendPath: string) {
   
   await fs.writeFile(requirementsPath, 'Django==4.2.7\ndjango-cors-headers==4.3.1\n');
   
-  const manageContent = \`#!/usr/bin/env python
+  const manageContent = `#!/usr/bin/env python
 import os
 import sys
 
@@ -446,7 +446,7 @@ if __name__ == "__main__":
             "Couldn't import Django. Are you sure it's installed/available?"
         ) from exc
     execute_from_command_line(sys.argv)
-\`;
+`;
   await fs.writeFile(managePath, manageContent);
   
   await fs.ensureDir(path.join(backendPath, 'mysite'));
@@ -460,7 +460,7 @@ if __name__ == "__main__":
   // ... (Restoring essential files)
   
   // Settings.py
-  await fs.writeFile(path.join(backendPath, 'mysite', 'settings.py'), \`import os
+  await fs.writeFile(path.join(backendPath, 'mysite', 'settings.py'), `import os
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'insecure-dev-key'
@@ -488,34 +488,34 @@ TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIR
 WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 STATIC_URL = 'static/'
-\`);
+`);
 
-  await fs.writeFile(path.join(backendPath, 'mysite', 'urls.py'), \`from django.contrib import admin
+  await fs.writeFile(path.join(backendPath, 'mysite', 'urls.py'), `from django.contrib import admin
 from django.urls import path
 from django.http import JsonResponse
 def home(request): return JsonResponse({"status": "ok"})
-urlpatterns = [path('admin/', admin.site.urls), path('', home)]\`);
+urlpatterns = [path('admin/', admin.site.urls), path('', home)]`);
 }
 
 async function setupFastAPI(backendPath: string) {
    await fs.writeFile(path.join(backendPath, 'requirements.txt'), 'fastapi==0.104.1\nuvicorn==0.24.0\nsqlalchemy==2.0.23\nalembic==1.12.1\n');
-   await fs.writeFile(path.join(backendPath, 'main.py'), \`from fastapi import FastAPI
+   await fs.writeFile(path.join(backendPath, 'main.py'), `from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 @app.get("/")
-def read_root(): return {"message": "FastAPI running"}\`);
+def read_root(): return {"message": "FastAPI running"}`);
 }
 
 async function setupFlask(backendPath: string) {
    await fs.writeFile(path.join(backendPath, 'requirements.txt'), 'Flask==3.0.0\nFlask-SQLAlchemy==3.0.5\nFlask-CORS==4.0.0\n');
-   await fs.writeFile(path.join(backendPath, 'app.py'), \`from flask import Flask, jsonify
+   await fs.writeFile(path.join(backendPath, 'app.py'), `from flask import Flask, jsonify
 from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 @app.route('/')
 def home(): return jsonify({"message": "Flask running"})
-if __name__ == '__main__': app.run(port=5000)\`);
+if __name__ == '__main__': app.run(port=5000)`);
 }
 
 async function setupNodeJS(backendPath: string) {
@@ -525,12 +525,12 @@ async function setupNodeJS(backendPath: string) {
        dependencies: { express: "^4.18.2", cors: "^2.8.5", "better-sqlite3": "^9.4.3" }
    }, null, 2));
    
-   await fs.writeFile(path.join(backendPath, 'server.js'), \`const express = require('express');
+   await fs.writeFile(path.join(backendPath, 'server.js'), `const express = require('express');
 const cors = require('cors');
 const app = express();
 app.use(cors());
 app.get('/', (req, res) => res.json({message: "Node.js running"}));
-app.listen(3000, () => console.log('Server running on 3000'));\`);
+app.listen(3000, () => console.log('Server running on 3000'));`);
 }
 
 // Validation / Helper Functions
@@ -540,7 +540,7 @@ async function installDependenciesForFramework(projectPath: string, framework: s
   return new Promise<void>((resolve) => {
     const installProcess = spawn(installCommand, [], { cwd: projectPath, shell: true, stdio: "pipe" });
     installProcess.on("close", () => {
-        logger.info(\`Installed deps for \${framework}\`);
+        logger.info(`Installed deps for ${framework}`);
         resolve();
     });
     installProcess.on("error", () => resolve());
@@ -561,7 +561,7 @@ export async function startBackendServer(projectPath: string, framework: string,
   const serverProcess = spawn(startCommand, [], {
       cwd: projectPath, shell: true, stdio: "pipe", detached: true
   });
-  logger.info(\`Started \${framework}: \${startCommand}\`);
+  logger.info(`Started ${framework}: ${startCommand}`);
   serverProcess.unref();
 }
 
@@ -598,7 +598,7 @@ async function initializeDatabaseForFramework(backendPath: string, framework: st
 async function runCommandInDirectory(directory: string, command: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const p = spawn(command, [], { cwd: directory, shell: true });
-        p.on("close", (code) => code === 0 ? resolve() : reject(new Error(\`Code \${code}\`)));
+        p.on("close", (code) => code === 0 ? resolve() : reject(new Error(`Code ${code}`)));
         p.on("error", reject);
     });
 }

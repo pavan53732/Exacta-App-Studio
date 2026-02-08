@@ -57,13 +57,13 @@ const config: ForgeConfig = {
   packagerConfig: {
     protocols: [
       {
-        name: "AliFullstack",
+        name: "Exacta-App-Studio",
         schemes: ["dyad"],
       },
     ],
     icon: "./assets/icon/logo",
 
-    executableName: "alifullstack",
+    executableName: "exacta-app-studio",
 
     osxSign: undefined, // Temporarily disable signing for development build
     osxNotarize: false, // Temporarily disable notarization for development build
@@ -91,7 +91,7 @@ const config: ForgeConfig = {
       config: {
         repository: {
           owner: "SFARPak",
-          name: "AliFullStack",
+          name: "Exacta-App-Studio",
         },
         draft: true,
         force: true,

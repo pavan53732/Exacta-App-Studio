@@ -1,19 +1,20 @@
-# 🧠 AliFullStack — AI-Powered Full-Stack App Builder
+# 🧠 Exacta-App-Studio — AI-Powered Full-Stack App Builder
+
 ## (Local-First, Open Source)
 
-**AliFullStack** is a blazing-fast, **AI-driven Full-Stack App Builder** that runs entirely **locally** — giving you total **data privacy**, **vendor freedom**, and powerful **LLM integration**. Whether you're a solo indie hacker, startup, or enterprise developer, AliFullStack helps you **build, test, and deploy apps autonomously** using your favorite frontend and backend frameworks.
+**Exacta-** is a blazing-fast, **AI-driven Full-Stack App Builder** that runs entirely **locally** — giving you total **data privacy**, **vendor freedom**, and powerful **LLM integration**. Whether you're a solo indie hacker, startup, or enterprise developer, Exacta-App-Studio helps you **build, test, and deploy apps autonomously** using your favorite frontend and backend frameworks.
 
 > ✅ 100% Local | 🚀 LLM-Powered | 🧠 BYO AI API Key | 🧩 Framework-Agnostic | 💡 Open Source
 
-Inspired by tools like *Lovable*, *v0.dev*, and *Bolt*, but with no lock-in or cloud dependency. Built on top of [Dyad](https://github.com/dyad-sh/dyad), AliFullStack gives you the power of AI without sacrificing control.
+Inspired by tools like _Lovable_, _v0.dev_, and _Bolt_, but with no lock-in or cloud dependency. Built on top of [Dyad](https://github.com/dyad-sh/dyad), Exacta-App-Studio gives you the power of AI without sacrificing control.
 
-![AliFullStack Screenshot](https://github.com/user-attachments/assets/f6c83dfc-6ffd-4d32-93dd-4b9c46d17790)
+![Exacta-App-Studio Screenshot](https://github.com/user-attachments/assets/f6c83dfc-6ffd-4d32-93dd-4b9c46d17790)
 
 <!-- 🌐 **Live Demo & Docs**: [alifullstack.alitech.io](https://alifullstack.alitech.io) -->
 
 ## 👏 Acknowledgments
 
-AliFullstack builds on top of other awesome open-source projects:
+Exacta-App-Studio builds on top of other awesome open-source projects:
 
 - [Dyad](https://github.com/dyad-sh/dyad)
 - [Roo-Code](https://github.com/RooCodeInc/Roo-Code)
@@ -33,7 +34,7 @@ Huge thanks to their creators and contributors!
 
 Help us grow! If you're excited about AI developer tools, autonomous coding, or local-first privacy-first software:
 
-👉 **[Give us a ⭐ on GitHub](https://github.com/SFARPak/AliFullStack)** — it really helps!
+👉 **[Give us a ⭐ on GitHub](https://github.com/SFARPak/Exacta-App-Studio)** — it really helps!
 
 ---
 
@@ -50,41 +51,45 @@ Help us grow! If you're excited about AI developer tools, autonomous coding, or 
 
 ## 🛣️ Roadmap
 
-AliFullStack is evolving rapidly. Here's what's done and what's coming soon:
+Exacta-Exacta-App-Studio is evolving rapidly. Here's what's done and what's coming soon:
 
 ### 🎨 Frontend Frameworks
+
 - [x] [ReactJS](https://reactjs.org)
 - [x] [NextJS](https://nextjs.org)
 - [x] [Vue 3](https://vuejs.org)
 - [ ] [Angular](https://angular.io)
-- [ ] Svelte *(planned)*
-- [ ] SolidJS *(planned)*
-- [ ] Qwik *(planned)*
+- [ ] Svelte _(planned)_
+- [ ] SolidJS _(planned)_
+- [ ] Qwik _(planned)_
 
 ### 🔧 Backend Frameworks
+
 - [x] [Django](https://djangoproject.com)
 - [x] [FastAPI](https://fastapi.tiangolo.com)
 - [x] [Flask](https://flask.palletsprojects.com)
 - [x] [Node.js](https://nodejs.org)
-- [ ] Ruby on Rails *(planned)*
-- [ ] Go *(planned)*
-- [ ] Laravel *(planned)*
+- [ ] Ruby on Rails _(planned)_
+- [ ] Go _(planned)_
+- [ ] Laravel _(planned)_
 
 ### 🧠 AI/LLM Integrations
+
 - [x] [OpenAI GPT](https://openai.com)
 - [x] [Google Gemini](https://ai.google.dev)
 - [x] [Google Vertex AI](https://cloud.google.com/vertex-ai)
 - [x] [Anthropic Claude](https://www.anthropic.com)
 - [x] [OpenRouter](https://openrouter.ai)
-- [x] [Dyad](https://alifullstack.alitech.io)
+- [x] [Exacta-App-Studio](https://alifullstack.alitech.io)
 - [x] [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service)
 - [x] [xAI](https://x.ai)
 - [x] [AWS Bedrock](https://aws.amazon.com/bedrock/)
 - [ ] [Roo Code Cloud](https://roocode.com)
-- [ ] Mistral *(planned)*
-- [ ] Cohere *(planned)*
+- [ ] Mistral _(planned)_
+- [ ] Cohere _(planned)_
 
 ### ✨ In Progress & Planned Features
+
 - [x] Full-stack project generation
 - [x] **Autonomous App Development** — AI-driven end-to-end development with minimal human input
   - [x] Frontend-to-backend transition automation
@@ -114,8 +119,7 @@ AliFullStack is evolving rapidly. Here's what's done and what's coming soon:
 
 No sign-up. No cloud lock-in. Just download and build.
 
-<!-- 👉 **[Download AliFullStack](https://www.alifullstack.alitech.io/#download)** for your OS and start building. -->
-
+<!-- 👉 **[Download Exacta-App-Studio](https://www.alifullstack.alitech.io/#download)** for your OS and start building. -->
 
 <table>
 <thead>
@@ -127,19 +131,19 @@ No sign-up. No cloud lock-in. Just download and build.
 <tbody>
 <tr>
 <td><img src="https://upload.wikimedia.org/wikipedia/commons/e/e6/Windows_11_logo.svg" style="width: 80px;"/></td>
-<td><p><a href="https://github.com/SFARPak/AliFullStack/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white"/></a></p></td>
+<td><p><a href="https://github.com/SFARPak/Exacta-App-Studio/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white"/></a></p></td>
 </tr>
 <tr>
 <td><img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Tux.svg" style="width: 80px;"/></td>
-<td><p><a href="https://github.com/SFARPak/AliFullStack/releases/latest"><img alt="Linux Ubuntu" src="https://img.shields.io/badge/Linux%20Ubuntu-FF6900?style=for-the-badge&logo=ubuntu&logoColor=white"/></a></p></td>
+<td><p><a href="https://github.com/SFARPak/Exacta-App-Studio/releases/latest"><img alt="Linux Ubuntu" src="https://img.shields.io/badge/Linux%20Ubuntu-FF6900?style=for-the-badge&logo=ubuntu&logoColor=white"/></a></p></td>
 </tr>
 <tr>
 <td><img src="https://upload.wikimedia.org/wikipedia/commons/1/15/Logo_Apple.svg" style="width: 80px;"/></td>
-<td><p><a href="https://github.com/SFARPak/AliFullStack/releases/latest"><img alt="macOS Intel" src="https://img.shields.io/badge/macOS%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white"/></a></p></td>
+<td><p><a href="https://github.com/SFARPak/Exacta-App-Studio/releases/latest"><img alt="macOS Intel" src="https://img.shields.io/badge/macOS%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white"/></a></p></td>
 </tr>
 <tr>
 <td><img src="https://upload.wikimedia.org/wikipedia/commons/1/15/Logo_Apple.svg" style="width: 80px;"/></td>
-<td><p><a href="https://github.com/SFARPak/AliFullStack/releases/latest"><img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-000000?style=for-the-badge&logo=apple&logoColor=white"/></a></p></td>
+<td><p><a href="https://github.com/SFARPak/Exacta-App-Studio/releases/latest"><img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-000000?style=for-the-badge&logo=apple&logoColor=white"/></a></p></td>
 </tr>
 </tbody>
 </table>
@@ -158,8 +162,8 @@ No sign-up. No cloud lock-in. Just download and build.
 1. **Clone the repository:**
 
    ```sh
-   git clone https://github.com/SFARPak/AliFullStack.git
-   cd AliFullStack
+   git clone https://github.com/SFARPak/Exacta-App-Studio.git
+   cd Exacta-App-Studio
    ```
 
 2. **Install dependencies:**
@@ -267,16 +271,17 @@ For more details, see **[CONTRIBUTING.md](./CONTRIBUTING.md)**.
 Be part of a growing network of **AI tinkerers**, **indie hackers**, and **full-stack dreamers**:
 
 - 🧵 Reddit: [r/alifullstackbuilders](https://www.reddit.com/user/alifullstackbuilder/)
-- 🐦 Twitter/X: [@alifullstack](https://x.com/AliFullStackAI) *(coming soon)*
+- 🐦 Twitter/X: [@alifullstack](https://x.com/Exacta-App-StudioAI) _(coming soon)_
 - 🌐 Website: [alifullstack.alitech.io](https://alifullstack.alitech.io)
 
 ---
 
-## 🤝 Contribute to AliFullStack
+## 🤝 Contribute to Exacta-App-Studio
 
-AliFullStack is **Apache 2.0 licensed** and open to contributors!
+Exacta-App-Studio is **Apache 2.0 licensed** and open to contributors!
 
 You can:
+
 - 🐛 Fix bugs
 - ✨ Add features
 - 📝 Improve documentation
@@ -289,6 +294,7 @@ You can:
 ## 📬 Stay Updated
 
 Be the first to know about:
+
 - ✨ New Features
 - 📦 Releases
 - 🧠 Devlogs
@@ -303,7 +309,7 @@ Be the first to know about:
 - 💻 [Live Demo / Docs]- Coming Soon
 - 📥 [Download] - Coming Soon
 - 🧑‍💻 [Contribute](./CONTRIBUTING.md)
-- ⭐ [Star on GitHub](https://github.com/SFARPak/AliFullStack)
+- ⭐ [Star on GitHub](https://github.com/SFARPak/Exacta-App-Studio)
 - 🧵 [Reddit Community](https://www.reddit.com/r/alifullstackbuilders/)
 
 ---

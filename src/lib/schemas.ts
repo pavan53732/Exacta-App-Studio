@@ -164,11 +164,11 @@ export const ExperimentsSchema = z.object({
 });
 export type Experiments = z.infer<typeof ExperimentsSchema>;
 
-export const AliFullStackProBudgetSchema = z.object({
+export const ExactaAppStudioProBudgetSchema = z.object({
   budgetResetAt: z.string(),
   maxBudget: z.number(),
 });
-export type AliFullStackProBudget = z.infer<typeof AliFullStackProBudgetSchema>;
+export type ExactaAppStudioProBudget = z.infer<typeof ExactaAppStudioProBudgetSchema>;
 
 export const GlobPathSchema = z.object({
   globPath: z.string(),
@@ -215,7 +215,7 @@ export const UserSettingsSchema = z.object({
   telemetryConsent: z.enum(["opted_in", "opted_out", "unset"]).optional(),
   telemetryUserId: z.string().optional(),
   hasRunBefore: z.boolean().optional(),
-  enableAliFullStackPro: z.boolean().optional(),
+  enableExactaAppStudioPro: z.boolean().optional(),
   experiments: ExperimentsSchema.optional(),
   lastShownReleaseNotesVersion: z.string().optional(),
   maxChatTurnsInContext: z.number().optional(),
@@ -245,7 +245,7 @@ export const UserSettingsSchema = z.object({
   // DEPRECATED.
   ////////////////////////////////
   enableProSaverMode: z.boolean().optional(),
-  alifullstackProBudget: AliFullStackProBudgetSchema.optional(),
+  exactaAppStudioProBudget: ExactaAppStudioProBudgetSchema.optional(),
   runtimeMode: RuntimeModeSchema.optional(),
 });
 
@@ -254,13 +254,13 @@ export const UserSettingsSchema = z.object({
  */
 export type UserSettings = z.infer<typeof UserSettingsSchema>;
 
-export function isAliFullStackProEnabled(settings: UserSettings): boolean {
+export function isExactaAppStudioProEnabled(settings: UserSettings): boolean {
   return (
-    settings.enableAliFullStackPro === true && hasAliFullStackProKey(settings)
+    settings.enableExactaAppStudioPro === true && hasExactaAppStudioProKey(settings)
   );
 }
 
-export function hasAliFullStackProKey(settings: UserSettings): boolean {
+export function hasExactaAppStudioProKey(settings: UserSettings): boolean {
   return !!settings.providerSettings?.auto?.apiKey?.value;
 }
 

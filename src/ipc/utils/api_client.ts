@@ -8,7 +8,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 // Custom headers to be added to all API calls
 const CUSTOM_HEADERS = {
   Referer: "https://alitech.io",
-  "X-Title": "AliFullStack",
+  "X-Title": "Exacta-App-Studio",
 };
 
 /**

@@ -25,11 +25,11 @@ export function registerProHandlers() {
     const apiKey = settings.providerSettings?.auto?.apiKey?.value;
 
     if (!apiKey) {
-      logger.error("LLM Gateway API key (AliFullStack Pro) is not configured.");
+      logger.error("LLM Gateway API key (Exacta-App-Studio Pro) is not configured.");
       return null;
     }
 
-    const url = "https://llm-gateway.alifullstack.alitech.io/user/info";
+    const url = "https://llm-gateway.exacta-app-studio.alitech.io/user/info";
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
@@ -50,7 +50,7 @@ export function registerProHandlers() {
         return null;
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       const userInfoData = data["user_info"];
       logger.info("Successfully fetched user budget information.");
       return UserBudgetInfoSchema.parse({

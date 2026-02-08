@@ -41,7 +41,7 @@ export async function fetchApiTemplates(): Promise<Template[]> {
   apiTemplatesFetchPromise = (async (): Promise<Template[]> => {
     try {
       const response = await apiFetch(
-        "https://api.alifullstack.alitech.io/v1/templates",
+        "https://api.exacta-app-studio.alitech.io/v1/templates",
       );
       if (!response.ok) {
         throw new Error(

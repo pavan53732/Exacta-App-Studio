@@ -5,7 +5,7 @@ import { useRouter, useLocation } from "@tanstack/react-router";
 import { useSettings } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 // @ts-ignore
-import logo from "../../assets/ai-logos/AliFullStack-Logo.gif";
+import logo from "../../assets/ai-logos/Exacta-App-Studio-Logo.gif";
 import { providerSettingsRoute } from "@/routes/settings/providers/$provider";
 import { cn } from "@/lib/utils";
 import { useDeepLink } from "@/contexts/DeepLinkContext";
@@ -73,14 +73,14 @@ export const TitleBar = () => {
   };
 
   const isDyadPro = !!settings?.providerSettings?.auto?.apiKey?.value;
-  const isAliFullStackProEnabled = Boolean(settings?.enableAliFullStackPro);
+  const isExactaAppStudioProEnabled = Boolean(settings?.enableExactaAppStudioPro);
 
   return (
     <>
       <div className="@container z-11 w-full h-11 bg-[var(--sidebar)] absolute top-0 left-0 app-region-drag flex items-center">
         <div className="flex items-center flex-shrink-0">
           <div className={`${showWindowControls ? "pl-2" : "pl-18"}`}></div>
-          <img src={logo} alt="AliFullStack Logo" className="w-12 h-8" />
+          <img src={logo} alt="Exacta-App-Studio Logo" className="w-12 h-8" />
           <Button
             data-testid="title-bar-app-name-button"
             variant="outline"
@@ -95,11 +95,11 @@ export const TitleBar = () => {
         </div>
 
         <div className="flex-1 flex justify-center items-center absolute inset-0 pointer-events-none">
-          <span className="text-lg font-semibold no-app-region-drag pointer-events-auto">AliFullStack Universal</span>
+          <span className="text-lg font-semibold no-app-region-drag pointer-events-auto">Exacta-App-Studio</span>
         </div>
 
         <div className="flex items-center flex-shrink-0 ml-auto">
-          {isDyadPro && <DyadProButton isAliFullStackProEnabled={isAliFullStackProEnabled} />}
+          {isDyadPro && <DyadProButton isExactaAppStudioProEnabled={isExactaAppStudioProEnabled} />}
 
           {/* Preview Header */}
           {location.pathname === "/chat" && (
@@ -202,9 +202,9 @@ function WindowsControls() {
 }
 
 export function DyadProButton({
-  isAliFullStackProEnabled,
+  isExactaAppStudioProEnabled,
 }: {
-  isAliFullStackProEnabled: boolean;
+  isExactaAppStudioProEnabled: boolean;
 }) {
   const { navigate } = useRouter();
   const { userBudget } = useUserBudgetInfo();
@@ -220,12 +220,12 @@ export function DyadProButton({
       variant="outline"
       className={cn(
         "hidden @2xl:block ml-1 no-app-region-drag h-7 bg-indigo-600 text-white dark:bg-indigo-600 dark:text-white text-xs px-2 pt-1 pb-1",
-        !isAliFullStackProEnabled && "bg-zinc-600 dark:bg-zinc-600",
+        !isExactaAppStudioProEnabled && "bg-zinc-600 dark:bg-zinc-600",
       )}
       size="sm"
     >
-      {isAliFullStackProEnabled ? "Pro" : "Pro (off)"}
-      {userBudget && isAliFullStackProEnabled && (
+      {isExactaAppStudioProEnabled ? "Pro" : "Pro (off)"}
+      {userBudget && isExactaAppStudioProEnabled && (
         <AICreditStatus userBudget={userBudget} />
       )}
     </Button>

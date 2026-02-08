@@ -279,7 +279,7 @@ export function BackendChatInput({ chatId }: { chatId?: number }) {
         <ChatErrorBox
           onDismiss={dismissError}
           error={error}
-          isAliFullStackProEnabled={settings.enableAliFullStackPro ?? false}
+          isExactaAppStudioProEnabled={settings.enableExactaAppStudioPro ?? false}
         />
       )}
       {/* Display loading or error state for proposal */}

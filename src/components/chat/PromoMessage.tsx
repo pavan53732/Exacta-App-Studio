@@ -58,8 +58,8 @@ export const TURBO_EDITS_PROMO_MESSAGE: MessageConfig = {
     { type: "text", content: "Tired of waiting on AI?" },
     {
       type: "link",
-      content: " Get AliFullStack Pro",
-      url: "https://alifullstack.alitech.io/pro#ai",
+      content: " Get Exacta-App-Studio Pro",
+      url: "https://www.exacta-app-studio.alitech.io/pro#ai",
     },
     { type: "text", content: " for faster edits with Turbo Edits." },
   ],
@@ -70,8 +70,8 @@ export const SMART_CONTEXT_PROMO_MESSAGE: MessageConfig = {
     { type: "text", content: "Save up to 5x on AI costs with " },
     {
       type: "link",
-      content: "AliFullStack Pro's Smart Context",
-      url: "https://alifullstack.alitech.io/pro#ai",
+      content: "Exacta-App-Studio Pro's Smart Context",
+      url: "https://www.exacta-app-studio.alitech.io/pro#ai",
     },
   ],
 };
@@ -94,8 +94,8 @@ export const REDDIT_TIP: MessageConfig = {
     },
     {
       type: "link",
-      content: "AliFullStack subreddit",
-      url: "https://www.reddit.com/r/alifullstackbuilders/",
+      content: "Exacta-App-Studio subreddit",
+      url: "https://www.reddit.com/r/exactaappstudio/",
     },
   ],
 };
@@ -128,7 +128,7 @@ export const BUILD_A_BIBLE_APP_TIP: MessageConfig = {
     },
     {
       type: "text",
-      content: " the creator of AliFullStack build a Bible app step-by-step",
+      content: " the creator of Exacta-App-Studio build a Bible app step-by-step",
     },
   ],
 };
@@ -142,12 +142,12 @@ export const DEBUGGING_TIPS_TIP: MessageConfig = {
     {
       type: "link",
       content: "debugging tips",
-      url: "https://www.alifullstack.alitech.io/docs/guides/debugging",
+      url: "https://www.exacta-app-studio.alitech.io/docs/guides/debugging",
     },
   ],
 };
 
-// Advanced tip: Customize your AI rules https://www.alifullstack.alitech.io/docs/guides/ai-rules
+// Advanced tip: Customize your AI rules https://www.exacta-app-studio.alitech.io/docs/guides/ai-rules
 export const AI_RULES_TIP: MessageConfig = {
   spans: [
     {
@@ -157,7 +157,7 @@ export const AI_RULES_TIP: MessageConfig = {
     {
       type: "link",
       content: "AI rules",
-      url: "https://www.alifullstack.alitech.io/docs/guides/ai-rules",
+      url: "https://www.exacta-app-studio.alitech.io/docs/guides/ai-rules",
     },
   ],
 };
@@ -171,7 +171,7 @@ export const NEW_CHAT_TIP: MessageConfig = {
   ],
 };
 
-// Want to know what's next? Checkout our roadmap https://www.alifullstack.alitech.io/docs/roadmap
+// Want to know what's next? Checkout our roadmap https://www.exacta-app-studio.alitech.io/docs/roadmap
 export const ROADMAP_TIP: MessageConfig = {
   spans: [
     {
@@ -181,22 +181,22 @@ export const ROADMAP_TIP: MessageConfig = {
     {
       type: "link",
       content: "roadmap",
-      url: "https://www.alifullstack.alitech.io/docs/roadmap",
+      url: "https://www.exacta-app-studio.alitech.io/docs/roadmap",
     },
   ],
 };
 
-// Like AliFullStack? Star it on GitHub https://github.com/SFARPak/AliFullStack/
+// Like Exacta-App-Studio? Star it on GitHub https://github.com/pavan53732/Exacta-App-Studio/
 export const GITHUB_TIP: MessageConfig = {
   spans: [
     {
       type: "text",
-      content: "Like AliFullStack? Star it on ",
+      content: "Like Exacta-App-Studio? Star it on ",
     },
     {
       type: "link",
       content: "GitHub",
-      url: "https://github.com/SFARPak/AliFullStack",
+      url: "https://github.com/pavan53732/Exacta-App-Studio",
     },
   ],
 };

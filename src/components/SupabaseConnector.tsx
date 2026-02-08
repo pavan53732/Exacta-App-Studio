@@ -210,7 +210,7 @@ export function SupabaseConnector({ appId }: { appId: number }) {
               });
             } else {
               await IpcClient.getInstance().openExternalUrl(
-                "https://supabase-oauth.alifullstack.alitech.io/api/connect-supabase/login",
+                "https://supabase-oauth.exacta-app-studio.alitech.io/api/connect-supabase/login",
               );
             }
           }}

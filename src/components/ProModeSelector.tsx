@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, Info } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { IpcClient } from "@/ipc/ipc_client";
-import { hasAliFullStackProKey, type UserSettings } from "@/lib/schemas";
+import { hasExactaAppStudioProKey, type UserSettings } from "@/lib/schemas";
 
 export function ProModeSelector() {
   const { settings, updateSettings } = useSettings();
@@ -48,13 +48,13 @@ export function ProModeSelector() {
 
   const toggleProEnabled = () => {
     updateSettings({
-      enableAliFullStackPro: !settings?.enableAliFullStackPro,
+      enableExactaAppStudioPro: !settings?.enableExactaAppStudioPro,
     });
   };
 
-  const hasProKey = settings ? hasAliFullStackProKey(settings) : false;
+  const hasProKey = settings ? hasExactaAppStudioProKey(settings) : false;
   const proModeTogglable =
-    hasProKey && Boolean(settings?.enableAliFullStackPro);
+    hasProKey && Boolean(settings?.enableExactaAppStudioPro);
 
   return (
     <Popover>
@@ -88,7 +88,7 @@ export function ProModeSelector() {
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-sm transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 onClick={() => {
                   IpcClient.getInstance().openExternalUrl(
-                    "https://alifullstack.alitech.io/pro#ai",
+                    "https://exacta-app-studio.alitech.io/pro#ai",
                   );
                 }}
               >
@@ -103,7 +103,7 @@ export function ProModeSelector() {
               description="Use Dyad Pro AI credits"
               tooltip="Uses Dyad Pro AI credits for the main AI model and Pro modes."
               isTogglable={hasProKey}
-              settingEnabled={Boolean(settings?.enableAliFullStackPro)}
+              settingEnabled={Boolean(settings?.enableExactaAppStudioPro)}
               toggle={toggleProEnabled}
             />
             <SelectorRow

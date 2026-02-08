@@ -144,17 +144,17 @@ export function TokenBar({ chatId }: TokenBarProps) {
       </TooltipProvider>
       {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
       {(!settings?.enableProSmartFilesContextMode ||
-        !settings?.enableAliFullStackPro) && (
+        !settings?.enableExactaAppStudioPro) && (
         <div className="text-xs text-center text-muted-foreground mt-2">
           Optimize your tokens with{" "}
           <a
             onClick={() =>
-              settings?.enableAliFullStackPro
+              settings?.enableExactaAppStudioPro
                 ? IpcClient.getInstance().openExternalUrl(
-                    "https://www.alifullstack.alitech.io/docs/guides/ai-models/pro-modes#smart-context",
+                    "https://www.exacta-app-studio.alitech.io/docs/guides/ai-models/pro-modes#smart-context",
                   )
                 : IpcClient.getInstance().openExternalUrl(
-                    "https://alifullstack.alitech.io/pro#ai",
+                    "https://exacta-app-studio.alitech.io/no-pro#ai",
                   )
             }
             className="text-blue-500 dark:text-blue-400 cursor-pointer hover:underline"

@@ -55,12 +55,12 @@ export function useRunApp() {
 
     // Fallback to old format for backward compatibility
     const matchesProxyServerStart = output.message.includes(
-      "[AliFullStack-proxy-server]started=[",
+      "[Exacta-App-Studio-proxy-server]started=[",
     );
     if (matchesProxyServerStart) {
       // Extract both proxy URL and original URL using regex
       const proxyUrlMatch = output.message.match(
-        /\[AliFullStack-proxy-server\]started=\[(.*?)\]/,
+        /\[Exacta-App-Studio-proxy-server\]started=\[(.*?)\]/,
       );
       const originalUrlMatch = output.message.match(/original=\[(.*?)\]/);
 

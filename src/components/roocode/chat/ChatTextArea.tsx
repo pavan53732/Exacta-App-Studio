@@ -427,7 +427,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 							// Find the index of the next selectable option
 							const currentSelectableIndex = selectableOptions.findIndex(
-								(option) => option === options[prevIndex],
+								(option: any) => option === options[prevIndex],
 							)
 
 							const newSelectableIndex =
@@ -435,7 +435,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								selectableOptions.length
 
 							// Find the index of the selected option in the original options array
-							return options.findIndex((option) => option === selectableOptions[newSelectableIndex])
+							return options.findIndex((option: any) => option === selectableOptions[newSelectableIndex])
 						})
 						return
 					}

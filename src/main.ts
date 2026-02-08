@@ -12,7 +12,7 @@ import {
   writeSettings,
 } from "./main/settings";
 import { handleSupabaseOAuthReturn } from "./supabase_admin/supabase_return_handler";
-import { handleAliFullStackProReturn } from "./main/pro";
+import { handleExactaAppStudioProReturn } from "./main/pro";
 import { IS_TEST_BUILD } from "./ipc/utils/test_utils";
 import { BackupManager } from "./backup_manager";
 import { getDatabasePath, initializeDatabase } from "./db";
@@ -40,12 +40,12 @@ if (started) {
 // https://www.electronjs.org/docs/latest/tutorial/launch-app-from-url-in-another-app#main-process-mainjs
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient("alifullstack", process.execPath, [
+    app.setAsDefaultProtocolClient("exacta-app-studio", process.execPath, [
       path.resolve(process.argv[1]),
     ]);
   }
 } else {
-  app.setAsDefaultProtocolClient("alifullstack");
+  app.setAsDefaultProtocolClient("exacta-app-studio");
 }
 
 export async function onReady() {
@@ -69,13 +69,13 @@ export async function onReady() {
     // but this is more explicit and falls back to stable if there's an unknown
     // release channel.
     const postfix = settings.releaseChannel === "beta" ? "beta" : "stable";
-    const host = `https://api.alifullstack.alitech.io/v1/update/${postfix}`;
+    const host = `https://api.exacta-app-studio.alitech.io/v1/update/${postfix}`;
     logger.info("Auto-update release channel=", postfix);
     updateElectronApp({
       logger,
       updateSource: {
         type: UpdateSourceType.ElectronPublicUpdateService,
-        repo: "SFARPak/alifullstack",
+        repo: "SFARPak/Exacta-App-Studio",
         host,
       },
     }); // additional configuration options available
@@ -204,7 +204,7 @@ app.on("open-url", async (event, url) => {
 });
 
 async function handleDeepLinkReturn(url: string) {
-  // example url: "alifullstack://supabase-oauth-return?token=a&refreshToken=b"
+  // example url: "exacta-app-studio://supabase-oauth-return?token=a&refreshToken=b"
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -220,10 +220,10 @@ async function handleDeepLinkReturn(url: string) {
     "hostname",
     parsed.hostname,
   );
-  if (parsed.protocol !== "alifullstack:") {
+  if (parsed.protocol !== "exacta-app-studio:") {
     dialog.showErrorBox(
       "Invalid Protocol",
-      `Expected alifullstack://, got ${parsed.protocol}. Full URL: ${url}`,
+      `Expected exacta-app-studio://, got ${parsed.protocol}. Full URL: ${url}`,
     );
     return;
   }
@@ -263,14 +263,14 @@ async function handleDeepLinkReturn(url: string) {
     });
     return;
   }
-  // alifullstack://alifullstack-pro-return?key=123&budget_reset_at=2025-05-26T16:31:13.492000Z&max_budget=100
-  if (parsed.hostname === "alifullstack-pro-return") {
+  // exacta-app-studio://exacta-app-studio-pro-return?key=123&budget_reset_at=2025-05-26T16:31:13.492000Z&max_budget=100
+  if (parsed.hostname === "exacta-app-studio-pro-return") {
     const apiKey = parsed.searchParams.get("key");
     if (!apiKey) {
       dialog.showErrorBox("Invalid URL", "Expected key");
       return;
     }
-    handleAliFullStackProReturn({
+    handleExactaAppStudioProReturn({
       apiKey,
     });
     // Send message to renderer to trigger re-render
@@ -279,7 +279,7 @@ async function handleDeepLinkReturn(url: string) {
     });
     return;
   }
-  // alifullstack://roocode-auth?code=...&state=...
+  // exacta-app-studio://roocode-auth?code=...&state=...
   if (parsed.hostname === "roocode-auth") {
     const code = parsed.searchParams.get("code");
     const state = parsed.searchParams.get("state");

@@ -167,7 +167,7 @@ const BackendChatMessage = ({
                   <span className="max-w-70 truncate font-medium">
                     {
                       messageVersion.message
-                        .replace(/^\[alifullstack\]\s*/i, "")
+                        .replace(/^\[exacta-app-studio\]\s*/i, "")
                         .split("\n")[0]
                     }
                   </span>

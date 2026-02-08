@@ -164,7 +164,7 @@ ${debugInfo.logs.slice(-3_500) || "No logs available"}
 
       // Get signed URL
       const response = await fetch(
-        "https://upload-logs.alifullstack.alitech.io/generate-upload-url",
+        "https://upload-logs.exacta-app-studio.alitech.io/generate-upload-url",
         {
           method: "POST",
           headers: {
@@ -403,7 +403,7 @@ Session ID: ${sessionId}
                 variant="outline"
                 onClick={() => {
                   IpcClient.getInstance().openExternalUrl(
-                    "https://www.alifullstack.alitech.io/docs",
+                    "https://www.exacta-app-studio.alitech.io/docs",
                   );
                 }}
                 className="w-full py-6 bg-[var(--background-lightest)]"

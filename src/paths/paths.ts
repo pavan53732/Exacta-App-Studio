@@ -2,23 +2,23 @@ import path from "node:path";
 import os from "node:os";
 import { IS_TEST_BUILD } from "../ipc/utils/test_utils";
 
-export function getAliFullStackAppPath(appPath: string): string {
+export function getExactaAppStudioAppPath(appPath: string): string {
   const electron = getElectron();
   if (electron) {
     // In Electron environment (including release mode), use userData directory
     // to ensure writability and avoid read-only installation directories
     return path.join(
       electron.app.getPath("userData"),
-      "alifullstack-apps",
+      "exacta-app-studio-apps",
       appPath,
     );
   }
   // Fallback for non-Electron environments
-  return path.join(os.homedir(), "alifullstack-apps", appPath);
+  return path.join(os.homedir(), "exacta-app-studio-apps", appPath);
 }
 
 // Backward compatibility alias
-export const getDyadAppPath = getAliFullStackAppPath;
+export const getDyadAppPath = getExactaAppStudioAppPath;
 
 export function getTypeScriptCachePath(): string {
   const electron = getElectron();

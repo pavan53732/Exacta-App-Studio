@@ -1,6 +1,6 @@
 import { readSettings, writeSettings } from "./settings";
 
-export function handleAliFullStackProReturn({ apiKey }: { apiKey: string }) {
+export function handleExactaAppStudioProReturn({ apiKey }: { apiKey: string }) {
   const settings = readSettings();
   writeSettings({
     providerSettings: {
@@ -12,6 +12,6 @@ export function handleAliFullStackProReturn({ apiKey }: { apiKey: string }) {
         },
       },
     },
-    enableAliFullStackPro: true,
+    enableExactaAppStudioPro: true,
   });
 }

@@ -24,9 +24,15 @@
     // import
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@src/*": ["./src/*"]
     }
   },
   "include": ["src", "e2e-tests", "shared"],
-  "exclude": ["e2e-tests/fixtures"]
+  "exclude": [
+    "**/__tests__/*",
+    "e2e-tests/fixtures",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

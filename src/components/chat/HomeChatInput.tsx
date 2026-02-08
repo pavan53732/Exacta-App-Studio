@@ -81,7 +81,7 @@ export function HomeChatInput({
               onChange={setInputValue}
               onSubmit={handleCustomSubmit}
               onPaste={handlePaste}
-              placeholder="Ask AliFullStack to build..."
+              placeholder="Ask Exacta-App-Studio to build..."
               disabled={isStreaming}
               excludeCurrentApp={false}
             />

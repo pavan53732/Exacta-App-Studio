@@ -87,7 +87,7 @@ async function clerkSignIn(ticket: string): Promise<AuthCredentials> {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "AliFullStack/1.0.0",
+      "User-Agent": "Exacta-App-Studio/1.0.0",
     },
     body: formData.toString(),
     signal: AbortSignal.timeout(10000),
@@ -123,7 +123,7 @@ export async function clerkCreateSessionToken(
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Bearer ${credentials.clientToken}`,
-        "User-Agent": "AliFullStack/1.0.0",
+        "User-Agent": "Exacta-App-Studio/1.0.0",
       },
       body: formData.toString(),
       signal: AbortSignal.timeout(10000),
@@ -144,7 +144,7 @@ async function clerkGetUserInfo(credentials: AuthCredentials): Promise<any> {
   const response = await fetch(`${CLERK_BASE_URL}/v1/me`, {
     headers: {
       Authorization: `Bearer ${credentials.clientToken}`,
-      "User-Agent": "AliFullStack/1.0.0",
+      "User-Agent": "Exacta-App-Studio/1.0.0",
     },
     signal: AbortSignal.timeout(10000),
   });
@@ -171,7 +171,7 @@ async function handleRooCodeLogin(): Promise<void> {
     // Generate authorization URL
     const params = new URLSearchParams({
       state,
-      auth_redirect: `alifullstack://roocode-auth`,
+      auth_redirect: `exacta-app-studio://roocode-auth`,
     });
 
     const authUrl = `${ROO_CODE_API_URL}/extension/sign-in?${params.toString()}`;
@@ -240,7 +240,7 @@ async function handleRooCodeLogout(): Promise<void> {
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
               Authorization: `Bearer ${credentials.clientToken}`,
-              "User-Agent": "AliFullStack/1.0.0",
+              "User-Agent": "Exacta-App-Studio/1.0.0",
             },
             body: formData.toString(),
             signal: AbortSignal.timeout(5000),

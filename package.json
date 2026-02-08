@@ -1,12 +1,12 @@
 {
-  "name": "alifullstack",
-  "productName": "AliFullStack Universal",
+  "name": "exacta-app-studio",
+  "productName": "Exacta-App-Studio",
   "version": "0.0.6",
   "description": "Free, local, open-source AI app builder",
   "main": ".vite/build/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SFARPak/AliFullStack.git"
+    "url": "https://github.com/pavan53732/Exacta-App-Studio.git"
   },
   "engines": {
     "node": ">=20"
@@ -14,9 +14,9 @@
   "scripts": {
     "clean": "rimraf out scaffold/node_modules",
     "start": "electron-forge start",
-    "dev:engine": "cross-env ALIFULLSTACK_ENGINE_URL=http://localhost:8080/v1 npm start",
-    "staging:engine": "cross-env ALIFULLSTACK_ENGINE_URL=https://staging---alifullstack-llm-engine-kq7pivehnq-uc.a.run.app/v1 npm start",
-    "staging:gateway": "cross-env ALIFULLSTACK_GATEWAY_URL=https://staging---litellm-gcp-cloud-run-kq7pivehnq-uc.a.run.app/v1 npm start",
+    "dev:engine": "cross-env EXACTA_APP_STUDIO_ENGINE_URL=http://localhost:8080/v1 npm start",
+    "staging:engine": "cross-env EXACTA_APP_STUDIO_ENGINE_URL=https://staging---alifullstack-llm-engine-kq7pivehnq-uc.a.run.app/v1 npm start",
+    "staging:gateway": "cross-env EXACTA_APP_STUDIO_GATEWAY_URL=https://staging---litellm-gcp-cloud-run-kq7pivehnq-uc.a.run.app/v1 npm start",
     "package": "npm run clean && electron-forge package",
     "make": "npm run clean && electron-forge make",
     "build": "electron-forge make",
@@ -64,9 +64,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/glob": "^8.1.0",
     "@types/kill-port": "^2.0.3",
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/node": "^22.19.10",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitest/ui": "^3.1.1",
@@ -78,13 +78,13 @@
     "happy-dom": "^17.4.4",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
+    "node-fetch": "^3.3.2",
     "oxlint": "^1.8.0",
     "prettier": "3.5.3",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
     "vite": "^5.4.17",
-    "vitest": "^3.1.1",
-    "node-fetch": "^3.3.2"
+    "vitest": "^3.1.1"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^3.0.15",
