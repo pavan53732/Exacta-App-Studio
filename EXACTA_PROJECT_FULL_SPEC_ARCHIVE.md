@@ -619,12 +619,14 @@ The UI communicates with the Core effectively as a "Remote" client over a named 
 Exacta App Studio is **intentionally not designed** for the following use cases:
 
 - ❌ **Mobile applications** — No iOS, Android, or mobile development support
-- ❌ **Web applications** — No browser-based apps, SPAs, or web frameworks
-- ❌ **Cloud deployment** — No Azure, AWS, or cloud infrastructure management
+- ❌ **Hosted web runtime** — Exacta builds web applications but does NOT host/serve them
+  - ✅ **Local development only** — All web tooling (Vite, Next.js) runs in localhost sandbox
+  - ✅ **Optional deployment** — Requires explicit NET_EXTERNAL capability + operator confirmation
+- ❌ **Cloud infrastructure management** — No Azure, AWS infrastructure provisioning or management
 - ❌ **Team collaboration** — Single-user tool; no multi-user workspaces or real-time collaboration
 - ❌ **Plugin marketplace** — No third-party plugin ecosystem or extensions
 
-These are deliberate scope constraints to maintain focus on local-first Windows desktop application development (desktop app types and toolchains are governed by Supply Chain trust rules in Section 25). **Note:** “deterministic” in the sense of replayability is _not_ claimed for build/tool outputs; determinism here means “single-platform Windows focus” only.
+These are deliberate scope constraints to maintain focus on local-first application development. **Web applications are supported (v2.5.0+)** for local development and optional deployment, but Exacta does not provide hosting services. Desktop app types and toolchains are governed by Supply Chain trust rules in Section 25. **Note:** "deterministic" in the sense of replayability is _not_ claimed for build/tool outputs; determinism here means "single-platform Windows focus" only.
 
 ## 6. Autonomous Execution Model
 
@@ -3255,6 +3257,1290 @@ npm run preview      # Preview production build locally
 
 ---
 
+## 31. Operator Insight Surface
+
+### 31.1 Philosophy
+
+**Core Tension**: Exacta is an "invisible builder" that auto-applies changes without diffs or manual staging. However, for non-trivial apps, operators need to understand **what changed** and **why** without breaking the flow-first model.
+
+**Solution**: A **read-only insight panel** that provides structured visibility into:
+
+- Action timeline (per-goal, per-cycle)
+- Changed files (per checkpoint)
+- Test and build status
+- Drift detection events
+- Guardian policy decisions
+
+**Strict Constraints**:
+
+- ❌ No in-UI file editing
+- ❌ No manual diff merging or staging
+- ❌ No ability to "reject" or "approve" individual changes
+- ✅ Read-only inspection only
+- ✅ Time-travel to previous checkpoints (read-only)
+- ✅ Export logs and reports for external analysis
+
+---
+
+### 31.2 Insight Panel Components
+
+#### 31.2.1 Action Timeline
+
+**Purpose**: Show a chronological list of all actions taken during goal execution.
+
+**Display Format**:
+
+```
+Goal: "Add user authentication to WPF app"
+├─ Cycle 1 (00:00:12)
+│  ├─ Perceive: Analyzed project structure
+│  ├─ Decide: Plan authentication module
+│  ├─ Act: Created LoginForm.xaml, AuthService.cs
+│  └─ Observe: Build ✅ | Tests ✅ (3 new tests)
+├─ Cycle 2 (00:00:18)
+│  ├─ Perceive: Detected missing password validation
+│  ├─ Decide: Add validation logic
+│  ├─ Act: Updated AuthService.cs, added PasswordValidator.cs
+│  └─ Observe: Build ✅ | Tests ✅ (2 new tests)
+└─ Cycle 3 (00:00:09)
+   ├─ Perceive: Goal complete
+   └─ Decide: GOAL_COMPLETE
+```
+
+**Interactions**:
+
+- Click cycle to expand full details
+- Click file to view read-only diff
+- Export timeline as JSON/Markdown
+
+---
+
+#### 31.2.2 Checkpoint History
+
+**Purpose**: List all internal checkpoints with snapshot metadata.
+
+**Display Format**:
+
+```
+Checkpoints (Last 10)
+├─ CP-12 (2026-02-08 21:05:32) — Cycle 3 complete
+│  ├─ Files changed: 2 (AuthService.cs, PasswordValidator.cs)
+│  ├─ Tests: 5 passing
+│  └─ Build: ✅ Success
+├─ CP-11 (2026-02-08 21:05:14) — Cycle 2 complete
+│  ├─ Files changed: 3 (LoginForm.xaml, AuthService.cs, App.xaml.cs)
+│  ├─ Tests: 3 passing
+│  └─ Build: ✅ Success
+└─ CP-10 (2026-02-08 21:04:56) — Cycle 1 complete
+   ├─ Files changed: 4 (LoginForm.xaml, LoginForm.xaml.cs, AuthService.cs, IAuthService.cs)
+   ├─ Tests: 3 passing
+   └─ Build: ✅ Success
+```
+
+**Interactions**:
+
+- Click checkpoint to view full snapshot (read-only)
+- Compare any two checkpoints (diff view)
+- Restore to previous checkpoint (creates new goal, does not mutate history)
+
+---
+
+#### 31.2.3 Changed Files Panel
+
+**Purpose**: Show all files modified during current goal execution.
+
+**Display Format**:
+
+```
+Changed Files (Current Goal)
+├─ src/LoginForm.xaml (+120 lines)
+├─ src/LoginForm.xaml.cs (+85 lines)
+├─ src/Services/AuthService.cs (+150 lines, -10 lines)
+├─ src/Services/IAuthService.cs (+25 lines)
+├─ src/Validators/PasswordValidator.cs (+45 lines)
+└─ tests/AuthServiceTests.cs (+90 lines)
+```
+
+**Interactions**:
+
+- Click file to view read-only diff
+- Filter by file type, LOC delta, or cycle
+- Export changed files list
+
+---
+
+#### 31.2.4 Test & Build Status Dashboard
+
+**Purpose**: Real-time status of tests and builds.
+
+**Display Format**:
+
+```
+Test Status
+├─ Unit Tests: 15 passing, 0 failing
+├─ Integration Tests: 3 passing, 0 failing
+└─ Last Run: 2026-02-08 21:05:32 (3 seconds ago)
+
+Build Status
+├─ Debug Build: ✅ Success (00:00:08)
+├─ Release Build: ✅ Success (00:00:12)
+└─ Last Build: 2026-02-08 21:05:30
+```
+
+**Interactions**:
+
+- Click test to view output
+- Click build to view logs
+- Re-run tests manually (triggers new cycle)
+
+---
+
+#### 31.2.5 Drift Detection Events
+
+**Purpose**: Show all drift detection events and Safe Mode transitions.
+
+**Display Format**:
+
+```
+Drift Events
+├─ 2026-02-08 21:04:45 — LOW drift detected (1 file modified externally)
+│  └─ File: src/App.xaml.cs (external edit detected, re-indexed)
+└─ 2026-02-08 20:58:12 — MEDIUM drift detected (3 files modified externally)
+   └─ Triggered Safe Mode, index rebuild initiated
+```
+
+---
+
+### 31.3 Invariants
+
+**INV-INSIGHT-1: Read-Only Guarantee**
+
+- The Insight Surface MUST NOT allow in-UI file editing, diff merging, or manual staging.
+- All interactions are read-only inspection or export.
+
+**INV-INSIGHT-2: Non-Blocking**
+
+- The Insight Surface MUST NOT block or interrupt autonomous execution.
+- Operators can inspect while cycles are running.
+
+**INV-INSIGHT-3: Structured Logging**
+
+- All timeline, checkpoint, and drift events MUST be logged in structured JSON format.
+- Logs MUST be exportable for external analysis.
+
+---
+
+## 32. Worked Examples
+
+### 32.1 Example 1: Windows Desktop App (WPF Finance Tracker)
+
+**Goal**: "Create a personal finance tracker with SQLite database and WPF UI"
+
+**Operator Experience**:
+
+1. **Goal Input**:
+
+   ```
+   Operator: "Create a personal finance tracker with SQLite database and WPF UI"
+   ```
+
+2. **Exacta Response**:
+
+   ```
+   ✅ Goal accepted
+   📊 Analyzing requirements...
+   🔧 Initializing project structure...
+   ```
+
+3. **Behind the Scenes (Cycle 1)**:
+
+   - **Perceive**: Analyze goal, identify requirements (WPF, SQLite, MVVM pattern)
+   - **Decide**: Plan project structure, database schema, UI layout
+   - **Act**:
+     - Create `FinanceTracker.csproj`
+     - Create `App.xaml`, `MainWindow.xaml`
+     - Create `Models/Transaction.cs`, `Models/Category.cs`
+     - Create `Services/DatabaseService.cs`
+     - Create `ViewModels/MainViewModel.cs`
+     - Install NuGet: `System.Data.SQLite`, `CommunityToolkit.Mvvm`
+   - **Observe**: Build ✅ | Tests ✅ (0 tests, will add next cycle)
+
+4. **Operator Sees**:
+
+   ```
+   ✅ Cycle 1 complete (00:00:15)
+   📁 Created 8 files
+   📦 Installed 2 packages
+   🧪 Build successful
+   ```
+
+5. **Behind the Scenes (Cycle 2)**:
+
+   - **Perceive**: Project structure complete, need UI implementation
+   - **Decide**: Implement MainWindow UI, add transaction list, add/edit forms
+   - **Act**:
+     - Update `MainWindow.xaml` (DataGrid, buttons, forms)
+     - Update `MainViewModel.cs` (commands, data binding)
+     - Create `Views/AddTransactionDialog.xaml`
+     - Generate icon with Asset Forge (ASSET_GEN capability)
+   - **Observe**: Build ✅ | Tests ✅ (3 new tests for ViewModel)
+
+6. **Operator Sees**:
+
+   ```
+   ✅ Cycle 2 complete (00:00:22)
+   📁 Updated 2 files, created 1 file
+   🎨 Generated app icon
+   🧪 3 tests passing
+   ```
+
+7. **Behind the Scenes (Cycle 3)**:
+
+   - **Perceive**: UI complete, need database implementation
+   - **Decide**: Implement SQLite CRUD operations, seed data
+   - **Act**:
+     - Update `DatabaseService.cs` (CRUD methods)
+     - Create `Data/schema.sql`
+     - Create `Data/seed.sql`
+     - Add connection string to `App.config`
+   - **Observe**: Build ✅ | Tests ✅ (5 new tests for DatabaseService)
+
+8. **Operator Sees**:
+
+   ```
+   ✅ Cycle 3 complete (00:00:18)
+   📁 Updated 1 file, created 2 files
+   🧪 8 tests passing
+   ```
+
+9. **Behind the Scenes (Cycle 4)**:
+
+   - **Perceive**: All features implemented, need polish
+   - **Decide**: Add error handling, input validation, logging
+   - **Act**:
+     - Add try-catch blocks to DatabaseService
+     - Add input validation to AddTransactionDialog
+     - Add NLog for logging
+   - **Observe**: Build ✅ | Tests ✅ (10 tests passing)
+
+10. **Operator Sees**:
+
+    ```
+    ✅ Cycle 4 complete (00:00:12)
+    📁 Updated 3 files
+    🧪 10 tests passing
+    ✅ Goal complete!
+
+    📦 Ready to export as MSI installer
+    ```
+
+11. **Export**:
+
+    ```
+    Operator: "Export as installer"
+
+    ✅ Building release configuration...
+    ✅ Generating MSI with WiX...
+    ✅ Installer created: FinanceTracker-1.0.0.msi
+    ```
+
+**Total Time**: ~1 minute 7 seconds  
+**Files Created**: 14 files  
+**Tests Generated**: 10 tests  
+**Packages Installed**: 3 packages
+
+---
+
+### 32.2 Example 2: Web App (Next.js Dashboard with Auth)
+
+**Goal**: "Create a Next.js dashboard with authentication and deploy to Vercel"
+
+**Operator Experience**:
+
+1. **Goal Input**:
+
+   ```
+   Operator: "Create a Next.js dashboard with authentication and deploy to Vercel"
+   ```
+
+2. **Exacta Response**:
+
+   ```
+   ✅ Goal accepted
+   📊 Analyzing requirements...
+   🔧 Initializing Next.js project...
+   ```
+
+3. **Behind the Scenes (Cycle 1)**:
+
+   - **Perceive**: Analyze goal (Next.js, auth, dashboard, Vercel deployment)
+   - **Decide**: Initialize Next.js with TypeScript, setup auth (NextAuth.js), plan dashboard layout
+   - **Act**:
+     - Run `npx create-next-app@latest` (WEB_PACKAGE_INSTALL capability)
+     - Install `next-auth`, `@prisma/client`, `tailwindcss`
+     - Create `app/layout.tsx`, `app/page.tsx`
+     - Create `app/api/auth/[...nextauth]/route.ts`
+     - Create `lib/auth.ts`, `lib/prisma.ts`
+   - **Observe**: Build ✅ | Dev server ✅ (localhost:3000)
+
+4. **Operator Sees**:
+
+   ```
+   ✅ Cycle 1 complete (00:00:25)
+   📁 Created 12 files
+   📦 Installed 15 packages
+   🌐 Dev server running at http://localhost:3000
+   ```
+
+5. **Behind the Scenes (Cycle 2)**:
+
+   - **Perceive**: Auth setup complete, need dashboard UI
+   - **Decide**: Create dashboard layout, sidebar, charts
+   - **Act**:
+     - Create `app/dashboard/layout.tsx`
+     - Create `app/dashboard/page.tsx`
+     - Create `components/Sidebar.tsx`, `components/Chart.tsx`
+     - Install `recharts` for charts
+     - Generate favicon with Asset Forge
+   - **Observe**: Build ✅ | Tests ✅ (Playwright tests for auth flow)
+
+6. **Operator Sees**:
+
+   ```
+   ✅ Cycle 2 complete (00:00:30)
+   📁 Created 4 files
+   📦 Installed 1 package
+   🎨 Generated favicon
+   🧪 2 Playwright tests passing
+   ```
+
+7. **Behind the Scenes (Cycle 3)**:
+
+   - **Perceive**: Dashboard UI complete, need database schema
+   - **Decide**: Setup Prisma, define schema, seed data
+   - **Act**:
+     - Create `prisma/schema.prisma`
+     - Create `prisma/seed.ts`
+     - Run `npx prisma migrate dev`
+     - Update `lib/prisma.ts` with client
+   - **Observe**: Build ✅ | Database ✅ (schema applied)
+
+8. **Operator Sees**:
+
+   ```
+   ✅ Cycle 3 complete (00:00:20)
+   📁 Created 2 files
+   🗄️ Database schema applied
+   ```
+
+9. **Behind the Scenes (Cycle 4)**:
+
+   - **Perceive**: All features complete, ready to deploy
+   - **Decide**: Build production bundle, deploy to Vercel
+   - **Act**:
+     - Run `npm run build` (WEB_BUILD capability)
+     - Run `vercel deploy --prod` (WEB_DEPLOY capability, requires NET_EXTERNAL)
+     - Guardian prompts for confirmation (RISK: HIGH)
+   - **Observe**: Deployment ✅ (live at https://dashboard-xyz.vercel.app)
+
+10. **Operator Sees**:
+
+    ```
+    ⚠️ Deployment Confirmation Required
+
+    Deploy to Vercel (RISK: HIGH)?
+    - Requires external network access
+    - Will upload build artifacts to vercel.com
+    - Project will be publicly accessible
+
+    Continue? [Yes] [No]
+
+    Operator: [Yes]
+
+    ✅ Deploying to Vercel...
+    ✅ Deployment complete!
+    🌐 Live at: https://dashboard-xyz.vercel.app
+    ```
+
+**Total Time**: ~1 minute 35 seconds  
+**Files Created**: 18 files  
+**Tests Generated**: 2 Playwright tests  
+**Packages Installed**: 16 packages  
+**Deployed**: ✅ Live on Vercel
+
+---
+
+### 32.3 Lessons from Examples
+
+**Key Observations**:
+
+1. **Operator sees high-level progress**, not low-level details
+2. **Behind-the-scenes shows PDAO loop** in action
+3. **Guardian enforces policies** (deployment confirmation)
+4. **Asset Forge generates assets** automatically
+5. **Tests are auto-generated** and auto-run
+6. **Deployment is optional** and requires explicit confirmation
+
+---
+
+## 33. Project Lifecycle Model
+
+### 33.1 Philosophy
+
+**Core Principle**: Exacta manages projects through a simple, deterministic lifecycle that tracks project state from creation to archival.
+
+**Lifecycle States**:
+
+- `NEW` — Project created but no goals executed yet
+- `ACTIVE` — Project has active or completed goals
+- `PAUSED` — Project execution temporarily suspended by operator
+- `ARCHIVED` — Project marked for long-term storage (read-only)
+
+---
+
+### 33.2 State Transitions
+
+#### 33.2.1 NEW → ACTIVE
+
+**Trigger**: First goal execution starts
+
+**Actions**:
+
+- Initialize project index
+- Create first checkpoint (CP-0)
+- Set `last_active_utc` timestamp
+- Transition to `ACTIVE` state
+
+**Invariant**: A project MUST transition to `ACTIVE` on first goal execution.
+
+---
+
+#### 33.2.2 ACTIVE → PAUSED
+
+**Trigger**: Operator explicitly pauses project
+
+**Actions**:
+
+- Halt current goal execution (if running)
+- Create pause checkpoint
+- Set `paused_utc` timestamp
+- Preserve all state (index, checkpoints, goals)
+
+**UI Display**:
+
+```
+⏸️ Project Paused
+
+Current goal execution halted.
+Resume anytime to continue from last checkpoint.
+```
+
+**Invariant**: Paused projects MUST preserve all execution state.
+
+---
+
+#### 33.2.3 PAUSED → ACTIVE
+
+**Trigger**: Operator resumes project
+
+**Actions**:
+
+- Restore from pause checkpoint
+- Resume goal execution (if incomplete)
+- Update `last_active_utc` timestamp
+- Transition to `ACTIVE` state
+
+**Invariant**: Resume MUST restore exact state from pause checkpoint.
+
+---
+
+#### 33.2.4 ACTIVE → ARCHIVED
+
+**Trigger**: Operator archives project
+
+**Actions**:
+
+- Halt current goal execution (if running)
+- Create final checkpoint
+- Set `archived_utc` timestamp
+- Mark project as read-only
+- Compress project data (optional)
+
+**Confirmation Required**:
+
+```
+⚠️ Archive Project?
+
+This will:
+- Stop current goal execution
+- Mark project as read-only
+- Compress project data
+
+You can unarchive later to resume work.
+
+Continue? [Yes] [No]
+```
+
+**Invariant**: Archived projects MUST be read-only (no new goals, no edits).
+
+---
+
+#### 33.2.5 ARCHIVED → ACTIVE
+
+**Trigger**: Operator unarchives project
+
+**Actions**:
+
+- Decompress project data (if compressed)
+- Restore from final checkpoint
+- Clear `archived_utc` timestamp
+- Transition to `ACTIVE` state
+
+**Invariant**: Unarchive MUST restore full project state.
+
+---
+
+### 33.3 Project Metadata
+
+**Schema**:
+
+```tsx
+type ProjectMetadata = {
+  project_id: UUID;
+  project_name: string;
+  state: "NEW" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+  created_utc: string; // ISO 8601
+  last_active_utc: string; // ISO 8601
+  paused_utc?: string; // ISO 8601 (if paused)
+  archived_utc?: string; // ISO 8601 (if archived)
+  total_goals: number;
+  completed_goals: number;
+  total_checkpoints: number;
+  total_files: number;
+  disk_size_bytes: number;
+};
+```
+
+---
+
+### 33.4 Lifecycle UI
+
+**Project List View**:
+
+```
+Projects
+├─ 🟢 MyApp (ACTIVE) — Last active: 2 hours ago
+│  └─ 5 goals, 12 checkpoints, 45 files
+├─ ⏸️ OldProject (PAUSED) — Paused: 3 days ago
+│  └─ 2 goals, 8 checkpoints, 20 files
+└─ 📦 ArchivedApp (ARCHIVED) — Archived: 2 weeks ago
+   └─ 10 goals, 30 checkpoints, 100 files (compressed)
+```
+
+**Actions Available**:
+
+- `NEW` → Start first goal
+- `ACTIVE` → Pause, Archive
+- `PAUSED` → Resume, Archive
+- `ARCHIVED` → Unarchive, Delete
+
+---
+
+### 33.5 Invariants
+
+**INV-LIFECYCLE-1: State Determinism**
+
+- Project state transitions MUST be deterministic and reversible.
+- State MUST be persisted to disk after every transition.
+
+**INV-LIFECYCLE-2: Read-Only Archive**
+
+- Archived projects MUST be read-only (no new goals, no file edits).
+- Unarchive MUST restore full read-write access.
+
+**INV-LIFECYCLE-3: Pause Preservation**
+
+- Paused projects MUST preserve all execution state (index, checkpoints, goals).
+- Resume MUST restore exact state from pause checkpoint.
+
+---
+
+## 34. Debug / Administrative Mode
+
+### 34.1 Philosophy
+
+**Core Principle**: Debug Mode provides **enhanced visibility** without **loosening security**.
+
+**What Changes**:
+
+- ✅ File tree becomes visible
+- ✅ Detailed Guardian logs exposed
+- ✅ Raw SBX test reports available
+- ✅ Verbose error messages (with codes)
+- ✅ Manual override hooks (with confirmation)
+
+**What Does NOT Change**:
+
+- ❌ Security invariants (still enforced)
+- ❌ Capability policy (still required)
+- ❌ Sandbox boundaries (still enforced)
+- ❌ Memory limits (still enforced)
+- ❌ Guardian authority (still absolute)
+
+---
+
+### 34.2 Enabling Debug Mode
+
+**Methods**:
+
+1. **UI Toggle**: Settings → Advanced → Enable Debug Mode
+2. **Environment Variable**: `EXACTA_DEBUG_MODE=1`
+3. **Command-Line Flag**: `exacta.exe --debug`
+
+**Confirmation Required**:
+
+```
+⚠️ Enable Debug Mode?
+
+Debug Mode provides enhanced visibility and control for power users.
+
+What changes:
+✅ File tree, detailed logs, verbose errors
+✅ Manual override hooks (with confirmation)
+
+What does NOT change:
+❌ Security, sandbox, memory invariants
+
+Continue? [Yes] [No]
+```
+
+---
+
+### 34.3 Debug Mode UI Additions
+
+#### 34.3.1 File Tree Panel
+
+**Purpose**: Show full project file structure (hidden in standard mode).
+
+**Display**:
+
+```
+Project Files
+├─ src/
+│  ├─ App.xaml
+│  ├─ App.xaml.cs
+│  ├─ LoginForm.xaml
+│  ├─ LoginForm.xaml.cs
+│  └─ Services/
+│     ├─ AuthService.cs
+│     └─ IAuthService.cs
+├─ tests/
+│  └─ AuthServiceTests.cs
+└─ exacta.project.json
+```
+
+**Interactions**:
+
+- Click file to view (read-only)
+- Right-click → "Open in External Editor"
+- ❌ No in-UI editing
+
+---
+
+#### 34.3.2 Guardian Policy Logs
+
+**Purpose**: Show detailed Guardian policy decisions.
+
+**Display**:
+
+```
+Guardian Policy Log
+├─ 21:05:32 — CAPABILITY_GRANT: FILE_WRITE (src/AuthService.cs)
+│  └─ Reason: Goal-aligned file creation
+├─ 21:05:30 — CAPABILITY_DENY: NET_EXTERNAL
+│  └─ Reason: Not required for current goal
+└─ 21:05:28 — SANDBOX_VIOLATION_ATTEMPT: FILE_WRITE (C:\Windows\System32\)
+   └─ Action: BLOCKED, logged as CRITICAL
+```
+
+---
+
+#### 34.3.3 Verbose Error Messages
+
+**Purpose**: Show technical error codes and stack traces (hidden in standard mode).
+
+**Standard Mode**:
+
+```
+❌ Build failed. Retrying with fixes...
+```
+
+**Debug Mode**:
+
+```
+❌ Build failed (ERR-BUILD-003)
+
+Error: CS0246: The type or namespace name 'AuthService' could not be found
+File: src/LoginForm.xaml.cs
+Line: 42
+
+Stack Trace:
+  at Exacta.Core.BuildEngine.CompileCSharp()
+  at Exacta.Core.BuildEngine.Build()
+
+Retry attempt 1/3...
+```
+
+---
+
+#### 34.3.4 Manual Override Hooks
+
+**Purpose**: Allow power users to manually trigger specific actions (with confirmation).
+
+**Available Overrides**:
+
+- Force index rebuild
+- Force Safe Mode transition
+- Force checkpoint creation
+- Force test re-run
+- Force build (skip auto-retry)
+
+**Confirmation Required**:
+
+```
+⚠️ Manual Override: Force Index Rebuild
+
+This will:
+- Stop current goal execution
+- Rebuild entire project index
+- Transition to Safe Mode
+- Resume after rebuild complete
+
+This is a DISRUPTIVE action. Continue? [Yes] [No]
+```
+
+---
+
+### 34.4 Invariants
+
+**INV-DEBUG-1: Security Invariants Unchanged**
+
+- Debug Mode MUST NOT loosen security, sandbox, or capability policies.
+- All Guardian decisions remain absolute.
+
+**INV-DEBUG-2: Visibility Only**
+
+- Debug Mode MUST only add visibility, not change execution behavior.
+- Exception: Manual override hooks (with explicit confirmation).
+
+**INV-DEBUG-3: Reversible**
+
+- Debug Mode MUST be fully reversible (toggle off returns to standard mode).
+- No persistent state changes from enabling/disabling Debug Mode.
+
+---
+
+## 35. Destructive Action Guardrails
+
+### 35.1 Philosophy
+
+**Core Principle**: Exacta protects operators from accidental data loss through explicit confirmation flows for destructive actions.
+
+**Destructive Actions**:
+
+- File deletion (single or bulk)
+- Project archival
+- Project deletion
+- Checkpoint rollback (discards future checkpoints)
+- Goal cancellation (mid-execution)
+- Deployment rollback
+
+---
+
+### 35.2 Confirmation Flows
+
+#### 35.2.1 File Deletion
+
+**Trigger**: Operator requests file deletion
+
+**Confirmation Dialog**:
+
+```
+⚠️ Delete File?
+
+File: src/components/Header.tsx
+Size: 2.4 KB
+Last modified: 2 hours ago
+
+This action cannot be undone.
+
+Continue? [Delete] [Cancel]
+```
+
+**Bulk Deletion**:
+
+```
+⚠️ Delete 12 Files?
+
+Total size: 45 KB
+Affected directories:
+- src/components/ (8 files)
+- src/utils/ (4 files)
+
+This action cannot be undone.
+
+Continue? [Delete All] [Cancel]
+```
+
+**Invariant**: File deletion MUST require explicit confirmation.
+
+---
+
+#### 35.2.2 Project Deletion
+
+**Trigger**: Operator requests project deletion
+
+**Confirmation Dialog**:
+
+```
+🚨 Delete Project?
+
+Project: MyApp
+Files: 45 files
+Checkpoints: 12 checkpoints
+Disk size: 120 MB
+
+⚠️ THIS ACTION CANNOT BE UNDONE ⚠️
+
+All project data will be permanently deleted.
+
+Type project name to confirm: [_________]
+
+[Delete Forever] [Cancel]
+```
+
+**Invariant**: Project deletion MUST require typing project name to confirm.
+
+---
+
+#### 35.2.3 Checkpoint Rollback
+
+**Trigger**: Operator rolls back to previous checkpoint
+
+**Confirmation Dialog**:
+
+```
+⚠️ Rollback to Checkpoint?
+
+Target: CP-8 (2 hours ago)
+Current: CP-12 (now)
+
+This will:
+- Discard checkpoints CP-9, CP-10, CP-11, CP-12
+- Restore project state to CP-8
+- Delete 8 files created after CP-8
+
+Continue? [Rollback] [Cancel]
+```
+
+**Invariant**: Rollback MUST show impact (discarded checkpoints, deleted files).
+
+---
+
+#### 35.2.4 Goal Cancellation
+
+**Trigger**: Operator cancels goal mid-execution
+
+**Confirmation Dialog**:
+
+```
+⚠️ Cancel Goal?
+
+Goal: "Add authentication system"
+Progress: 60% complete (Cycle 3 of 5)
+
+This will:
+- Stop current execution
+- Preserve partial changes in checkpoint
+- Mark goal as CANCELLED
+
+Continue? [Cancel Goal] [Keep Running]
+```
+
+**Invariant**: Goal cancellation MUST preserve partial changes in checkpoint.
+
+---
+
+#### 35.2.5 Deployment Rollback
+
+**Trigger**: Operator rolls back deployment
+
+**Confirmation Dialog**:
+
+```
+🚨 Rollback Deployment?
+
+Current: v1.2.0 (deployed 2 hours ago)
+Target: v1.1.0 (deployed 3 days ago)
+
+This will:
+- Revert live deployment to v1.1.0
+- Affect live users immediately
+- Preserve v1.2.0 in history (can re-deploy)
+
+Type "ROLLBACK" to confirm: [_________]
+
+[Rollback] [Cancel]
+```
+
+**Invariant**: Deployment rollback MUST require typing "ROLLBACK" to confirm.
+
+---
+
+### 35.3 Undo Mechanisms
+
+#### 35.3.1 Soft Delete (Files)
+
+**Mechanism**: Deleted files moved to `.exacta/trash/` for 30 days
+
+**Recovery**:
+
+```
+Trash (12 items)
+├─ Header.tsx (deleted 2 hours ago) — [Restore]
+├─ Footer.tsx (deleted 1 day ago) — [Restore]
+└─ OldComponent.tsx (deleted 28 days ago) — [Restore]
+
+Auto-purge in 30 days
+```
+
+**Invariant**: Deleted files MUST be recoverable for 30 days.
+
+---
+
+#### 35.3.2 Checkpoint Preservation
+
+**Mechanism**: Rolled-back checkpoints moved to `.exacta/archive/` for 90 days
+
+**Recovery**:
+
+```
+Archived Checkpoints (4 items)
+├─ CP-12 (rolled back 2 hours ago) — [Restore]
+├─ CP-11 (rolled back 2 hours ago) — [Restore]
+└─ CP-10 (rolled back 2 hours ago) — [Restore]
+
+Auto-purge in 90 days
+```
+
+**Invariant**: Rolled-back checkpoints MUST be recoverable for 90 days.
+
+---
+
+#### 35.3.3 No Undo (Projects)
+
+**Mechanism**: Deleted projects are **permanently deleted** (no recovery)
+
+**Rationale**: Projects are large (100+ MB) and contain sensitive data. Operators must explicitly confirm deletion by typing project name.
+
+**Invariant**: Project deletion MUST be permanent (no recovery mechanism).
+
+---
+
+### 35.4 Guardrail Bypass (Debug Mode Only)
+
+**Mechanism**: Debug Mode allows bypassing confirmation dialogs with `--force` flag
+
+**Example**:
+
+```bash
+exacta delete-file src/Header.tsx --force
+```
+
+**Confirmation**:
+
+```
+⚠️ Force Delete (Debug Mode)
+
+File: src/Header.tsx
+
+⚠️ Confirmation dialogs are bypassed in Debug Mode.
+⚠️ This action cannot be undone.
+
+Continue? [Yes] [No]
+```
+
+**Invariant**: `--force` flag MUST only work in Debug Mode.
+
+---
+
+### 35.5 Invariants
+
+**INV-GUARDRAIL-1: Explicit Confirmation**
+
+- All destructive actions MUST require explicit confirmation.
+- Confirmation dialogs MUST show impact (files deleted, checkpoints discarded, etc.).
+
+**INV-GUARDRAIL-2: Recovery Mechanisms**
+
+- Deleted files MUST be recoverable for 30 days (soft delete).
+- Rolled-back checkpoints MUST be recoverable for 90 days.
+- Deleted projects MUST be permanent (no recovery).
+
+**INV-GUARDRAIL-3: Bypass Restrictions**
+
+- `--force` flag MUST only work in Debug Mode.
+- `--force` MUST still show confirmation dialog (cannot be fully silent).
+
+---
+
+## 36. Failure UX Contract
+
+### 36.1 Philosophy
+
+**Core Principle**: Exacta handles failures gracefully, providing clear error messages, actionable recovery steps, and preserving operator work.
+
+**Failure Categories**:
+
+- **Recoverable** — Operator can retry or fix the issue
+- **Partial** — Some work completed, some failed
+- **Fatal** — Execution cannot continue, rollback required
+- **External** — Third-party service failure (API, network, etc.)
+
+---
+
+### 36.2 Error Message Structure
+
+**Template**:
+
+```
+❌ [Error Type]: [Brief Description]
+
+[Detailed explanation of what went wrong]
+
+Possible causes:
+- [Cause 1]
+- [Cause 2]
+
+Suggested actions:
+1. [Action 1]
+2. [Action 2]
+
+[Recovery options: Retry | Skip | Rollback | Cancel]
+```
+
+---
+
+### 36.3 Error Types
+
+#### 36.3.1 Recoverable Errors
+
+**Example: Network Timeout**
+
+```
+❌ Network Timeout: Failed to fetch package metadata
+
+The package registry did not respond within 30 seconds.
+
+Possible causes:
+- Slow internet connection
+- Package registry is down
+- Firewall blocking request
+
+Suggested actions:
+1. Check your internet connection
+2. Try again in a few minutes
+3. Check package registry status: https://status.npmjs.org
+
+[Retry] [Skip Package] [Cancel Goal]
+```
+
+**Invariant**: Recoverable errors MUST offer retry option.
+
+---
+
+#### 36.3.2 Partial Failures
+
+**Example: Some Tests Failed**
+
+```
+⚠️ Partial Failure: 3 of 12 tests failed
+
+Goal execution completed, but some tests did not pass.
+
+Failed tests:
+- test/auth.test.ts: "should validate JWT token"
+- test/api.test.ts: "should handle 404 errors"
+- test/db.test.ts: "should rollback transaction on error"
+
+Suggested actions:
+1. Review test failures in Operator Insight Surface
+2. Fix failing tests manually
+3. Re-run tests with "exacta test"
+
+[View Test Report] [Continue Anyway] [Rollback]
+```
+
+**Invariant**: Partial failures MUST preserve completed work in checkpoint.
+
+---
+
+#### 36.3.3 Fatal Errors
+
+**Example: Disk Full**
+
+```
+🚨 Fatal Error: Disk space exhausted
+
+Cannot write checkpoint to disk (0 bytes available).
+
+Possible causes:
+- Project directory is on a full disk
+- Large files generated during execution
+
+Suggested actions:
+1. Free up disk space (at least 500 MB recommended)
+2. Move project to a different drive
+3. Delete old checkpoints with "exacta cleanup"
+
+Execution halted. Last checkpoint: CP-8 (5 minutes ago)
+
+[Rollback to CP-8] [Exit]
+```
+
+**Invariant**: Fatal errors MUST halt execution and offer rollback to last checkpoint.
+
+---
+
+#### 36.3.4 External Service Failures
+
+**Example: Deployment Failed**
+
+```
+❌ Deployment Failed: Vercel API returned 503
+
+Deployment to Vercel failed due to service unavailability.
+
+Response from Vercel:
+"Service temporarily unavailable. Please try again later."
+
+Suggested actions:
+1. Check Vercel status: https://www.vercel-status.com
+2. Retry deployment in a few minutes
+3. Deploy manually with "vercel deploy"
+
+Local build completed successfully (ready to deploy).
+
+[Retry Deployment] [Skip Deployment] [Cancel]
+```
+
+**Invariant**: External failures MUST preserve local work (build artifacts, etc.).
+
+---
+
+### 36.4 Recovery Flows
+
+#### 36.4.1 Automatic Retry (Transient Errors)
+
+**Mechanism**: Exacta automatically retries transient errors (network timeouts, rate limits) with exponential backoff.
+
+**UI Display**:
+
+```
+⏳ Retrying: Package download failed (attempt 2 of 3)
+
+Waiting 4 seconds before retry...
+```
+
+**Invariant**: Automatic retry MUST have a maximum attempt limit (default: 3).
+
+---
+
+#### 36.4.2 Manual Retry (Operator Decision)
+
+**Mechanism**: Operator explicitly retries after fixing the issue.
+
+**UI Display**:
+
+```
+❌ Build Failed: Missing dependency "react"
+
+Install dependency with: npm install react
+
+[Retry Build] [Cancel]
+```
+
+**Invariant**: Manual retry MUST resume from last successful step (no duplicate work).
+
+---
+
+#### 36.4.3 Rollback (Undo Changes)
+
+**Mechanism**: Operator rolls back to last stable checkpoint.
+
+**UI Display**:
+
+```
+🚨 Fatal Error: Cannot continue execution
+
+Rollback to last checkpoint?
+
+Target: CP-8 (5 minutes ago)
+Current: CP-9 (failed)
+
+This will:
+- Discard changes from CP-9
+- Restore project state to CP-8
+
+[Rollback] [Exit Without Rollback]
+```
+
+**Invariant**: Rollback MUST restore exact state from target checkpoint.
+
+---
+
+### 36.5 Error Logging
+
+**Mechanism**: All errors logged to `.exacta/logs/error.log` with full stack traces.
+
+**Log Entry Format**:
+
+```json
+{
+  "timestamp": "2026-02-08T21:15:30Z",
+  "error_type": "NETWORK_TIMEOUT",
+  "goal_id": "goal-123",
+  "checkpoint_id": "CP-9",
+  "message": "Failed to fetch package metadata",
+  "stack_trace": "...",
+  "recovery_action": "RETRY",
+  "retry_count": 2
+}
+```
+
+**Invariant**: All errors MUST be logged with full context (goal, checkpoint, stack trace).
+
+---
+
+### 36.6 Invariants
+
+**INV-FAILURE-1: Graceful Degradation**
+
+- Failures MUST NOT corrupt project state.
+- Last successful checkpoint MUST always be recoverable.
+
+**INV-FAILURE-2: Actionable Errors**
+
+- Error messages MUST include possible causes and suggested actions.
+- Recovery options MUST be clearly presented (Retry, Skip, Rollback, Cancel).
+
+**INV-FAILURE-3: Work Preservation**
+
+- Partial failures MUST preserve completed work in checkpoint.
+- External failures MUST preserve local work (build artifacts, etc.).
+
+---
+
 ### A.1 RiskRule Schema
 
 ```tsx
@@ -3434,63 +4720,125 @@ This index MUST enumerate all INV-\* identifiers defined in this document. Missi
 | INV-GRAPH-PROBE-1     | Minimal Side-Effect Discovery                       | 7.2.1   |
 | INV-ID-1              | No Cryptographic Authority for AI                   | 11.3.1  |
 | INV-CTX-3             | Topological Precedence                              | 7.3.5   |
+| INV-DEBUG-1           | Security Invariants Unchanged                       | 34.4    |
+| INV-DEBUG-2           | Visibility Only                                     | 34.4    |
+| INV-DEBUG-3           | Reversible                                          | 34.4    |
+| INV-FAILURE-1         | Graceful Degradation                                | 36.6    |
+| INV-FAILURE-2         | Actionable Errors                                   | 36.6    |
+| INV-FAILURE-3         | Work Preservation                                   | 36.6    |
+| INV-GUARDRAIL-1       | Explicit Confirmation                               | 35.5    |
+| INV-GUARDRAIL-2       | Recovery Mechanisms                                 | 35.5    |
+| INV-GUARDRAIL-3       | Bypass Restrictions                                 | 35.5    |
+| INV-INSIGHT-1         | Read-Only Guarantee                                 | 31.3    |
+| INV-INSIGHT-2         | Non-Blocking                                        | 31.3    |
+| INV-INSIGHT-3         | Structured Logging                                  | 31.3    |
+| INV-LIFECYCLE-1       | State Determinism                                   | 33.5    |
+| INV-LIFECYCLE-2       | Read-Only Archive                                   | 33.5    |
+| INV-LIFECYCLE-3       | Pause Preservation                                  | 33.5    |
 
 ## Appendix C - Change Log
 
-| Version         | Date       | Change Description                                       |
-| --------------- | ---------- | -------------------------------------------------------- |
-| 1.0.0           | 2024-05-22 | Initial Canonical Authority Ratification                 |
-| 1.1.0           | 2024-05-23 | Table of Contents & Header Alignment                     |
-| 1.2.0           | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules)     |
-| 1.5.0           | 2026-01-20 | Final Spec Rectification (Audit Closure)                 |
-| 2.0.0           | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits)       |
-| 2.1.0           | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers)          |
-|                 |            | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex)       |
-|                 |            | - Added Tier 3: Specialized Providers (7 providers)      |
-|                 |            | - Added Tier 4: Model Hosting (10 platforms)             |
-|                 |            | - Added Tier 5: CLI Coding Agents (8 agents)             |
-|                 |            | - Added CLI_AGENT_EXEC capability                        |
-|                 |            | - Added Section 26.4: CLI Agent Orchestration            |
-|                 |            | - Added CLI agent security model and sandboxing          |
-|                 |            | - Added CLI agent test suite (SBX tests CLI-001-007)     |
-|                 |            | - Added CLI agent invariants (INV-CLI-1 through 4)       |
-| 2.2.0           | 2026-01-21 | Smart Context & Indexing Upgrade                         |
-|                 |            | - Upgraded Section 7.3 to Smart Hybrid Search            |
-|                 |            | - Added Section 14.3 Advanced Indexing Architecture      |
-|                 |            | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1           |
-| 2.3.0           | 2026-01-21 | Spec Perfection: Full Enhancement                        |
-|                 |            | - Added Progressive Context (7.2.1)                      |
-|                 |            | - Detailed Search Performance & Recovery (7.3.1-4)       |
-|                 |            | - Defined Index Lifecycle & Staleness (14.4-5)           |
-|                 |            | - Standardized Embedding Models (14.6)                   |
-|                 |            | - Added 5 new invariants (Context, Search, Index)        |
-| 2.4.0           | 2026-02-01 | Asset Forge & Protocol Expansion                         |
-|                 |            | - Added Section 1.6: The Asset Forge (Generative Assets) |
-|                 |            | - Added Section 4.3: UI-to-Core JSON-RPC Bridge          |
-|                 |            | - Added 'ImageMagick' to Toolchain Manifest (1.1)        |
-|                 |            | - Added 'ASSET_GEN' Capability (Appendix A.4)            |
-| 2.5.0 (CURRENT) | 2026-02-08 | Web Development Capabilities Expansion                   |
-|                 |            | - **Product Scope**: Expanded to 5 application types     |
-|                 |            | \* Windows Desktop Applications (existing)               |
-|                 |            | \* Web Applications (Full-stack) [NEW]                   |
-|                 |            | \* Static Websites [NEW]                                 |
-|                 |            | \* Single Page Applications (SPA) [NEW]                  |
-|                 |            | \* Server-Side Rendered (SSR) Applications [NEW]         |
-|                 |            | - **Section 1.1.1**: Web Development Toolchain           |
-|                 |            | \* Added Vite, Next.js, TypeScript, Playwright           |
-|                 |            | \* Development servers, browser testing, build outputs   |
-|                 |            | - **Section 28**: Getting Started                        |
-|                 |            | \* 28.1 UI Visibility Mandate (Settings Icon)            |
-|                 |            | - **Section 29**: Features (Web Project Types)           |
-|                 |            | \* 29.1 Web Project Types (Static, SPA, SSR, Full-stack) |
-|                 |            | \* 29.2 Web Development Workflow (Init, Preview, Deploy) |
-|                 |            | \* 29.3 Web Development Examples (2 concrete examples)   |
-|                 |            | - **Section 30**: Build Export Model                     |
-|                 |            | \* Export rules for web applications                     |
-|                 |            | \* INV-EXPORT-1: Clean Export invariant                  |
-|                 |            | - **Appendix A.4**: Web Capability Tokens                |
-|                 |            | \* NET_LOCALHOST, WEB_DEV_SERVER, WEB_BUILD              |
-|                 |            | \* WEB_PREVIEW, WEB_DEPLOY, WEB_TEST                     |
-|                 |            | \* WEB_PACKAGE_INSTALL (7 new capabilities)              |
-|                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel  |
-|                 |            | Railway, Render, Cloudflare Pages, DigitalOcean          |
+| Version         | Date       | Change Description                                          |
+| --------------- | ---------- | ----------------------------------------------------------- | --- |
+| 1.0.0           | 2024-05-22 | Initial Canonical Authority Ratification                    |
+| 1.1.0           | 2024-05-23 | Table of Contents & Header Alignment                        |
+| 1.2.0           | 2026-01-20 | Spec Rectification (TOC, Definitions, Failure Rules)        |
+| 1.5.0           | 2026-01-20 | Final Spec Rectification (Audit Closure)                    |
+| 2.0.0           | 2026-01-20 | Product Pivot (Silent Self-Healing, Hidden Limits)          |
+| 2.1.0           | 2026-01-21 | Provider Ecosystem Expansion (8 → 28 providers)             |
+|                 |            | - Added Tier 2: Enterprise Cloud (Bedrock, Vertex)          |
+|                 |            | - Added Tier 3: Specialized Providers (7 providers)         |
+|                 |            | - Added Tier 4: Model Hosting (10 platforms)                |
+|                 |            | - Added Tier 5: CLI Coding Agents (8 agents)                |
+|                 |            | - Added CLI_AGENT_EXEC capability                           |
+|                 |            | - Added Section 26.4: CLI Agent Orchestration               |
+|                 |            | - Added CLI agent security model and sandboxing             |
+|                 |            | - Added CLI agent test suite (SBX tests CLI-001-007)        |
+|                 |            | - Added CLI agent invariants (INV-CLI-1 through 4)          |
+| 2.2.0           | 2026-01-21 | Smart Context & Indexing Upgrade                            |
+|                 |            | - Upgraded Section 7.3 to Smart Hybrid Search               |
+|                 |            | - Added Section 14.3 Advanced Indexing Architecture         |
+|                 |            | - Added INV-CTX-SMART-1 and INV-INDEX-HYBRID-1              |
+| 2.3.0           | 2026-01-21 | Spec Perfection: Full Enhancement                           |
+|                 |            | - Added Progressive Context (7.2.1)                         |
+|                 |            | - Detailed Search Performance & Recovery (7.3.1-4)          |
+|                 |            | - Defined Index Lifecycle & Staleness (14.4-5)              |
+|                 |            | - Standardized Embedding Models (14.6)                      |
+|                 |            | - Added 5 new invariants (Context, Search, Index)           |
+| 2.4.0           | 2026-02-01 | Asset Forge & Protocol Expansion                            |
+|                 |            | - Added Section 1.6: The Asset Forge (Generative Assets)    |
+|                 |            | - Added Section 4.3: UI-to-Core JSON-RPC Bridge             |
+|                 |            | - Added 'ImageMagick' to Toolchain Manifest (1.1)           |
+|                 |            | - Added 'ASSET_GEN' Capability (Appendix A.4)               |
+| 2.5.0 (CURRENT) | 2026-02-08 | Web Development Capabilities Expansion                      |
+|                 |            | - **Product Scope**: Expanded to 5 application types        |
+|                 |            | \* Windows Desktop Applications (existing)                  |
+|                 |            | \* Web Applications (Full-stack) [NEW]                      |
+|                 |            | \* Static Websites [NEW]                                    |
+|                 |            | \* Single Page Applications (SPA) [NEW]                     |
+|                 |            | \* Server-Side Rendered (SSR) Applications [NEW]            |
+|                 |            | - **Section 1.1.1**: Web Development Toolchain              |
+|                 |            | \* Added Vite, Next.js, TypeScript, Playwright              |
+|                 |            | \* Development servers, browser testing, build outputs      |
+|                 |            | - **Section 28**: Getting Started                           |
+|                 |            | \* 28.1 UI Visibility Mandate (Settings Icon)               |
+|                 |            | - **Section 29**: Features (Web Project Types)              |
+|                 |            | \* 29.1 Web Project Types (Static, SPA, SSR, Full-stack)    |
+|                 |            | \* 29.2 Web Development Workflow (Init, Preview, Deploy)    |
+|                 |            | \* 29.3 Web Development Examples (2 concrete examples)      |
+|                 |            | - **Section 30**: Build Export Model                        |
+|                 |            | \* Export rules for web applications                        |
+|                 |            | \* INV-EXPORT-1: Clean Export invariant                     |
+|                 |            | - **Appendix A.4**: Web Capability Tokens                   |
+|                 |            | \* NET_LOCALHOST, WEB_DEV_SERVER, WEB_BUILD                 |
+|                 |            | \* WEB_PREVIEW, WEB_DEPLOY, WEB_TEST                        |
+|                 |            | \\\* WEB_PACKAGE_INSTALL (7 new capabilities)               | \r  |
+|                 |            | - **Deployment Targets**: GitHub Pages, Netlify, Vercel     | \r  |
+|                 |            | Railway, Render, Cloudflare Pages, DigitalOcean             | \r  |
+| 2.6.0 (CURRENT) | 2026-02-08 | Observability \u0026 Power User Enhancements                | \r  |
+|                 |            | - **Section 31**: Operator Insight Surface                  | \r  |
+|                 |            | \\\* Read-only observability panel                          | \r  |
+|                 |            | \\\* Action timeline, checkpoint history, changed files     | \r  |
+|                 |            | \\\* Test/build status dashboard, drift detection events    | \r  |
+|                 |            | \\\* 3 new invariants (INV-INSIGHT-1, 2, 3)                 | \r  |
+|                 |            | - **Section 32**: Worked Examples                           | \r  |
+|                 |            | \\\* Example 1: WPF Finance Tracker (desktop app)           | \r  |
+|                 |            | \\\* Example 2: Next.js Dashboard with Auth (web app)       | \r  |
+|                 |            | \\\* Golden path narratives showing PDAO loop execution     | \r  |
+|                 |            | - **Section 34**: Debug / Administrative Mode               | \r  |
+|                 |            | \\\* Enhanced visibility without loosening security         | \r  |
+|                 |            | \\\* File tree panel, Guardian policy logs                  | \r  |
+|                 |            | \\\* Verbose error messages, manual override hooks          | \r  |
+|                 |            | \\\* 3 new invariants (INV-DEBUG-1, 2, 3)                   | \r  |
+|                 |            | - **Web Scope Clarification**: Section 29.2 updated         | \r  |
+|                 |            | \\\* Local-only development (core, no external network)     | \r  |
+|                 |            | \\\* Optional deployment (requires NET_EXTERNAL capability) | \r  |
+| 2.7.0 (CURRENT) | 2026-02-08 | Project Lifecycle & Failure Handling                        |
+|                 |            | - **Section 33**: Project Lifecycle Model                   |
+|                 |            | \* 4 lifecycle states (NEW, ACTIVE, PAUSED, ARCHIVED)       |
+|                 |            | \* State transitions with metadata persistence              |
+|                 |            | \* Project list UI with lifecycle actions                   |
+|                 |            | \* 3 new invariants (INV-LIFECYCLE-1, 2, 3)                 |
+|                 |            | - **Section 35**: Destructive Action Guardrails             |
+|                 |            | \* Confirmation flows for destructive actions               |
+|                 |            | \* Soft delete (30 days), checkpoint preservation (90 days) |
+|                 |            | \* Debug Mode bypass with --force flag                      |
+|                 |            | \* 3 new invariants (INV-GUARDRAIL-1, 2, 3)                 |
+|                 |            | - **Section 36**: Failure UX Contract                       |
+|                 |            | \* 4 failure categories (Recoverable, Partial, Fatal, Ext)  |
+|                 |            | \* Structured error messages with recovery options          |
+|                 |            | \* Automatic retry with exponential backoff                 |
+|                 |            | \* 3 new invariants (INV-FAILURE-1, 2, 3)                   |
+| 2.8.0 (CURRENT) | 2026-02-08 | Spec Cleanup & Invariant Index Completion                   |
+|                 |            | - **Appendix B**: Added 15 missing invariants               |
+|                 |            | \* INV-DEBUG-1/2/3 (Section 34)                             |
+|                 |            | \* INV-FAILURE-1/2/3 (Section 36)                           |
+|                 |            | \* INV-GUARDRAIL-1/2/3 (Section 35)                         |
+|                 |            | \* INV-INSIGHT-1/2/3 (Section 31)                           |
+|                 |            | \* INV-LIFECYCLE-1/2/3 (Section 33)                         |
+|                 |            | - **Section 5**: Web Scope Clarification (v2.7.0)           |
+|                 |            | \* Replaced "No web applications" with precise boundary     |
+|                 |            | \* Local development supported (localhost sandbox)          |
+|                 |            | \* Optional deployment (requires NET_EXTERNAL capability)   |
+|                 |            | \* No hosted web runtime (Exacta builds but doesn't serve)  |
+| \r              |
