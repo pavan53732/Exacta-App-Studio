@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { AlertTriangle, PlusIcon, TrashIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  PlusIcon,
+  TrashIcon,
+  RefreshCw,
+  CheckCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
+import { languageModelClient } from "@/ipc/types/language-model";
 
 interface ModelsSectionProps {
   providerId: string;
@@ -32,6 +39,8 @@ export function ModelsSection({ providerId }: ModelsSectionProps) {
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
   const [modelToEdit, setModelToEdit] = useState<any | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [isFetchingOpenRouter, setIsFetchingOpenRouter] = useState(false);
+  const [openRouterError, setOpenRouterError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const invalidateModels = () => {
@@ -89,12 +98,101 @@ export function ModelsSection({ providerId }: ModelsSectionProps) {
     setIsConfirmDeleteDialogOpen(false);
   };
 
+  const [fetchResult, setFetchResult] = useState<{
+    saved: number;
+    skipped: number;
+    errors: number;
+  } | null>(null);
+
+  const handleRefreshOpenRouterModels = async () => {
+    setIsFetchingOpenRouter(true);
+    setOpenRouterError(null);
+    setFetchResult(null);
+    try {
+      const result = await languageModelClient.fetchOpenRouterModels({
+        saveToDatabase: true,
+      });
+      if (result.success) {
+        console.log(
+          `Fetched ${result.models?.length || 0} OpenRouter models (cached: ${result.cached})`,
+        );
+        setFetchResult({
+          saved: result.saved || 0,
+          skipped: result.skipped || 0,
+          errors: result.errors || 0,
+        });
+        // Invalidate the models cache to refresh the UI
+        invalidateModels();
+      } else {
+        setOpenRouterError(result.error || "Failed to fetch OpenRouter models");
+      }
+    } catch (error: any) {
+      console.error("Error fetching OpenRouter models:", error);
+      setOpenRouterError(error.message || "An unexpected error occurred");
+    } finally {
+      setIsFetchingOpenRouter(false);
+    }
+  };
+
   return (
     <div className="mt-8 border-t pt-6">
       <h2 className="text-2xl font-semibold mb-4">Models</h2>
       <p className="text-muted-foreground mb-4">
         Manage specific models available through this provider.
       </p>
+
+      {/* OpenRouter-specific refresh button */}
+      {providerId === "openrouter" && (
+        <div className="mb-4">
+          <Button
+            onClick={handleRefreshOpenRouterModels}
+            variant="outline"
+            disabled={isFetchingOpenRouter}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetchingOpenRouter ? "animate-spin" : ""}`}
+            />
+            {isFetchingOpenRouter ? "Fetching..." : "Refresh OpenRouter Models"}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Fetch the latest 400+ models from OpenRouter's API
+          </p>
+        </div>
+      )}
+
+      {/* OpenRouter fetch error */}
+      {openRouterError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Fetching OpenRouter Models</AlertTitle>
+          <AlertDescription>{openRouterError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* OpenRouter fetch success */}
+      {fetchResult && (
+        <Alert className="mb-4 border-green-500 bg-green-50 dark:bg-green-900/20">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertTitle className="text-green-800 dark:text-green-200">
+            OpenRouter Models Updated
+          </AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-300">
+            <span className="font-semibold">{fetchResult.saved}</span> new
+            models saved,{" "}
+            <span className="font-semibold">{fetchResult.skipped}</span> already
+            exist
+            {fetchResult.errors > 0 && (
+              <>
+                ,{" "}
+                <span className="font-semibold text-red-600">
+                  {fetchResult.errors}
+                </span>{" "}
+                errors
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Custom Models List Area */}
       {modelsLoading && (

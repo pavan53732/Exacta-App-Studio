@@ -33,7 +33,8 @@ import { createOllamaProvider } from "./ollama_provider";
 import { getOllamaApiUrl } from "../handlers/local_model_ollama_handler";
 import { createFallback } from "./fallback_ai_model";
 
-const dyadEngineUrl = process.env.DYAD_ENGINE_URL;
+const dyadEngineUrl =
+  process.env.EXACTA_ENGINE_URL || process.env.DYAD_ENGINE_URL;
 
 const AUTO_MODELS = [
   {
@@ -81,7 +82,8 @@ export async function getModelClient(
   }
 
   // Handle Exacta Pro override
-  if (false && dyadApiKey && settings.enableExactaPro) { // Force disabled for Self-Hosted Pro
+  if (false && dyadApiKey && settings.enableExactaPro) {
+    // Force disabled for Self-Hosted Pro
     // Check if the selected provider supports Exacta Pro (has a gateway prefix) OR
     // we're using local engine.
     // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,

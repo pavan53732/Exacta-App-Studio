@@ -69,7 +69,8 @@ export function SetupBanner() {
   }, [setNodeSystemInfo, setNodeCheckError]);
   const [showManualConfig, setShowManualConfig] = useState(false);
   const [isSelectingPath, setIsSelectingPath] = useState(false);
-  const [showExactaProTrialDialog, setShowExactaProTrialDialog] = useState(false);
+  const [showExactaProTrialDialog, setShowExactaProTrialDialog] =
+    useState(false);
   const { updateSettings } = useSettings();
 
   // Add handler for manual path selection
@@ -320,7 +321,11 @@ export function SetupBanner() {
                 onClick={handleDyadProSetupClick}
                 tabIndex={isNodeSetupComplete ? 0 : -1}
                 leadingIcon={
-                  <img src={logo} alt="Exacta Logo" className="w-6 h-6 mr-0.5" />
+                  <img
+                    src={logo}
+                    alt="Exacta Logo"
+                    className="w-6 h-6 mr-0.5"
+                  />
                 }
                 title="Start with Exacta Pro free trial"
                 subtitle="Unlock the full power of Exacta"
@@ -451,7 +456,8 @@ function NodeInstallButton({
     case "finished-checking":
       return (
         <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-          Node.js not detected. Closing and re-opening Exacta App Studio usually fixes this.
+          Node.js not detected. Closing and re-opening Exacta App Studio usually
+          fixes this.
         </div>
       );
     default:

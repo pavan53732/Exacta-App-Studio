@@ -3308,7 +3308,6 @@ Drift Events
    ```
 
 3. **Behind the Scenes (Cycle 1)**:
-
    - **Perceive**: Analyze goal, identify requirements (WPF, SQLite, MVVM pattern)
    - **Decide**: Plan project structure, database schema, UI layout
    - **Act**:
@@ -3330,7 +3329,6 @@ Drift Events
    ```
 
 5. **Behind the Scenes (Cycle 2)**:
-
    - **Perceive**: Project structure complete, need UI implementation
    - **Decide**: Implement MainWindow UI, add transaction list, add/edit forms
    - **Act**:
@@ -3350,7 +3348,6 @@ Drift Events
    ```
 
 7. **Behind the Scenes (Cycle 3)**:
-
    - **Perceive**: UI complete, need database implementation
    - **Decide**: Implement SQLite CRUD operations, seed data
    - **Act**:
@@ -3369,7 +3366,6 @@ Drift Events
    ```
 
 9. **Behind the Scenes (Cycle 4)**:
-
    - **Perceive**: All features implemented, need polish
    - **Decide**: Add error handling, input validation, logging
    - **Act**:
@@ -3427,7 +3423,6 @@ Drift Events
    ```
 
 3. **Behind the Scenes (Cycle 1)**:
-
    - **Perceive**: Analyze goal (Next.js, auth, dashboard, Vercel deployment)
    - **Decide**: Initialize Next.js with TypeScript, setup auth (NextAuth.js), plan dashboard layout
    - **Act**:
@@ -3448,7 +3443,6 @@ Drift Events
    ```
 
 5. **Behind the Scenes (Cycle 2)**:
-
    - **Perceive**: Auth setup complete, need dashboard UI
    - **Decide**: Create dashboard layout, sidebar, charts
    - **Act**:
@@ -3470,7 +3464,6 @@ Drift Events
    ```
 
 7. **Behind the Scenes (Cycle 3)**:
-
    - **Perceive**: Dashboard UI complete, need database schema
    - **Decide**: Setup Prisma, define schema, seed data
    - **Act**:
@@ -3489,7 +3482,6 @@ Drift Events
    ```
 
 9. **Behind the Scenes (Cycle 4)**:
-
    - **Perceive**: All features complete, ready to deploy
    - **Decide**: Build production bundle, deploy to Vercel
    - **Act**:

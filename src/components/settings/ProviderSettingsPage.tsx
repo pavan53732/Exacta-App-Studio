@@ -126,7 +126,8 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     setSaveError(null);
     try {
       // Check if this is the first time user is setting up Exacta Pro
-      const isNewDyadProSetup = isDyad && settings && !hasExactaProKey(settings);
+      const isNewDyadProSetup =
+        isDyad && settings && !hasExactaProKey(settings);
 
       const settingsUpdate: Partial<UserSettings> = {
         providerSettings: {

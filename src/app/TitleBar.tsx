@@ -81,7 +81,9 @@ export const TitleBar = () => {
         >
           {displayText}
         </Button>
-        {isExactaPro && <ExactaProButton isExactaProEnabled={isExactaProEnabled} />}
+        {isExactaPro && (
+          <ExactaProButton isExactaProEnabled={isExactaProEnabled} />
+        )}
 
         {/* Preview Header */}
         {location.pathname === "/chat" && (
