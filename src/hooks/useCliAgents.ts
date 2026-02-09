@@ -1,13 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import {
   cliAgentClient,
   type CliAgentType,
-  type CliAgentConfig,
+  type AgentConfig,
 } from "@/ipc/types/cli_agents";
 import { showError, showSuccess } from "@/lib/toast";
 
+interface ActiveSession {
+  sessionId: string;
+  agentType: CliAgentType;
+  status: "starting" | "running" | "stopping" | "stopped";
+}
+
 export function useCliAgents() {
   const queryClient = useQueryClient();
+  const [activeSessions, setActiveSessions] = useState<Map<string, ActiveSession>>(new Map());
 
   // List all available CLI agents
   const { data: agents, isLoading: isLoadingAgents } = useQuery({
@@ -17,70 +25,138 @@ export function useCliAgents() {
     },
   });
 
-  // Get configuration for a specific agent
-  const getConfig = (agentType: CliAgentType) => {
-    return useQuery({
-      queryKey: ["cli-agents", "config", agentType],
-      queryFn: async () => {
-        return cliAgentClient.getConfig(agentType);
-      },
-    });
-  };
+  // Create a new agent session
+  const createSessionMutation = useMutation({
+    mutationFn: async ({
+      sessionId,
+      agentType,
+      config,
+    }: {
+      sessionId: string;
+      agentType: CliAgentType;
+      config: AgentConfig;
+    }) => {
+      setActiveSessions((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(sessionId, { sessionId, agentType, status: "starting" });
+        return newMap;
+      });
 
-  // Configure an agent
-  const configureMutation = useMutation({
-    mutationFn: async (config: CliAgentConfig) => {
-      return cliAgentClient.configureAgent(config);
-    },
-    onSuccess: (_, variables) => {
-      showSuccess(`CLI agent ${variables.agentType} configured successfully`);
-      queryClient.invalidateQueries({ queryKey: ["cli-agents", "config"] });
-    },
-    onError: (error: any) => {
-      showError(`Failed to configure CLI agent: ${error.message}`);
-    },
-  });
+      const result = await cliAgentClient.createSession({
+        sessionId,
+        agentType,
+        config,
+      });
 
-  // Remove an agent configuration
-  const removeMutation = useMutation({
-    mutationFn: async (agentType: CliAgentType) => {
-      return cliAgentClient.removeAgent(agentType);
-    },
-    onSuccess: (_, agentType) => {
-      showSuccess(`CLI agent ${agentType} removed successfully`);
-      queryClient.invalidateQueries({ queryKey: ["cli-agents", "config"] });
-    },
-    onError: (error: any) => {
-      showError(`Failed to remove CLI agent: ${error.message}`);
-    },
-  });
-
-  // Test an agent connection
-  const testMutation = useMutation({
-    mutationFn: async (agentType: CliAgentType) => {
-      return cliAgentClient.testAgent(agentType);
-    },
-    onSuccess: (result) => {
       if (result.success) {
-        showSuccess(result.message);
+        setActiveSessions((prev) => {
+          const newMap = new Map(prev);
+          const session = newMap.get(sessionId);
+          if (session) {
+            session.status = "running";
+          }
+          return newMap;
+        });
       } else {
-        showError(result.message);
+        setActiveSessions((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(sessionId);
+          return newMap;
+        });
+      }
+
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      if (result.success) {
+        showSuccess(`Started ${variables.agentType} session`);
+      } else {
+        showError(`Failed to start session: ${result.error}`);
       }
     },
     onError: (error: any) => {
-      showError(`Failed to test CLI agent: ${error.message}`);
+      showError(`Failed to create session: ${error.message}`);
     },
   });
 
+  // Send message to a session
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({
+      sessionId,
+      prompt,
+      files,
+    }: {
+      sessionId: string;
+      prompt: string;
+      files?: string[];
+    }) => {
+      return cliAgentClient.sendMessage({ sessionId, prompt, files });
+    },
+    onError: (error: any) => {
+      showError(`Failed to send message: ${error.message}`);
+    },
+  });
+
+  // Stop a session
+  const stopSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      setActiveSessions((prev) => {
+        const newMap = new Map(prev);
+        const session = newMap.get(sessionId);
+        if (session) {
+          session.status = "stopping";
+        }
+        return newMap;
+      });
+
+      const result = await cliAgentClient.stopSession({ sessionId });
+
+      setActiveSessions((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(sessionId);
+        return newMap;
+      });
+
+      return result;
+    },
+    onSuccess: () => {
+      showSuccess("Session stopped");
+    },
+    onError: (error: any) => {
+      showError(`Failed to stop session: ${error.message}`);
+    },
+  });
+
+  // Helper to generate unique session IDs
+  const generateSessionId = useCallback(() => {
+    return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
+
+  // Helper to check if a session is active
+  const isSessionActive = useCallback(
+    (sessionId: string) => {
+      const session = activeSessions.get(sessionId);
+      return session?.status === "running";
+    },
+    [activeSessions]
+  );
+
   return {
+    // Agent list
     agents,
     isLoadingAgents,
-    getConfig,
-    configureAgent: configureMutation.mutateAsync,
-    isConfiguring: configureMutation.isPending,
-    removeAgent: removeMutation.mutateAsync,
-    isRemoving: removeMutation.isPending,
-    testAgent: testMutation.mutateAsync,
-    isTesting: testMutation.isPending,
+
+    // Session management
+    activeSessions: Array.from(activeSessions.values()),
+    createSession: createSessionMutation.mutateAsync,
+    isCreatingSession: createSessionMutation.isPending,
+    sendMessage: sendMessageMutation.mutateAsync,
+    isSendingMessage: sendMessageMutation.isPending,
+    stopSession: stopSessionMutation.mutateAsync,
+    isStoppingSession: stopSessionMutation.isPending,
+
+    // Helpers
+    generateSessionId,
+    isSessionActive,
   };
 }

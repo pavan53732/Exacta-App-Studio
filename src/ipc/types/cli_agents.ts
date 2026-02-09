@@ -26,84 +26,87 @@ export const CliAgentInfoSchema = z.object({
 
 export type CliAgentInfo = z.infer<typeof CliAgentInfoSchema>;
 
-// CLI Agent Configuration
-export const CliAgentConfigSchema = z.object({
-  agentType: CliAgentTypeSchema,
+// Agent Session Configuration
+export const AgentConfigSchema = z.object({
   apiKey: z.string().optional(),
   customArgs: z.array(z.string()).optional(),
-  enabled: z.boolean().optional(),
+  workingDirectory: z.string().optional(),
+  files: z.array(z.string()).optional(),
 });
 
-export type CliAgentConfig = z.infer<typeof CliAgentConfigSchema>;
+export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
-// CLI Agent Status
-export const CliAgentStatusSchema = z.object({
-  id: z.number(),
-  agentType: CliAgentTypeSchema,
-  enabled: z.boolean(),
-  apiKeySet: z.boolean(),
-  args: z.array(z.string()).nullable(),
+// Session Result
+export const SessionResultSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
 });
 
-export type CliAgentStatus = z.infer<typeof CliAgentStatusSchema>;
+export type SessionResult = z.infer<typeof SessionResultSchema>;
 
-// CLI Agent Default Config
+// Send Message Result
+export const SendMessageResultSchema = z.object({
+  success: z.boolean(),
+  response: z.string().optional(),
+  error: z.string().optional(),
+});
+
+export type SendMessageResult = z.infer<typeof SendMessageResultSchema>;
+
+// CLI Agent Default Config (kept for backwards compatibility)
 export const CliAgentDefaultsSchema = z.object({
   command: z.string(),
   args: z.array(z.string()),
-  envJson: z.record(z.string(), z.string()).optional(),
+  apiKey: z.string(),
 });
 
 export type CliAgentDefaults = z.infer<typeof CliAgentDefaultsSchema>;
 
-// Test Result
-export const CliAgentTestResultSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-});
-
-export type CliAgentTestResult = z.infer<typeof CliAgentTestResultSchema>;
-
-// CLI Agent Contracts
+// CLI Agent Contracts (Session-Based)
 export const cliAgentContracts = {
+  // List available CLI agents
   listAgents: defineContract({
     channel: "cli-agents:list",
     input: z.void(),
     output: z.array(CliAgentInfoSchema),
   }),
 
+  // Get default configuration for an agent
   getDefaults: defineContract({
     channel: "cli-agents:get-defaults",
     input: CliAgentTypeSchema,
     output: CliAgentDefaultsSchema,
   }),
 
-  configureAgent: defineContract({
-    channel: "cli-agents:configure",
-    input: CliAgentConfigSchema,
-    output: z.object({
-      id: z.number(),
-      name: z.string(),
-      enabled: z.boolean(),
+  // Create a new agent session
+  createSession: defineContract({
+    channel: "cli-agents:create-session",
+    input: z.object({
+      sessionId: z.string(),
+      agentType: CliAgentTypeSchema,
+      config: AgentConfigSchema,
     }),
+    output: SessionResultSchema,
   }),
 
-  getConfig: defineContract({
-    channel: "cli-agents:get-config",
-    input: CliAgentTypeSchema,
-    output: CliAgentStatusSchema.nullable(),
+  // Send a message to an active session
+  sendMessage: defineContract({
+    channel: "cli-agents:send-message",
+    input: z.object({
+      sessionId: z.string(),
+      prompt: z.string(),
+      files: z.array(z.string()).optional(),
+    }),
+    output: SendMessageResultSchema,
   }),
 
-  removeAgent: defineContract({
-    channel: "cli-agents:remove",
-    input: CliAgentTypeSchema,
-    output: z.object({ success: z.boolean() }),
-  }),
-
-  testAgent: defineContract({
-    channel: "cli-agents:test",
-    input: CliAgentTypeSchema,
-    output: CliAgentTestResultSchema,
+  // Stop an active session
+  stopSession: defineContract({
+    channel: "cli-agents:stop-session",
+    input: z.object({
+      sessionId: z.string(),
+    }),
+    output: SessionResultSchema,
   }),
 } as const;
 
