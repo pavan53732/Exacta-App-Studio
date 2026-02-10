@@ -35,8 +35,8 @@ function getKeyButtonText({
 }) {
   if (isDyad) {
     return isConfigured
-      ? "Manage Exacta Pro Subscription"
-      : "Setup Exacta Pro Subscription";
+      ? "Manage Dyad Pro Subscription"
+      : "Setup Dyad Pro Subscription";
   }
   return isConfigured ? "Manage API Keys" : "Setup API Key";
 }

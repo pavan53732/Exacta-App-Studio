@@ -458,8 +458,8 @@ ${componentSnippet}
         .returning({ id: messages.id });
       const userMessageId = insertedUserMessage.id;
       const settings = readSettings();
-      // Only Exacta Pro requests have request ids.
-      if (settings.enableExactaPro) {
+      // Only Dyad Pro requests have request ids.
+      if (settings.enableDyadPro) {
         // Generate requestId early so it can be saved with the message
         dyadRequestId = uuidv4();
       }
@@ -576,7 +576,7 @@ ${componentSnippet}
           !mentionedAppsCodebases.length;
 
         const isDeepContextEnabled =
-          // isEngineEnabled && // UNLOCKED: Allow deep context for local providers
+          isEngineEnabled &&
           settings.enableProSmartFilesContextMode &&
           // Anything besides balanced will use deep context.
           settings.proSmartContextOption !== "balanced" &&
@@ -631,7 +631,7 @@ ${componentSnippet}
           }
         }
 
-        // For Exacta Pro + Deep Context, we set to 200 chat turns (+1)
+        // For Dyad Pro + Deep Context, we set to 200 chat turns (+1)
         // this is to enable more cache hits. Practically, users should
         // rarely go over this limit because they will hit the model's
         // context window limit.
@@ -639,7 +639,7 @@ ${componentSnippet}
         // Limit chat history based on maxChatTurnsInContext setting
         // We add 1 because the current prompt counts as a turn.
         const maxChatTurns = isDeepContextEnabled
-          ? 1001
+          ? 201
           : (settings.maxChatTurnsInContext || MAX_CHAT_TURNS_IN_CONTEXT) + 1;
 
         // If we need to limit the context, we take only the most recent turns
@@ -1202,46 +1202,58 @@ This conversation includes one or more image attachments. When the user uploads 
           return;
         }
 
-        if (settings.selectedChatMode === "agent") {
+        // Use MCP agent code path if:
+        // 1. Mode is explicitly "agent" (backwards compatibility for existing settings)
+        // 2. Mode is "build" AND there are enabled MCP servers
+        if (
+          settings.selectedChatMode === "agent" ||
+          settings.selectedChatMode === "build"
+        ) {
           const tools = await getMcpTools(event);
+          const hasEnabledMcpServers = Object.keys(tools).length > 0;
 
-          const { fullStream } = await simpleStreamText({
-            chatMessages: limitedHistoryChatMessages,
-            modelClient,
-            tools: {
-              ...tools,
-              "generate-code": {
-                description:
-                  "ALWAYS use this tool whenever generating or editing code for the codebase.",
-                inputSchema: z.object({}),
-                execute: async () => "",
+          // Only run MCP agent path if mode is "agent" OR if build mode has enabled MCP servers
+          if (settings.selectedChatMode === "agent" || hasEnabledMcpServers) {
+            const { fullStream } = await simpleStreamText({
+              chatMessages: limitedHistoryChatMessages,
+              modelClient,
+              tools: {
+                ...tools,
+                "generate-code": {
+                  description:
+                    "ALWAYS use this tool whenever generating or editing code for the codebase.",
+                  inputSchema: z.object({}),
+                  execute: async () => "",
+                },
               },
-            },
-            systemPromptOverride: constructSystemPrompt({
-              aiRules: await readAiRules(getDyadAppPath(updatedChat.app.path)),
-              chatMode: "agent",
-              enableTurboEditsV2: false,
-            }),
-            files: files,
-            dyadDisableFiles: true,
-          });
+              systemPromptOverride: constructSystemPrompt({
+                aiRules: await readAiRules(
+                  getDyadAppPath(updatedChat.app.path),
+                ),
+                chatMode: "agent",
+                enableTurboEditsV2: false,
+              }),
+              files: files,
+              dyadDisableFiles: true,
+            });
 
-          const result = await processStreamChunks({
-            fullStream,
-            fullResponse,
-            abortController,
-            chatId: req.chatId,
-            processResponseChunkUpdate,
-          });
-          fullResponse = result.fullResponse;
-          chatMessages.push({
-            role: "assistant",
-            content: fullResponse,
-          });
-          chatMessages.push({
-            role: "user",
-            content: "OK.",
-          });
+            const result = await processStreamChunks({
+              fullStream,
+              fullResponse,
+              abortController,
+              chatId: req.chatId,
+              processResponseChunkUpdate,
+            });
+            fullResponse = result.fullResponse;
+            chatMessages.push({
+              role: "assistant",
+              content: fullResponse,
+            });
+            chatMessages.push({
+              role: "user",
+              content: "OK.",
+            });
+          }
         }
 
         // When calling streamText, the messages need to be properly formatted for mixed content

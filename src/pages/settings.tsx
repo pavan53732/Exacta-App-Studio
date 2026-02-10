@@ -29,8 +29,8 @@ import { RuntimeModeSelector } from "@/components/RuntimeModeSelector";
 import { NodePathSelector } from "@/components/NodePathSelector";
 import { ToolsMcpSettings } from "@/components/settings/ToolsMcpSettings";
 import { AgentToolsSettings } from "@/components/settings/AgentToolsSettings";
-import { CliAgentsSettings } from "@/components/settings/CliAgentsSettings";
 import { ZoomSelector } from "@/components/ZoomSelector";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { DefaultChatModeSelector } from "@/components/DefaultChatModeSelector";
 import { ContextCompactionSwitch } from "@/components/ContextCompactionSwitch";
 import { useSetAtom } from "jotai";
@@ -166,17 +166,6 @@ export default function SettingsPage() {
             <ToolsMcpSettings />
           </div>
 
-          {/* CLI Agents */}
-          <div
-            id={SECTION_IDS.cliAgents}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
-          >
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              CLI Agents
-            </h2>
-            <CliAgentsSettings />
-          </div>
-
           {/* Experiments Section */}
           <div
             id={SECTION_IDS.experiments}
@@ -296,6 +285,10 @@ export function GeneralSettings({ appVersion }: { appVersion: string | null }) {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mt-4">
+        <LanguageSelector />
       </div>
 
       <div id={SETTING_IDS.zoom} className="mt-4">

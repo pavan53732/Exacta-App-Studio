@@ -579,9 +579,9 @@ Modern dark theme with purple accents for testing.
         };
       }
 
-      if (!settings.enableExactaPro) {
+      if (!settings.enableDyadPro) {
         throw new Error(
-          "Exacta Pro is required for AI theme generation. Please enable Exacta Pro in Settings.",
+          "Dyad Pro is required for AI theme generation. Please enable Dyad Pro in Settings.",
         );
       }
 
@@ -707,9 +707,9 @@ Modern theme extracted from website for testing.
         };
       }
 
-      if (!settings.enableExactaPro) {
+      if (!settings.enableDyadPro) {
         throw new Error(
-          "Exacta Pro is required for AI theme generation. Please enable Exacta Pro in Settings.",
+          "Dyad Pro is required for AI theme generation. Please enable Dyad Pro in Settings.",
         );
       }
 
@@ -763,7 +763,7 @@ Modern theme extracted from website for testing.
       // Get API key for Dyad Engine
       const apiKey = settings.providerSettings?.auto?.apiKey?.value;
       if (!apiKey) {
-        throw new Error("Exacta Pro API key is required");
+        throw new Error("Dyad Pro API key is required");
       }
 
       // Crawl the website

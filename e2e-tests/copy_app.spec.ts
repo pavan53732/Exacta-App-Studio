@@ -22,11 +22,11 @@ for (const { testName, newAppName, buttonName, expectedVersion } of tests) {
     await po.sendPrompt("hi");
     await po.snapshotAppFiles({ name: "app" });
 
-    await po.getTitleBarAppNameButton().click();
+    await po.appManagement.getTitleBarAppNameButton().click();
 
     // Open the dropdown menu
-    await po.clickAppDetailsMoreOptions();
-    await po.clickAppDetailsCopyAppButton();
+    await po.appManagement.clickAppDetailsMoreOptions();
+    await po.appManagement.clickAppDetailsCopyAppButton();
 
     await po.page.getByLabel("New app name").fill(newAppName);
 
@@ -34,22 +34,26 @@ for (const { testName, newAppName, buttonName, expectedVersion } of tests) {
     await po.page.getByRole("button", { name: buttonName }).click();
 
     // Wait for the copy dialog to close
-    await expect(po.page.getByRole("dialog")).not.toBeVisible({
+    await expect(
+      po.page.getByRole("dialog", { name: new RegExp(`Copy "${newAppName}"`) }),
+    ).not.toBeVisible({
       timeout: Timeout.MEDIUM,
     });
 
     // Expect to be on the new app's detail page
     await expect(
-      po.page.getByRole("heading", { name: newAppName }),
+      po.page
+        .getByTestId("app-details-page")
+        .getByRole("heading", { name: newAppName }),
     ).toBeVisible({
       // Potentially takes a while for the copy to complete
       timeout: Timeout.MEDIUM,
     });
 
-    const currentAppName = await po.getCurrentAppName();
+    const currentAppName = await po.appManagement.getCurrentAppName();
     expect(currentAppName).toBe(newAppName);
 
-    await po.clickOpenInChatButton();
+    await po.appManagement.clickOpenInChatButton();
 
     await expect(po.page.getByText(expectedVersion)).toBeVisible();
     await po.snapshotAppFiles({ name: "app" });

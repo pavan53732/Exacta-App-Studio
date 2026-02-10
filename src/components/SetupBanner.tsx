@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ChevronRight,
@@ -36,7 +37,7 @@ import openrouterLogo from "../../assets/ai-logos/openrouter-logo.png";
 import { OnboardingBanner } from "./home/OnboardingBanner";
 import { showError } from "@/lib/toast";
 import { useSettings } from "@/hooks/useSettings";
-import { ExactaProTrialDialog } from "./ExactaProTrialDialog";
+import { DyadProTrialDialog } from "./DyadProTrialDialog";
 
 type NodeInstallStep =
   | "install"
@@ -45,6 +46,7 @@ type NodeInstallStep =
   | "finished-checking";
 
 export function SetupBanner() {
+  const { t } = useTranslation("home");
   const posthog = usePostHog();
   const navigate = useNavigate();
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(true);
@@ -69,8 +71,7 @@ export function SetupBanner() {
   }, [setNodeSystemInfo, setNodeCheckError]);
   const [showManualConfig, setShowManualConfig] = useState(false);
   const [isSelectingPath, setIsSelectingPath] = useState(false);
-  const [showExactaProTrialDialog, setShowExactaProTrialDialog] =
-    useState(false);
+  const [showDyadProTrialDialog, setShowDyadProTrialDialog] = useState(false);
   const { updateSettings } = useSettings();
 
   // Add handler for manual path selection
@@ -122,7 +123,7 @@ export function SetupBanner() {
   };
   const handleDyadProSetupClick = () => {
     posthog.capture("setup-flow:ai-provider-setup:dyad:click");
-    setShowExactaProTrialDialog(true);
+    setShowDyadProTrialDialog(true);
   };
 
   const handleOtherProvidersClick = () => {
@@ -158,7 +159,7 @@ export function SetupBanner() {
   if (itemsNeedAction.length === 0) {
     return (
       <h1 className="text-center text-5xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 tracking-tight">
-        Build a new app
+        {t("setup.buildNewApp")}
       </h1>
     );
   }
@@ -182,7 +183,7 @@ export function SetupBanner() {
   return (
     <>
       <p className="text-xl font-medium text-zinc-700 dark:text-zinc-300 p-4 pt-6">
-        Setup Exacta App Studio
+        {t("setup.setupDyad")}
       </p>
       <OnboardingBanner
         isVisible={isOnboardingVisible}
@@ -205,7 +206,7 @@ export function SetupBanner() {
                 <div className="flex items-center gap-3">
                   {getStatusIcon(isNodeSetupComplete, nodeCheckError)}
                   <span className="font-medium text-sm">
-                    1. Install Node.js (App Runtime)
+                    {t("setup.installNodeJs")}
                   </span>
                 </div>
               </div>
@@ -213,26 +214,33 @@ export function SetupBanner() {
             <AccordionContent className="px-4 pt-2 pb-4 bg-white dark:bg-zinc-900 border-t border-inherit">
               {nodeCheckError && (
                 <p className="text-sm text-red-600 dark:text-red-400">
-                  Error checking Node.js status. Try installing Node.js.
+                  {t("setup.errorCheckingNode")}
                 </p>
               )}
               {isNodeSetupComplete ? (
                 <p className="text-sm">
-                  Node.js ({nodeSystemInfo!.nodeVersion}) installed.{" "}
+                  {t("setup.nodeInstalled", {
+                    version: nodeSystemInfo!.nodeVersion,
+                  })}{" "}
                   {nodeSystemInfo!.pnpmVersion && (
                     <span className="text-xs text-gray-500">
                       {" "}
-                      (optional) pnpm ({nodeSystemInfo!.pnpmVersion}) installed.
+                      {t("setup.pnpmInstalled", {
+                        version: nodeSystemInfo!.pnpmVersion,
+                      })}
                     </span>
                   )}
                 </p>
               ) : (
                 <div className="text-sm">
-                  <p>Node.js is required to run apps locally.</p>
+                  <p>{t("setup.nodeRequired")}</p>
                   {nodeInstallStep === "waiting-for-continue" && (
                     <p className="mt-1">
-                      After you have installed Node.js, click "Continue". If the
-                      installer didn't work, try{" "}
+                      {
+                        t("setup.afterInstallNode").split(
+                          t("setup.moreDownloadOptions"),
+                        )[0]
+                      }
                       <a
                         className="text-blue-500 dark:text-blue-400 hover:underline"
                         onClick={() => {
@@ -241,7 +249,7 @@ export function SetupBanner() {
                           );
                         }}
                       >
-                        more download options
+                        {t("setup.moreDownloadOptions")}
                       </a>
                       .
                     </p>
@@ -257,7 +265,7 @@ export function SetupBanner() {
                       onClick={() => setShowManualConfig(!showManualConfig)}
                       className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      Node.js already installed? Configure path manually →
+                      {t("setup.nodeAlreadyInstalled")}
                     </button>
 
                     {showManualConfig && (
@@ -321,14 +329,10 @@ export function SetupBanner() {
                 onClick={handleDyadProSetupClick}
                 tabIndex={isNodeSetupComplete ? 0 : -1}
                 leadingIcon={
-                  <img
-                    src={logo}
-                    alt="Exacta Logo"
-                    className="w-6 h-6 mr-0.5"
-                  />
+                  <img src={logo} alt="Dyad Logo" className="w-6 h-6 mr-0.5" />
                 }
-                title="Start with Exacta Pro free trial"
-                subtitle="Unlock the full power of Exacta"
+                title="Start with Dyad Pro free trial"
+                subtitle="Unlock the full power of Dyad"
                 chip={<>Recommended</>}
               />
               <div className="mt-2 flex gap-2">
@@ -389,9 +393,9 @@ export function SetupBanner() {
         </Accordion>
       </div>
 
-      <ExactaProTrialDialog
-        isOpen={showExactaProTrialDialog}
-        onClose={() => setShowExactaProTrialDialog(false)}
+      <DyadProTrialDialog
+        isOpen={showDyadProTrialDialog}
+        onClose={() => setShowDyadProTrialDialog(false)}
       />
     </>
   );
@@ -456,8 +460,7 @@ function NodeInstallButton({
     case "finished-checking":
       return (
         <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-          Node.js not detected. Closing and re-opening Exacta App Studio usually
-          fixes this.
+          Node.js not detected. Closing and re-opening Dyad usually fixes this.
         </div>
       );
     default:

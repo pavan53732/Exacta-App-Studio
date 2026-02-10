@@ -221,7 +221,7 @@ function FooterComponent({ context }: { context?: FooterContext }) {
       )}
 
       {isStreaming &&
-        !settings?.enableExactaPro &&
+        !settings?.enableDyadPro &&
         !userBudget &&
         messages.length > 0 && (
           <PromoMessage

@@ -17,14 +17,16 @@ import {
 export function ChatErrorBox({
   onDismiss,
   error,
-  isExactaProEnabled,
+  isDyadProEnabled,
   onStartNewChat,
 }: {
   onDismiss: () => void;
   error: string;
-  isExactaProEnabled: boolean;
+  isDyadProEnabled: boolean;
   onStartNewChat?: () => void;
 }) {
+  // BYPASSED: Always treat as Pro enabled to remove upgrade prompts
+  const isProEnabled = true;
   if (error.includes("doesn't have a free quota tier")) {
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
@@ -34,7 +36,7 @@ export function ChatErrorBox({
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-quota-error"
             variant="primary"
           >
-            Access with Exacta Pro
+            Access with Dyad Pro
           </ExternalLink>
         </span>{" "}
         or switch to another model.
@@ -45,11 +47,12 @@ export function ChatErrorBox({
   // Important, this needs to come after the "free quota tier" check
   // because it also includes this URL in the error message
   //
-  // Sometimes Exacta Pro can return rate limit errors and we do not want to
-  // show the upgrade to Exacta Pro link in that case because they are
-  // already on the Exacta Pro plan.
+  // Sometimes Dyad Pro can return rate limit errors and we do not want to
+  // show the upgrade to Dyad Pro link in that case because they are
+  // already on the Dyad Pro plan.
+  // BYPASSED: Always treat as Pro enabled to remove upgrade prompts
   if (
-    !isExactaProEnabled &&
+    !isProEnabled &&
     (error.includes("Resource has been exhausted") ||
       error.includes("https://ai.google.dev/gemini-api/docs/rate-limits") ||
       error.includes("Provider returned error"))
@@ -62,7 +65,7 @@ export function ChatErrorBox({
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=rate-limit-error"
             variant="primary"
           >
-            Upgrade to Exacta Pro
+            Upgrade to Dyad Pro
           </ExternalLink>
 
           <ExternalLink href="https://dyad.sh/docs/help/ai-rate-limit">
@@ -77,19 +80,19 @@ export function ChatErrorBox({
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
-          Looks like you don't have a valid Exacta Pro key.{" "}
+          Looks like you don't have a valid Dyad Pro key.{" "}
           <ExternalLink
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=invalid-pro-key-error"
             variant="primary"
           >
-            Upgrade to Exacta Pro
+            Upgrade to Dyad Pro
           </ExternalLink>{" "}
           today.
         </span>
       </ChatInfoContainer>
     );
   }
-  if (isExactaProEnabled && error.includes("ExceededBudget:")) {
+  if (isProEnabled && error.includes("ExceededBudget:")) {
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
@@ -115,17 +118,18 @@ export function ChatErrorBox({
     error = error.split(fallbackPrefix)[0];
   }
   // Handle FREE_AGENT_QUOTA_EXCEEDED error (Basic Agent mode quota exceeded)
+  // BYPASSED: Always treat as Pro enabled to remove upgrade prompts
   if (error.includes("FREE_AGENT_QUOTA_EXCEEDED")) {
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
         You have used all 5 free Agent messages for today. Please upgrade to
-        Exacta Pro for unlimited access or switch to Build mode.
+        Dyad Pro for unlimited access or switch to Build mode.
         <div className="mt-2 space-y-2 space-x-2">
           <ExternalLink
             href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=free-agent-quota-exceeded"
             variant="primary"
           >
-            Upgrade to Exacta Pro
+            Upgrade to Dyad Pro
           </ExternalLink>
         </div>
       </ChatErrorContainer>
@@ -136,17 +140,17 @@ export function ChatErrorBox({
     <ChatErrorContainer onDismiss={onDismiss}>
       {error}
       <div className="mt-2 space-y-2 space-x-2">
-        {!isExactaProEnabled &&
+        {!isProEnabled &&
           error.includes(AI_STREAMING_ERROR_MESSAGE_PREFIX) &&
           !error.includes("TypeError: terminated") && (
             <ExternalLink
               href="https://dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=general-error"
               variant="primary"
             >
-              Upgrade to Exacta Pro
+              Upgrade to Dyad Pro
             </ExternalLink>
           )}
-        {isExactaProEnabled && onStartNewChat && (
+        {isProEnabled && onStartNewChat && (
           <Tooltip>
             <TooltipTrigger
               onClick={onStartNewChat}

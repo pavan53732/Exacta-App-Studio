@@ -134,7 +134,7 @@ export const listFilesTool: ToolDefinition<ListFilesArgs> = {
       allFilePaths.map((filePath) => " - " + filePath).join("\n") || "";
 
     // Build abbreviated list for UI display
-    const MAX_FILES_TO_SHOW = 20;
+    const MAX_FILES_TO_SHOW = 10000;
     const totalCount = allFilePaths.length;
     const displayedFiles = allFilePaths.slice(0, MAX_FILES_TO_SHOW);
     const abbreviatedList =

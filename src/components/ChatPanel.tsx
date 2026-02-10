@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   chatMessagesByIdAtom,
@@ -35,6 +36,7 @@ export function ChatPanel({
   isPreviewOpen,
   onTogglePreview,
 }: ChatPanelProps) {
+  const { t } = useTranslation("chat");
   const messagesById = useAtomValue(chatMessagesByIdAtom);
   const setMessagesById = useSetAtom(chatMessagesByIdAtom);
   const [isVersionPaneOpen, setIsVersionPaneOpen] = useState(false);
@@ -43,8 +45,7 @@ export function ChatPanel({
   const isStreamingById = useAtomValue(isStreamingByIdAtom);
   const { settings, updateSettings } = useSettings();
   const { isQuotaExceeded } = useFreeAgentQuota();
-  const showFreeAgentQuotaBanner =
-    settings && isBasicAgentMode(settings) && isQuotaExceeded;
+  const showFreeAgentQuotaBanner = false;
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -184,20 +185,14 @@ export function ChatPanel({
                     >
                       <ArrowDown className="h-4 w-4" />
                     </TooltipTrigger>
-                    <TooltipContent>Scroll to bottom</TooltipContent>
+                    <TooltipContent>{t("scrollToBottom")}</TooltipContent>
                   </Tooltip>
                 </div>
               )}
             </div>
 
             <ChatError error={error} onDismiss={() => setError(null)} />
-            {showFreeAgentQuotaBanner && (
-              <FreeAgentQuotaBanner
-                onSwitchToBuildMode={() =>
-                  updateSettings({ selectedChatMode: "build" })
-                }
-              />
-            )}
+            {/* FreeAgentQuotaBanner removed */}
             <ChatInput chatId={chatId} />
           </div>
         )}

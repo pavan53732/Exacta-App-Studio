@@ -8,17 +8,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ChatMode } from "@/lib/schemas";
-import { isExactaProEnabled, getEffectiveDefaultChatMode } from "@/lib/schemas";
+import { isDyadProEnabled, getEffectiveDefaultChatMode } from "@/lib/schemas";
+import { useTranslation } from "react-i18next";
 
 export function DefaultChatModeSelector() {
   const { settings, updateSettings, envVars } = useSettings();
   const { isQuotaExceeded, isLoading: isQuotaLoading } = useFreeAgentQuota();
+  const { t } = useTranslation("settings");
 
   if (!settings) {
     return null;
   }
 
-  const isProEnabled = isExactaProEnabled(settings);
+  const isProEnabled = isDyadProEnabled(settings);
   // Wait for quota status to load before determining effective default
   const freeAgentQuotaAvailable = !isQuotaLoading && !isQuotaExceeded;
   const effectiveDefault = getEffectiveDefaultChatMode(
@@ -36,9 +38,8 @@ export function DefaultChatModeSelector() {
   const getModeDisplayName = (mode: ChatMode) => {
     switch (mode) {
       case "build":
+      case "agent": // backwards compatibility - treat as build
         return "Build";
-      case "agent":
-        return "Build (MCP)";
       case "local-agent":
         return isProEnabled ? "Agent" : "Basic Agent";
       case "ask":
@@ -54,7 +55,7 @@ export function DefaultChatModeSelector() {
           htmlFor="default-chat-mode"
           className="text-sm font-medium text-gray-700 dark:text-gray-300"
         >
-          Default Chat Mode
+          {t("workflow.defaultChatMode")}
         </label>
         <Select
           value={effectiveDefault}
@@ -86,19 +87,11 @@ export function DefaultChatModeSelector() {
                 </span>
               </div>
             </SelectItem>
-            <SelectItem value="agent">
-              <div className="flex flex-col items-start">
-                <span className="font-medium">Build with MCP</span>
-                <span className="text-xs text-muted-foreground">
-                  Build with tools (MCP)
-                </span>
-              </div>
-            </SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="text-sm text-gray-500 dark:text-gray-400">
-        The chat mode used when creating new chats.
+        {t("workflow.defaultChatModeDescription")}
       </div>
     </div>
   );

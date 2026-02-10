@@ -80,7 +80,7 @@ export const webCrawlTool: ToolDefinition<z.infer<typeof webCrawlSchema>> = {
   inputSchema: webCrawlSchema,
   defaultConsent: "ask",
 
-  // Requires Exacta Pro engine API
+  // Requires Dyad Pro engine API
   isEnabled: (ctx) => ctx.isDyadPro,
 
   getConsentPreview: (args) => `Crawl URL: "${args.url}"`,

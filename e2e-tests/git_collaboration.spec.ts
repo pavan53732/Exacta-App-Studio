@@ -1,8 +1,70 @@
 import { expect } from "@playwright/test";
 import { test, Timeout } from "./helpers/test_helper";
+import type { PageObject } from "./helpers/test_helper";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+
+async function createGitConflict(po: PageObject) {
+  await po.setUp({ disableNativeGit: false, autoApprove: true });
+  await po.sendPrompt("tc=basic");
+
+  await po.appManagement.getTitleBarAppNameButton().click();
+  await po.githubConnector.connect();
+
+  const repoName = "test-git-conflict-" + Date.now();
+  await po.githubConnector.fillCreateRepoName(repoName);
+  await po.githubConnector.clickCreateRepoButton();
+  await expect(po.page.getByTestId("github-connected-repo")).toBeVisible({
+    timeout: Timeout.MEDIUM,
+  });
+
+  const appPath = await po.appManagement.getCurrentAppPath();
+  if (!appPath) throw new Error("App path not found");
+
+  // Setup conflict
+  const conflictFile = "conflict.txt";
+  const conflictFilePath = path.join(appPath, conflictFile);
+
+  // Configure git user for commits
+  execSync("git config user.email 'test@example.com'", { cwd: appPath });
+  execSync("git config user.name 'Test User'", { cwd: appPath });
+  execSync("git config commit.gpgsign false", { cwd: appPath });
+
+  // 1. Create file on main
+  fs.writeFileSync(conflictFilePath, "Line 1\nLine 2\nLine 3");
+  execSync(`git add "${conflictFile}" && git commit -m "Add conflict file"`, {
+    cwd: appPath,
+  });
+
+  // 2. Create feature branch
+  const featureBranch = "feature-conflict";
+  execSync(`git checkout -b ${featureBranch}`, { cwd: appPath });
+  fs.writeFileSync(conflictFilePath, "Line 1\nLine 2 Modified Feature\nLine 3");
+  execSync(`git add "${conflictFile}" && git commit -m "Modify on feature"`, {
+    cwd: appPath,
+  });
+
+  // 3. Switch back to main and modify
+  execSync(`git checkout main`, { cwd: appPath });
+  fs.writeFileSync(conflictFilePath, "Line 1\nLine 2 Modified Main\nLine 3");
+  execSync(`git add "${conflictFile}" && git commit -m "Modify on main"`, {
+    cwd: appPath,
+  });
+
+  // 4. Try to merge feature into main via UI
+  await po.navigation.goToChatTab();
+  await po.appManagement.getTitleBarAppNameButton().click(); // Open Publish Panel
+
+  // Open branches accordion
+  const branchesCard = po.page.getByTestId("branches-header");
+  await branchesCard.click();
+
+  await po.page.getByTestId(`branch-actions-${featureBranch}`).click();
+  await po.page.getByTestId("merge-branch-menu-item").click();
+  await po.page.getByTestId("merge-branch-submit-button").click();
+  return { conflictFile, appPath };
+}
 
 test.describe("Git Collaboration", () => {
   //create git conflict helper function
@@ -12,7 +74,7 @@ test.describe("Git Collaboration", () => {
     await po.setUp({ disableNativeGit: false });
     await po.sendPrompt("tc=basic");
 
-    await po.getTitleBarAppNameButton().click();
+    await po.appManagement.getTitleBarAppNameButton().click();
     await po.githubConnector.connect();
 
     // Create a new repo to start fresh
@@ -30,8 +92,8 @@ test.describe("Git Collaboration", () => {
     const featureBranch = "feature-1";
 
     // User instruction: Open chat and go to publish tab
-    await po.goToChatTab();
-    await po.getTitleBarAppNameButton().click(); // Open Publish Panel
+    await po.navigation.goToChatTab();
+    await po.appManagement.getTitleBarAppNameButton().click(); // Open Publish Panel
 
     // Wait for BranchManager to appear
     await expect(
@@ -76,7 +138,7 @@ test.describe("Git Collaboration", () => {
     );
 
     {
-      const appPath = await po.getCurrentAppPath();
+      const appPath = await po.appManagement.getCurrentAppPath();
       if (!appPath) throw new Error("App path not found");
       const gitStatus = execSync("git status --porcelain", {
         cwd: appPath,
@@ -123,7 +185,7 @@ test.describe("Git Collaboration", () => {
 
     // 4. Merge Branch
     // First, create a file on feature-1 to verify merge actually works
-    const appPath = await po.getCurrentAppPath();
+    const appPath = await po.appManagement.getCurrentAppPath();
     if (!appPath) throw new Error("App path not found");
 
     // Switch to feature-1 and create a test file
@@ -138,7 +200,7 @@ test.describe("Git Collaboration", () => {
     const featureContent = "Content from feature-1 branch";
     fs.writeFileSync(mergeTestFilePath, featureContent);
     // Configure git user for commit
-    await po.configureGitUser();
+    await po.appManagement.configureGitUser();
     execSync(
       `git add ${mergeTestFile} && git commit -m "Add merge test file"`,
       {
@@ -164,7 +226,7 @@ test.describe("Git Collaboration", () => {
     await po.page.getByTestId("merge-branch-submit-button").click();
 
     // Wait for merge to complete
-    await po.waitForToast("success", 10000);
+    await po.toastNotifications.waitForToast("success", 10000);
 
     // Verify merge success: file should now exist on main
     await expect(async () => {
@@ -206,7 +268,7 @@ test.describe("Git Collaboration", () => {
     await po.setUp({ disableNativeGit: false });
     await po.sendPrompt("tc=basic");
 
-    await po.getTitleBarAppNameButton().click();
+    await po.appManagement.getTitleBarAppNameButton().click();
     await po.githubConnector.connect();
 
     // Create a new repo to start fresh
@@ -219,11 +281,11 @@ test.describe("Git Collaboration", () => {
       timeout: Timeout.MEDIUM,
     });
 
-    const appPath = await po.getCurrentAppPath();
+    const appPath = await po.appManagement.getCurrentAppPath();
     if (!appPath) throw new Error("App path not found");
 
     // Configure git user
-    await po.configureGitUser();
+    await po.appManagement.configureGitUser();
 
     // Create a file locally
     const testFile = "pull-test.txt";
@@ -235,8 +297,8 @@ test.describe("Git Collaboration", () => {
     });
 
     // Go to publish panel
-    await po.goToChatTab();
-    await po.getTitleBarAppNameButton().click();
+    await po.navigation.goToChatTab();
+    await po.appManagement.getTitleBarAppNameButton().click();
 
     // Open the branch actions dropdown
     await expect(
@@ -250,7 +312,7 @@ test.describe("Git Collaboration", () => {
     await po.page.getByTestId("git-pull-button").click();
 
     // Wait for success toast
-    await po.waitForToast("success", 10000);
+    await po.toastNotifications.waitForToast("success", 10000);
 
     // Verify the file still exists (pull succeeded)
     expect(fs.existsSync(testFilePath)).toBe(true);
@@ -267,7 +329,7 @@ test.describe("Git Collaboration", () => {
   test("should invite and remove collaborators", async ({ po }) => {
     await po.setUp();
     await po.sendPrompt("tc=basic");
-    await po.selectPreviewMode("publish");
+    await po.previewPanel.selectPreviewMode("publish");
     await po.githubConnector.connect();
 
     const repoName = "test-git-collab-invite-" + Date.now();
@@ -290,7 +352,7 @@ test.describe("Git Collaboration", () => {
     await po.page.getByTestId("collaborator-invite-input").fill(fakeUser);
     await po.page.getByTestId("collaborator-invite-button").click();
     // Let's check for a toast.
-    await po.waitForToast("success");
+    await po.toastNotifications.waitForToast("success");
 
     // verify collaborator appears in the list
     await expect(
@@ -300,11 +362,50 @@ test.describe("Git Collaboration", () => {
     // Delete collaborator
     await po.page.getByTestId(`collaborator-remove-button-${fakeUser}`).click();
     await po.page.getByTestId("confirm-remove-collaborator").click();
-    await po.waitForToast("success");
+    await po.toastNotifications.waitForToast("success");
     await expect(
       po.page.getByTestId(`collaborator-item-${fakeUser}`),
     ).not.toBeVisible({
       timeout: 5000,
     });
+  });
+
+  test("should resolve merge conflicts with AI", async ({ po }) => {
+    const { conflictFile, appPath } = await createGitConflict(po);
+    // Verify inline resolve buttons appear (no modal)
+    const resolveButton = po.page.getByRole("button", {
+      name: "Resolve merge conflicts with AI",
+    });
+    await expect(resolveButton).toBeVisible({ timeout: Timeout.MEDIUM });
+
+    // Click the button to start AI resolution - this navigates to a new chat
+    await resolveButton.click();
+
+    // Wait for the chat to load and AI to respond (auto-approve is enabled)
+    const conflictFilePath = path.join(appPath, conflictFile);
+    await expect
+      .poll(() => fs.readFileSync(conflictFilePath, "utf-8"), {
+        timeout: Timeout.LONG,
+      })
+      .not.toMatch(/<<<<<<<|=======|>>>>>>>/);
+    await expect
+      .poll(() => fs.existsSync(path.join(appPath, ".git", "MERGE_HEAD")), {
+        timeout: Timeout.MEDIUM,
+      })
+      .toBe(false);
+  });
+
+  test("should cancel sync when merge conflicts occur", async ({ po }) => {
+    await createGitConflict(po);
+    // Verify inline resolve buttons appear
+    await expect(
+      po.page.getByRole("button", { name: "Resolve merge conflicts with AI" }),
+    ).toBeVisible({ timeout: Timeout.MEDIUM });
+    // Click Cancel sync to abort the merge
+    await po.page.getByRole("button", { name: "Cancel sync" }).click();
+    // Conflict buttons should be gone (merge/rebase aborted, no toast shown)
+    await expect(
+      po.page.getByRole("button", { name: "Resolve merge conflicts with AI" }),
+    ).not.toBeVisible({ timeout: Timeout.MEDIUM });
   });
 });

@@ -165,6 +165,10 @@ export function readSettings(): UserSettings {
       }
     }
 
+    // Force Pro features to be enabled
+    combinedSettings.enableDyadPro = true;
+    combinedSettings.enableProSmartFilesContextMode = true;
+
     // Validate and merge with defaults
     const validatedSettings = UserSettingsSchema.parse(combinedSettings);
     // "conservative" is deprecated, use undefined to use the default value

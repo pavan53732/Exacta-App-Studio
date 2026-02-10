@@ -1,4 +1,4 @@
-import { isExactaProEnabled, type LargeLanguageModel } from "@/lib/schemas";
+import { isDyadProEnabled, type LargeLanguageModel } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -113,20 +113,7 @@ export function ModelPicker() {
   const autoModels =
     !loading && modelsByProviders && modelsByProviders["auto"]
       ? modelsByProviders["auto"].filter((model) => {
-          if (
-            settings &&
-            !isExactaProEnabled(settings) &&
-            ["turbo", "value"].includes(model.apiName)
-          ) {
-            return false;
-          }
-          if (
-            settings &&
-            isExactaProEnabled(settings) &&
-            model.apiName === "free"
-          ) {
-            return false;
-          }
+          // BYPASSED: Always return true to unlock all models
           return true;
         })
       : [];
@@ -154,7 +141,7 @@ export function ModelPicker() {
     const provider = providers?.find((p) => p.id === providerId);
     return !(provider && provider.secondary);
   });
-  if (settings && isExactaProEnabled(settings)) {
+  if (settings) {
     primaryProviders.unshift(["auto", TURBO_MODELS]);
   }
   const secondaryProviders = providerEntries.filter(([providerId, models]) => {
@@ -188,7 +175,7 @@ export function ModelPicker() {
           <>
             <div className="px-2 py-3 bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/50 dark:to-sky-950/50">
               <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-2">
-                Upgrade from Exacta Pro trial to unlock more models.
+                Upgrade from Dyad Pro trial to unlock more models.
               </p>
               <Button
                 variant="outline"
@@ -201,7 +188,7 @@ export function ModelPicker() {
                   setOpen(false);
                 }}
               >
-                Upgrade to Exacta Pro
+                Upgrade to Dyad Pro
               </Button>
             </div>
             <DropdownMenuSeparator />
@@ -286,15 +273,7 @@ export function ModelPicker() {
               {/* Primary providers as submenus */}
               {primaryProviders.map(([providerId, models]) => {
                 models = models.filter((model) => {
-                  // Don't show free models if Exacta Pro is enabled because
-                  // we will use the paid models (in Exacta Pro backend) which
-                  // don't have the free limitations.
-                  if (
-                    isExactaProEnabled(settings) &&
-                    model.apiName.endsWith(":free")
-                  ) {
-                    return false;
-                  }
+                  // BYPASSED: Always return true to unlock all models
                   return true;
                 });
                 const provider = providers?.find((p) => p.id === providerId);
@@ -310,7 +289,7 @@ export function ModelPicker() {
                           <span>{providerDisplayName}</span>
                           {provider?.type === "cloud" &&
                             !provider?.secondary &&
-                            isExactaProEnabled(settings) && (
+                            isDyadProEnabled(settings) && (
                               <span className="text-[10px] bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 bg-[length:200%_100%] animate-[shimmer_5s_ease-in-out_infinite] text-white px-1.5 py-0.5 rounded-full font-medium">
                                 Pro
                               </span>

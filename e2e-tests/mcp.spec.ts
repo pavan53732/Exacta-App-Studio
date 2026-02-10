@@ -5,7 +5,7 @@ import { expect } from "@playwright/test";
 
 testSkipIfWindows("mcp - call calculator", async ({ po }) => {
   await po.setUp();
-  await po.goToSettingsTab();
+  await po.navigation.goToSettingsTab();
   await po.page.getByRole("button", { name: "Tools (MCP)" }).click();
 
   await po.page
@@ -29,8 +29,8 @@ testSkipIfWindows("mcp - call calculator", async ({ po }) => {
   await po.page.getByRole("textbox", { name: "Key" }).fill("testKey1");
   await po.page.getByRole("textbox", { name: "Value" }).fill("testValue1");
   await po.page.getByRole("button", { name: "Save" }).click();
-  await po.goToAppsTab();
-  await po.selectChatMode("agent");
+  await po.navigation.goToAppsTab();
+  await po.chatActions.selectChatMode("build");
   await po.sendPrompt("[call_tool=calculator_add]", {
     skipWaitForCompletion: true,
   });
@@ -89,7 +89,7 @@ testSkipIfWindows("mcp - call calculator via http", async ({ po }) => {
 
   try {
     await po.setUp();
-    await po.goToSettingsTab();
+    await po.navigation.goToSettingsTab();
     await po.page.getByRole("button", { name: "Tools (MCP)" }).click();
 
     // Fill in server name
@@ -105,17 +105,19 @@ testSkipIfWindows("mcp - call calculator via http", async ({ po }) => {
 
     await po.page.getByRole("button", { name: "Add Server" }).click();
 
-    // Wait for the server to be created and the "Add Header" button to become visible
-    const addHeaderButton = po.page.getByRole("button", { name: "Add Header" });
+    // Wait for the server to be created and the "Add Environment Variable" button (for headers) to become visible
+    const addHeaderButton = po.page.getByRole("button", {
+      name: "Add Environment Variable",
+    });
     await expect(addHeaderButton).toBeVisible({ timeout: 10000 });
     await addHeaderButton.click();
     await po.page.getByRole("textbox", { name: "Key" }).fill("Authorization");
     await po.page.getByRole("textbox", { name: "Value" }).fill("testValue1");
     await po.page.getByRole("button", { name: "Save" }).click();
-    await po.goToSettingsTab();
+    await po.navigation.goToSettingsTab();
     await po.page.getByRole("button", { name: "Tools (MCP)" }).click();
-    await po.goToAppsTab();
-    await po.selectChatMode("agent");
+    await po.navigation.goToAppsTab();
+    await po.chatActions.selectChatMode("build");
     await po.sendPrompt("[call_tool=calculator_add]", {
       skipWaitForCompletion: true,
     });

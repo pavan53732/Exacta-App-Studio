@@ -70,8 +70,8 @@ const config: ForgeConfig = {
     windowsSign: isWindowsSigningEnabled ? windowsSign : undefined,
     protocols: [
       {
-        name: "Exacta App Studio",
-        schemes: ["exacta"],
+        name: "Dyad",
+        schemes: ["dyad"],
       },
     ],
     icon: "./assets/icon/logo",
@@ -110,12 +110,12 @@ const config: ForgeConfig = {
         ? {
             windowsSign,
             iconUrl:
-              "https://raw.githubusercontent.com/pavan53732/Exacta-App-Studio/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           }
         : {
             iconUrl:
-              "https://raw.githubusercontent.com/pavan53732/Exacta-App-Studio/main/assets/icon/logo.ico",
+              "https://raw.githubusercontent.com/dyad-sh/dyad/main/assets/icon/logo.ico",
             setupIcon: "./assets/icon/logo.ico",
           },
     ),
@@ -127,7 +127,7 @@ const config: ForgeConfig = {
     }),
     new MakerDeb({
       options: {
-        mimeType: ["x-scheme-handler/exacta"],
+        mimeType: ["x-scheme-handler/dyad"],
         icon: "./assets/icon/logo.png",
       },
     }),
@@ -140,8 +140,8 @@ const config: ForgeConfig = {
       name: "@electron-forge/publisher-github",
       config: {
         repository: {
-          owner: "pavan53732",
-          name: "Exacta-App-Studio",
+          owner: "dyad-sh",
+          name: "dyad",
         },
         draft: true,
         force: true,

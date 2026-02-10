@@ -2,12 +2,9 @@ import { db } from "../../db";
 import { mcpServers } from "../../db/schema";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { eq } from "drizzle-orm";
-import log from "electron-log";
 
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-
-const logger = log.scope("mcp-manager");
 
 class McpManager {
   private static _instance: McpManager;
@@ -21,14 +18,12 @@ class McpManager {
   async getClient(serverId: number): Promise<MCPClient> {
     const existing = this.clients.get(serverId);
     if (existing) return existing;
-    
     const server = await db
       .select()
       .from(mcpServers)
       .where(eq(mcpServers.id, serverId));
     const s = server.find((x) => x.id === serverId);
     if (!s) throw new Error(`MCP server not found: ${serverId}`);
-    
     let transport: StdioClientTransport | StreamableHTTPClientTransport;
     if (s.transport === "stdio") {
       const args = s.args ?? [];
@@ -67,5 +62,3 @@ class McpManager {
 }
 
 export const mcpManager = McpManager.instance;
-
-

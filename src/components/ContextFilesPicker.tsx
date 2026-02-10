@@ -116,7 +116,7 @@ export function ContextFilesPicker() {
   };
 
   const isSmartContextEnabled =
-    settings?.enableExactaPro && settings?.enableProSmartFilesContextMode;
+    settings?.enableDyadPro && settings?.enableProSmartFilesContextMode;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

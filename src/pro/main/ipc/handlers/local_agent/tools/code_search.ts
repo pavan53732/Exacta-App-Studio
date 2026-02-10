@@ -76,7 +76,7 @@ export const codeSearchTool: ToolDefinition<z.infer<typeof codeSearchSchema>> =
     inputSchema: codeSearchSchema,
     defaultConsent: "always",
 
-    // Requires Exacta Pro engine API
+    // Requires Dyad Pro engine API
     isEnabled: (ctx) => ctx.isDyadPro,
 
     getConsentPreview: (args) => `Search for "${args.query}"`,

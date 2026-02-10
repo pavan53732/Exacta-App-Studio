@@ -142,7 +142,7 @@ export const editFileTool: ToolDefinition<z.infer<typeof editFileSchema>> = {
   defaultConsent: "always",
   modifiesState: true,
 
-  // Requires Exacta Pro engine API
+  // Requires Dyad Pro engine API
   isEnabled: (ctx) => ctx.isDyadPro,
 
   getConsentPreview: (args) => `Edit ${args.path}`,

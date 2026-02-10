@@ -15,7 +15,7 @@ import {
   UserSettings,
   AzureProviderSetting,
   VertexProviderSetting,
-  hasExactaProKey,
+  hasDyadProKey,
 } from "@/lib/schemas";
 
 import { ProviderSettingsHeader } from "./ProviderSettingsHeader";
@@ -125,9 +125,8 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     setIsSaving(true);
     setSaveError(null);
     try {
-      // Check if this is the first time user is setting up Exacta Pro
-      const isNewDyadProSetup =
-        isDyad && settings && !hasExactaProKey(settings);
+      // Check if this is the first time user is setting up Dyad Pro
+      const isNewDyadProSetup = isDyad && settings && !hasDyadProKey(settings);
 
       const settingsUpdate: Partial<UserSettings> = {
         providerSettings: {
@@ -141,7 +140,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
         },
       };
       if (isDyad) {
-        settingsUpdate.enableExactaPro = true;
+        settingsUpdate.enableDyadPro = true;
         // Set default chat mode to local-agent when user upgrades to pro
         if (isNewDyadProSetup) {
           settingsUpdate.defaultChatMode = "local-agent";
@@ -181,15 +180,15 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     }
   };
 
-  // --- Toggle Exacta Pro Handler ---
+  // --- Toggle Dyad Pro Handler ---
   const handleToggleDyadPro = async (enabled: boolean) => {
     setIsSaving(true);
     try {
       await updateSettings({
-        enableExactaPro: enabled,
+        enableDyadPro: enabled,
       });
     } catch (error: any) {
-      showError(`Error toggling Exacta Pro: ${error}`);
+      showError(`Error toggling Dyad Pro: ${error}`);
     } finally {
       setIsSaving(false);
     }
@@ -321,14 +320,14 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
         {isDyad && !settingsLoading && (
           <div className="mt-6 flex items-center justify-between p-4 bg-(--background-lightest) rounded-lg border">
             <div>
-              <h3 className="font-medium">Enable Exacta Pro</h3>
+              <h3 className="font-medium">Enable Dyad Pro</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Toggle to enable Exacta Pro
+                Toggle to enable Dyad Pro
               </p>
             </div>
             <Switch
-              aria-label="Enable Exacta Pro"
-              checked={settings?.enableExactaPro}
+              aria-label="Enable Dyad Pro"
+              checked={settings?.enableDyadPro}
               onCheckedChange={handleToggleDyadPro}
               disabled={isSaving}
             />

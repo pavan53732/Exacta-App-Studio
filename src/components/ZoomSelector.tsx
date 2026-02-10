@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSettings } from "@/hooks/useSettings";
-import { ZoomLevel, ZoomLevelSchema } from "@/lib/schemas";
+import { ZoomLevel, ZoomLevelSchema, DEFAULT_ZOOM_LEVEL } from "@/lib/schemas";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
 
 const ZOOM_LEVEL_LABELS: Record<ZoomLevel, string> = {
   "90": "90%",
@@ -26,10 +27,9 @@ const ZOOM_LEVEL_DESCRIPTIONS: Record<ZoomLevel, string> = {
   "150": "Maximum zoom for maximum accessibility.",
 };
 
-const DEFAULT_ZOOM_LEVEL: ZoomLevel = "100";
-
 export function ZoomSelector() {
   const { settings, updateSettings } = useSettings();
+  const { t } = useTranslation("settings");
   const currentZoomLevel: ZoomLevel = useMemo(() => {
     const value = settings?.zoomLevel ?? DEFAULT_ZOOM_LEVEL;
     return ZoomLevelSchema.safeParse(value).success
@@ -40,9 +40,9 @@ export function ZoomSelector() {
   return (
     <div className="space-y-2">
       <div className="flex flex-col gap-1">
-        <Label htmlFor="zoom-level">Zoom level</Label>
+        <Label htmlFor="zoom-level">{t("general.zoom")}</Label>
         <p className="text-sm text-muted-foreground">
-          Adjusts the zoom level to make content easier to read.
+          {t("general.zoomDescription")}
         </p>
       </div>
       <Select
@@ -52,7 +52,7 @@ export function ZoomSelector() {
         }
       >
         <SelectTrigger id="zoom-level" className="w-[220px]">
-          <SelectValue placeholder="Select zoom level" />
+          <SelectValue placeholder={t("general.selectZoom")} />
         </SelectTrigger>
         <SelectContent>
           {Object.entries(ZOOM_LEVEL_LABELS).map(([value, label]) => (

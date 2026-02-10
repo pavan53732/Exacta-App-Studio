@@ -43,7 +43,7 @@ export async function getTemperature(
  * Returns the minimum of 80% of context window or 180k tokens.
  */
 export function getCompactionThreshold(contextWindow: number): number {
-  return Math.min(Math.floor(contextWindow * 0.8), 180_000);
+  return Math.min(Math.floor(contextWindow * 0.95), 1_000_000);
 }
 
 /**

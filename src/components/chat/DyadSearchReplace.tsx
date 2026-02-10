@@ -1,17 +1,17 @@
 import type React from "react";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, ArrowLeftRight } from "lucide-react";
 import { CodeHighlight } from "./CodeHighlight";
 import { CustomTagState } from "./stateTypes";
-import { FileEditor } from "../preview_panel/FileEditor";
-import { useAtomValue } from "jotai";
-import { selectedAppIdAtom } from "@/atoms/appAtoms";
+import { parseSearchReplaceBlocks } from "@/pro/shared/search_replace_parser";
 import {
   DyadCard,
   DyadCardHeader,
+  DyadBadge,
   DyadExpandIcon,
   DyadStateIndicator,
+  DyadFilePath,
   DyadDescription,
   DyadCardContent,
 } from "./DyadCardPrimitives";
@@ -34,86 +34,49 @@ export const DyadSearchReplace: React.FC<DyadSearchReplaceProps> = ({
   const path = pathProp || node?.properties?.path || "";
   const description = descriptionProp || node?.properties?.description || "";
   const state = node?.properties?.state as CustomTagState;
-
-  const aborted = state === "aborted";
-  const appId = useAtomValue(selectedAppIdAtom);
-  const [isEditing, setIsEditing] = useState(false);
   const inProgress = state === "pending";
+  const aborted = state === "aborted";
 
-  const handleCancel = () => {
-    setIsEditing(false);
-  };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setIsContentVisible(true);
-  };
+  const blocks = useMemo(
+    () => parseSearchReplaceBlocks(String(children ?? "")),
+    [children],
+  );
 
   const fileName = path ? path.split("/").pop() : "";
 
   return (
     <DyadCard
       state={state}
-      accentColor="green"
-      onClick={() => setIsContentVisible(!isContentVisible)}
+      accentColor="violet"
       isExpanded={isContentVisible}
+      onClick={() => setIsContentVisible(!isContentVisible)}
+      data-testid="dyad-search-replace"
     >
-      <DyadCardHeader icon={<Search size={15} />} accentColor="green">
-        <div className="min-w-0 truncate">
-          {fileName && (
-            <span className="font-medium text-sm text-foreground truncate block">
-              {fileName}
-            </span>
-          )}
-          {path && (
-            <span className="text-[11px] text-muted-foreground truncate block">
-              {path}
-            </span>
-          )}
-        </div>
+      <DyadCardHeader icon={<Search size={15} />} accentColor="violet">
+        <DyadBadge color="violet">Search & Replace</DyadBadge>
+        {fileName && (
+          <span className="font-medium text-sm text-foreground truncate">
+            {fileName}
+          </span>
+        )}
         {inProgress && (
-          <DyadStateIndicator state="pending" pendingLabel="Searching..." />
+          <DyadStateIndicator
+            state="pending"
+            pendingLabel="Applying changes..."
+          />
         )}
         {aborted && (
           <DyadStateIndicator state="aborted" abortedLabel="Did not finish" />
         )}
-        <div className="ml-auto flex items-center gap-1">
-          {!inProgress && (
-            <>
-              {isEditing ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancel();
-                  }}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors cursor-pointer"
-                >
-                  <X size={14} />
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit();
-                  }}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors cursor-pointer"
-                >
-                  <Search size={14} />
-                  Edit
-                </button>
-              )}
-            </>
-          )}
+        <div className="ml-auto">
           <DyadExpandIcon isExpanded={isContentVisible} />
         </div>
       </DyadCardHeader>
+      <DyadFilePath path={path} />
       {description && (
         <DyadDescription>
-          <span className={!isContentVisible ? "line-clamp-2" : undefined}>
-            <span className="font-medium">Summary: </span>
-            {description}
-          </span>
+          <span className="font-medium">Summary: </span>
+          {description}
         </DyadDescription>
       )}
       <DyadCardContent isExpanded={isContentVisible}>
@@ -121,14 +84,47 @@ export const DyadSearchReplace: React.FC<DyadSearchReplaceProps> = ({
           className="text-xs cursor-text"
           onClick={(e) => e.stopPropagation()}
         >
-          {isEditing ? (
-            <div className="h-96 min-h-96 border border-border rounded-lg overflow-hidden">
-              <FileEditor appId={appId ?? null} filePath={path} />
-            </div>
-          ) : (
+          {blocks.length === 0 ? (
             <CodeHighlight className="language-typescript">
               {children}
             </CodeHighlight>
+          ) : (
+            <div className="space-y-2">
+              {blocks.map((b, i) => (
+                <div
+                  key={i}
+                  className="border border-border/60 rounded-lg overflow-hidden"
+                >
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 text-[11px]">
+                    <ArrowLeftRight
+                      size={13}
+                      className="text-muted-foreground"
+                    />
+                    <span className="font-medium text-muted-foreground">
+                      Change {i + 1}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                    <div className="p-3 border-t border-border/40 md:border-r">
+                      <div className="text-[11px] mb-1 text-muted-foreground font-medium">
+                        Search
+                      </div>
+                      <CodeHighlight className="language-typescript">
+                        {b.searchContent}
+                      </CodeHighlight>
+                    </div>
+                    <div className="p-3 border-t border-border/40">
+                      <div className="text-[11px] mb-1 text-muted-foreground font-medium">
+                        Replace
+                      </div>
+                      <CodeHighlight className="language-typescript">
+                        {b.replaceContent}
+                      </CodeHighlight>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </DyadCardContent>

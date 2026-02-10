@@ -13,12 +13,13 @@ import {
   selectedAppIdAtom,
 } from "@/atoms/appAtoms";
 import { useSettings } from "@/hooks/useSettings";
-import type { ZoomLevel } from "@/lib/schemas";
+import { DEFAULT_ZOOM_LEVEL } from "@/lib/schemas";
 import { selectedComponentsPreviewAtom } from "@/atoms/previewAtoms";
 import { chatInputValueAtom } from "@/atoms/chatAtoms";
 import { usePlanEvents } from "@/hooks/usePlanEvents";
-
-const DEFAULT_ZOOM_LEVEL: ZoomLevel = "100";
+import { useZoomShortcuts } from "@/hooks/useZoomShortcuts";
+import i18n from "@/i18n";
+import { LanguageSchema } from "@/lib/schemas";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const { refreshAppIframe } = useRunApp();
@@ -35,6 +36,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   // Initialize plan events listener
   usePlanEvents();
+
+  // Zoom keyboard shortcuts (Ctrl/Cmd + =/- /0)
+  useZoomShortcuts();
 
   useEffect(() => {
     const zoomLevel = settings?.zoomLevel ?? DEFAULT_ZOOM_LEVEL;
@@ -60,6 +64,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
     return () => {};
   }, [settings?.zoomLevel]);
+
+  // Sync i18n language with persisted user setting
+  useEffect(() => {
+    const parsed = LanguageSchema.safeParse(settings?.language);
+    const language = parsed.success ? parsed.data : "en";
+    if (i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [settings?.language]);
+
   // Global keyboard listener for refresh events
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

@@ -143,20 +143,6 @@ export const languageModelContracts = {
     input: z.void(),
     output: z.object({ models: z.array(LocalModelSchema) }),
   }),
-
-  fetchOpenRouterModels: defineContract({
-    channel: "fetchOpenRouterModels",
-    input: z.object({ saveToDatabase: z.boolean().optional() }),
-    output: z.object({
-      success: z.boolean(),
-      models: z.array(z.any()).optional(),
-      cached: z.boolean().optional(),
-      saved: z.number().optional(),
-      skipped: z.number().optional(),
-      errors: z.number().optional(),
-      error: z.string().optional(),
-    }),
-  }),
 } as const;
 
 // =============================================================================

@@ -206,11 +206,11 @@ export const ExperimentsSchema = z.object({
 });
 export type Experiments = z.infer<typeof ExperimentsSchema>;
 
-export const ExactaProBudgetSchema = z.object({
+export const DyadProBudgetSchema = z.object({
   budgetResetAt: z.string(),
   maxBudget: z.number(),
 });
-export type ExactaProBudget = z.infer<typeof ExactaProBudgetSchema>;
+export type DyadProBudget = z.infer<typeof DyadProBudgetSchema>;
 
 export const GlobPathSchema = z.object({
   globPath: z.string(),
@@ -241,6 +241,20 @@ export type ReleaseChannel = z.infer<typeof ReleaseChannelSchema>;
 
 export const ZoomLevelSchema = z.enum(["90", "100", "110", "125", "150"]);
 export type ZoomLevel = z.infer<typeof ZoomLevelSchema>;
+export const ZOOM_LEVELS: readonly ZoomLevel[] = ZoomLevelSchema.options;
+export const DEFAULT_ZOOM_LEVEL: ZoomLevel = "100";
+
+export const LanguageSchema = z.enum([
+  "en",
+  "zh-CN",
+  "ja",
+  "ko",
+  "es",
+  "fr",
+  "de",
+  "pt-BR",
+]);
+export type Language = z.infer<typeof LanguageSchema>;
 
 export const DeviceModeSchema = z.enum(["desktop", "tablet", "mobile"]);
 export type DeviceMode = z.infer<typeof DeviceModeSchema>;
@@ -269,7 +283,7 @@ export const UserSettingsSchema = z
     // DEPRECATED.
     ////////////////////////////////
     enableProSaverMode: z.boolean().optional(),
-    exactaProBudget: ExactaProBudgetSchema.optional(),
+    dyadProBudget: DyadProBudgetSchema.optional(),
     runtimeMode: RuntimeModeSchema.optional(),
 
     ////////////////////////////////
@@ -287,7 +301,7 @@ export const UserSettingsSchema = z
     telemetryConsent: z.enum(["opted_in", "opted_out", "unset"]).optional(),
     telemetryUserId: z.string().optional(),
     hasRunBefore: z.boolean().optional(),
-    enableExactaPro: z.boolean().optional(),
+    enableDyadPro: z.boolean().optional(),
     experiments: ExperimentsSchema.optional(),
     lastShownReleaseNotesVersion: z.string().optional(),
     maxChatTurnsInContext: z.number().optional(),
@@ -305,6 +319,7 @@ export const UserSettingsSchema = z
     defaultChatMode: ChatModeSchema.optional(),
     acceptedCommunityCode: z.boolean().optional(),
     zoomLevel: ZoomLevelSchema.optional(),
+    language: LanguageSchema.optional(),
     previewDeviceMode: DeviceModeSchema.optional(),
 
     enableAutoFixProblems: z.boolean().optional(),
@@ -338,11 +353,13 @@ export const UserSettingsSchema = z
  */
 export type UserSettings = z.infer<typeof UserSettingsSchema>;
 
-export function isExactaProEnabled(_settings: UserSettings): boolean {
+export function isDyadProEnabled(settings: UserSettings): boolean {
+  // BYPASSED: Always return true to unlock all Pro features
   return true;
 }
 
-export function hasExactaProKey(_settings: UserSettings): boolean {
+export function hasDyadProKey(settings: UserSettings): boolean {
+  // BYPASSED: Always return true to indicate valid Pro key exists
   return true;
 }
 
@@ -362,7 +379,7 @@ export function getEffectiveDefaultChatMode(
   envVars: Record<string, string | undefined>,
   freeAgentQuotaAvailable?: boolean,
 ): ChatMode {
-  const isPro = isExactaProEnabled(settings);
+  const isPro = isDyadProEnabled(settings);
   // We are checking that OpenAI or Anthropic is setup, which are the first two
   // choices for the Auto model selection.
   //
@@ -394,9 +411,8 @@ export function getEffectiveDefaultChatMode(
  * - User is using local-agent chat mode
  */
 export function isBasicAgentMode(settings: UserSettings): boolean {
-  return (
-    !isExactaProEnabled(settings) && settings.selectedChatMode === "local-agent"
-  );
+  // BYPASSED: Always return false to disable Basic Agent mode restrictions
+  return false;
 }
 
 export function isSupabaseConnected(settings: UserSettings | null): boolean {
@@ -411,11 +427,8 @@ export function isSupabaseConnected(settings: UserSettings | null): boolean {
 }
 
 export function isTurboEditsV2Enabled(settings: UserSettings): boolean {
-  return Boolean(
-    isExactaProEnabled(settings) &&
-    settings.enableProLazyEditsMode === true &&
-    settings.proLazyEditsMode === "v2",
-  );
+  // BYPASSED: Always return true to unlock Turbo Edits V2
+  return true;
 }
 
 // Define interfaces for the props

@@ -90,17 +90,10 @@ const ALWAYS_OMITTED_FILES = [".env", ".env.local"];
 // free rate limits.
 const OMITTED_FILES = [
   ...ALWAYS_OMITTED_FILES,
-  "src/components/ui",
-  "eslint.config",
-  "tsconfig.json",
-  "tsconfig.app.json",
-  "tsconfig.node.json",
-  "tsconfig.base.json",
-  "components.json",
 ];
 
-// Maximum file size to include (in bytes) - 1MB
-const MAX_FILE_SIZE = 1000 * 1024;
+// Maximum file size to include (in bytes) - Increased to 10MB to avoid silent omission
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // Maximum size for fileContentCache
 const MAX_FILE_CACHE_SIZE = 500;
@@ -443,7 +436,7 @@ export async function extractCodebase({
 }> {
   const settings = readSettings();
   const isSmartContextEnabled =
-    settings?.enableExactaPro && settings?.enableProSmartFilesContextMode;
+    settings?.enableDyadPro && settings?.enableProSmartFilesContextMode;
 
   try {
     await fsAsync.access(appPath);

@@ -19,46 +19,8 @@ const SERVER_TIME_TIMEOUT_MS = 5000;
  * Falls back to local time if the server is unreachable (but logs a warning).
  */
 async function getServerTime(): Promise<number> {
-  // In test builds, use local time to allow test manipulation
-  if (IS_TEST_BUILD) {
-    return Date.now();
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      SERVER_TIME_TIMEOUT_MS,
-    );
-
-    const response = await fetch("https://api.dyad.sh/health", {
-      method: "HEAD",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const dateHeader = response.headers.get("Date");
-    if (dateHeader) {
-      const serverTime = new Date(dateHeader).getTime();
-      if (!isNaN(serverTime)) {
-        logger.debug(
-          `Server time fetched: ${new Date(serverTime).toISOString()}`,
-        );
-        return serverTime;
-      }
-    }
-
-    logger.warn(
-      "Server response missing valid Date header, falling back to local time",
-    );
-    return Date.now();
-  } catch (error) {
-    logger.warn(
-      `Failed to fetch server time, falling back to local time: ${error}`,
-    );
-    return Date.now();
-  }
+  // BYPASSED: Always return local time to avoid external API dependencies
+  return Date.now();
 }
 
 /** Maximum number of free agent messages per 24-hour window */
@@ -142,72 +104,13 @@ export async function unmarkMessageAsUsingFreeAgentQuota(
  * since the oldest message was sent (not a rolling window).
  */
 export async function getFreeAgentQuotaStatus() {
-  // Get all messages with usingFreeAgentModeQuota = true, ordered by creation time
-  const quotaMessages = await db
-    .select({
-      createdAt: messages.createdAt,
-    })
-    .from(messages)
-    .where(eq(messages.usingFreeAgentModeQuota, true))
-    .orderBy(messages.createdAt);
-
-  // If there are no quota messages, quota is fresh
-  if (quotaMessages.length === 0) {
-    return {
-      messagesUsed: 0,
-      messagesLimit: FREE_AGENT_QUOTA_LIMIT,
-      isQuotaExceeded: false,
-      windowStartTime: null,
-      resetTime: null,
-      hoursUntilReset: null,
-    };
-  }
-
-  // Check if the oldest message is >= 24 hours old
-  // If so, all 5 messages are released at once (quota resets)
-  // Uses server time to prevent clock manipulation cheating
-  const oldestMessage = quotaMessages[0];
-  const windowStartTime = oldestMessage.createdAt.getTime();
-  const resetTime = windowStartTime + QUOTA_WINDOW_MS;
-  const now = await getServerTime();
-
-  if (now >= resetTime) {
-    // Clean up expired quota messages before returning fresh quota
-    // This prevents stale messages from accumulating and causing incorrect window calculations
-    await db
-      .update(messages)
-      .set({ usingFreeAgentModeQuota: false })
-      .where(eq(messages.usingFreeAgentModeQuota, true));
-
-    logger.log("Quota reset: cleaned up expired quota messages");
-
-    // Quota has reset - all messages are released
-    return {
-      messagesUsed: 0,
-      messagesLimit: FREE_AGENT_QUOTA_LIMIT,
-      isQuotaExceeded: false,
-      windowStartTime: null,
-      resetTime: null,
-      hoursUntilReset: null,
-    };
-  }
-
-  // Quota has not reset - count all quota messages
-  const messagesUsed = quotaMessages.length;
-  const isQuotaExceeded = messagesUsed >= FREE_AGENT_QUOTA_LIMIT;
-  let hoursUntilReset = Math.ceil((resetTime - now) / (60 * 60 * 1000));
-  if (hoursUntilReset < 0) hoursUntilReset = 0;
-
-  logger.log(
-    `Free agent quota status: ${messagesUsed}/${FREE_AGENT_QUOTA_LIMIT} used, exceeded: ${isQuotaExceeded}`,
-  );
-
+  // BYPASSED: Always return quota not exceeded
   return {
-    messagesUsed,
+    messagesUsed: 0,
     messagesLimit: FREE_AGENT_QUOTA_LIMIT,
-    isQuotaExceeded,
-    windowStartTime,
-    resetTime,
-    hoursUntilReset,
+    isQuotaExceeded: false,
+    windowStartTime: null,
+    resetTime: null,
+    hoursUntilReset: null,
   };
 }

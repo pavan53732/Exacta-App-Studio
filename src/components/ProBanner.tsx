@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 // @ts-ignore
 import openAiLogo from "../../assets/ai-logos/openai-logo.svg";
 // @ts-ignore
@@ -10,35 +11,17 @@ import { ArrowUpRight, KeyRound, Wallet } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { hasExactaProKey } from "@/lib/schemas";
+import { hasDyadProKey } from "@/lib/schemas";
 import { useSettings } from "@/hooks/useSettings";
 
 export function ProBanner() {
-  const { settings } = useSettings();
-
-  const [selectedBanner] = useState<"ai" | "smart" | "turbo">(() => {
-    const options = ["ai", "smart", "turbo"] as const;
-    return options[Math.floor(Math.random() * options.length)];
-  });
-
-  if (settings && hasExactaProKey(settings)) {
-    return null;
-  }
-
-  return (
-    <div className="mt-6 max-w-2xl mx-auto">
-      {selectedBanner === "ai" ? (
-        <AiAccessBanner />
-      ) : selectedBanner === "smart" ? (
-        <SmartContextBanner />
-      ) : (
-        <TurboBanner />
-      )}
-    </div>
-  );
+  // BYPASSED: Always return null to hide Pro promotional banner
+  // All Pro features are now unlocked
+  return null;
 }
 
 export function ManageDyadProButton({ className }: { className?: string }) {
+  const { t } = useTranslation("home");
   return (
     <Button
       variant="outline"
@@ -52,13 +35,14 @@ export function ManageDyadProButton({ className }: { className?: string }) {
       }}
     >
       <Wallet aria-hidden="true" className="w-5 h-5" />
-      Manage Pro Subscription
+      {t("proBanner.manageDyadPro")}
       <ArrowUpRight aria-hidden="true" className="w-5 h-5" />
     </Button>
   );
 }
 
 export function SetupDyadProButton() {
+  const { t } = useTranslation("home");
   return (
     <Button
       variant="outline"
@@ -69,12 +53,13 @@ export function SetupDyadProButton() {
       }}
     >
       <KeyRound aria-hidden="true" />
-      Already have a Pro key? Add your key
+      {t("proBanner.alreadyHavePro")}
     </Button>
   );
 }
 
 export function AiAccessBanner() {
+  const { t } = useTranslation("home");
   return (
     <div
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-white via-indigo-50 to-sky-100 dark:from-indigo-700 dark:via-indigo-700 dark:to-indigo-900 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-black/5 dark:ring-white/10 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
@@ -95,14 +80,14 @@ export function AiAccessBanner() {
       <div className="relative z-10 text-center flex flex-col items-center gap-0.5 sm:gap-1 md:gap-1.5 px-4 md:px-6 pr-6 md:pr-8">
         <div className="mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3 justify-center">
           <div className="text-xl font-semibold tracking-tight text-indigo-900 dark:text-indigo-100">
-            Access leading AI models with one plan
+            {t("proBanner.accessLeadingModels")}
           </div>
           <button
             type="button"
-            aria-label="Subscribe to Pro"
+            aria-label="Subscribe to Dyad Pro"
             className="inline-flex items-center rounded-md bg-white/90 text-indigo-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
-            Get Pro
+            {t("proBanner.getDyadPro")}
           </button>
         </div>
 
@@ -141,6 +126,7 @@ export function AiAccessBanner() {
 }
 
 export function SmartContextBanner() {
+  const { t } = useTranslation("home");
   return (
     <div
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 dark:from-emerald-700 dark:via-emerald-700 dark:to-emerald-900 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-emerald-900/10 dark:ring-white/10 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
@@ -162,18 +148,18 @@ export function SmartContextBanner() {
         <div className="mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3 justify-center">
           <div className="flex flex-col items-center text-center">
             <div className="text-xl font-semibold tracking-tight text-emerald-900 dark:text-emerald-100">
-              Up to 3x cheaper
+              {t("proBanner.upTo3xCheaper")}
             </div>
             <div className="text-sm sm:text-base mt-1 text-emerald-700 dark:text-emerald-200/80">
-              by using Smart Context
+              {t("proBanner.byUsingSmartContext")}
             </div>
           </div>
           <button
             type="button"
-            aria-label="Get Pro"
+            aria-label="Get Dyad Pro"
             className="inline-flex items-center rounded-md bg-white/90 text-emerald-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
-            Get Pro
+            {t("proBanner.getDyadPro")}
           </button>
         </div>
       </div>
@@ -182,6 +168,7 @@ export function SmartContextBanner() {
 }
 
 export function TurboBanner() {
+  const { t } = useTranslation("home");
   return (
     <div
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-rose-50 via-rose-100 to-rose-200 dark:from-rose-800 dark:via-fuchsia-800 dark:to-rose-800 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-rose-900/10 dark:ring-white/5 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
@@ -203,18 +190,18 @@ export function TurboBanner() {
         <div className="mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3 justify-center">
           <div className="flex flex-col items-center text-center">
             <div className="text-xl font-semibold tracking-tight text-rose-900 dark:text-rose-100">
-              Generate code 4–10x faster
+              {t("proBanner.generateCode4x")}
             </div>
             <div className="text-sm sm:text-base mt-1 text-rose-700 dark:text-rose-200/80">
-              with Turbo Models & Turbo Edits
+              {t("proBanner.withTurboModels")}
             </div>
           </div>
           <button
             type="button"
-            aria-label="Get Pro"
+            aria-label="Get Dyad Pro"
             className="inline-flex items-center rounded-md bg-white/90 text-rose-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
-            Get Pro
+            {t("proBanner.getDyadPro")}
           </button>
         </div>
       </div>

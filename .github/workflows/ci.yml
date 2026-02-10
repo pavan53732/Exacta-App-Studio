@@ -6,17 +6,9 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened, closed]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number for CI re-run (used by pr-review-responder)"
-        required: true
-        type: string
 
 concurrency:
-  # Use PR number for pull_request/workflow_dispatch events to enable proper per-PR cancellation
-  # For workflow_dispatch, inputs.pr_number ensures different PRs don't cancel each other
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -30,42 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_run_tests: ${{ steps.check.outputs.should_run_tests }}
-      pr_head_ref: ${{ steps.pr-info.outputs.head_ref }}
-      pr_head_repo: ${{ steps.pr-info.outputs.head_repo }}
       build_os: ${{ steps.matrix.outputs.build_os }}
       e2e_os: ${{ steps.matrix.outputs.e2e_os }}
       e2e_shard: ${{ steps.matrix.outputs.e2e_shard }}
       e2e_shard_total: ${{ steps.matrix.outputs.e2e_shard_total }}
     steps:
-      - name: Get PR info for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
-        id: pr-info
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_DATA=$(gh pr view "${{ inputs.pr_number }}" --repo "${{ github.repository }}" --json headRefName,headRepository,headRepositoryOwner) || {
-            echo "::error::Failed to fetch PR info for PR #${{ inputs.pr_number }}"
-            exit 1
-          }
-          echo "head_ref=$(echo "$PR_DATA" | jq -r '.headRefName')" >> $GITHUB_OUTPUT
-          echo "head_repo=$(echo "$PR_DATA" | jq -r '.headRepositoryOwner.login + "/" + .headRepository.name')" >> $GITHUB_OUTPUT
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: ${{ steps.pr-info.outputs.head_repo || github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ steps.pr-info.outputs.head_ref || github.event.pull_request.head.ref || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || '' }}
           fetch-depth: 0
       - name: Check if only .claude files changed
         id: check
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Always run tests for manual workflow dispatch (e.g., from pr-review-responder)
-            echo "should_run_tests=true" >> $GITHUB_OUTPUT
-            echo "Running tests: manual workflow dispatch"
-            exit 0
-          fi
-
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             # Always run tests on pushes to main
             echo "should_run_tests=true" >> $GITHUB_OUTPUT
@@ -94,16 +64,16 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Check if all changed files are in .claude directory
-          NON_CLAUDE_FILES=$(echo "$CHANGED_FILES" | grep -v "^\.claude/" || true)
+          # Check if all changed files are in config-only directories (.claude, rules)
+          NON_CONFIG_FILES=$(echo "$CHANGED_FILES" | grep -v "^\.claude/" | grep -v "^rules/" || true)
 
-          if [ -z "$NON_CLAUDE_FILES" ]; then
+          if [ -z "$NON_CONFIG_FILES" ]; then
             echo "should_run_tests=false" >> $GITHUB_OUTPUT
-            echo "Skipping tests: all changed files are in .claude/"
+            echo "Skipping tests: all changed files are in .claude/ or rules/"
           else
             echo "should_run_tests=true" >> $GITHUB_OUTPUT
-            echo "Running tests: found non-.claude files:"
-            echo "$NON_CLAUDE_FILES"
+            echo "Running tests: found files outside .claude/ and rules/:"
+            echo "$NON_CONFIG_FILES"
           fi
 
       - name: Detect privileged author
@@ -114,8 +84,6 @@ jobs:
           AUTHOR=""
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             AUTHOR="${{ github.event.pull_request.user.login }}"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
-            AUTHOR=$(gh pr view "${{ inputs.pr_number }}" --repo "${{ github.repository }}" --json author --jq '.author.login') || true
           fi
           echo "Author: $AUTHOR"
           if [ "$AUTHOR" = "wwwillchen" ] || [ "$AUTHOR" = "wwwillchen-bot" ]; then
@@ -149,8 +117,8 @@ jobs:
           if [ "${{ steps.author-check.outputs.is_privileged }}" = "true" ]; then
             echo 'build_os=[{"name":"macos","image":"[\"self-hosted\",\"macOS\",\"ARM64\"]"}]' >> $GITHUB_OUTPUT
             echo 'e2e_os=[{"name":"macos","image":"[\"self-hosted\",\"macOS\",\"ARM64\"]"}]' >> $GITHUB_OUTPUT
-            echo 'e2e_shard=[1]' >> $GITHUB_OUTPUT
-            echo 'e2e_shard_total=[1]' >> $GITHUB_OUTPUT
+            echo 'e2e_shard=[1,2]' >> $GITHUB_OUTPUT
+            echo 'e2e_shard_total=[2]' >> $GITHUB_OUTPUT
           else
             echo 'build_os=[{"name":"windows","image":"[\"windows-latest\"]"},{"name":"macos","image":"[\"macos-latest\"]"}]' >> $GITHUB_OUTPUT
             echo 'e2e_os=[{"name":"windows","image":"[\"windows-latest\"]"},{"name":"macos","image":"[\"macos-latest\"]"}]' >> $GITHUB_OUTPUT
@@ -174,8 +142,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: ${{ needs.check-changes.outputs.pr_head_repo || github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ needs.check-changes.outputs.pr_head_ref || github.event.pull_request.head.ref || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || '' }}
       - name: Initialize environment
         uses: actions/setup-node@v4
         with:
@@ -244,8 +212,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: ${{ needs.check-changes.outputs.pr_head_repo || github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ needs.check-changes.outputs.pr_head_ref || github.event.pull_request.head.ref || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || '' }}
       - name: Initialize environment
         uses: actions/setup-node@v4
         with:
@@ -295,6 +263,8 @@ jobs:
           FLAKINESS_ACCESS_TOKEN: ${{ secrets.FLAKINESS_ACCESS_TOKEN }}
           # Self-hosted macOS runners can handle more parallelism
           PLAYWRIGHT_PARALLELISM: ${{ contains(matrix.os.image, 'self-hosted') && '3' || '1' }}
+          # Self-hosted macOS runners use fewer retries (1) vs GitHub-hosted CI (2)
+          PLAYWRIGHT_RETRIES: ${{ contains(matrix.os.image, 'self-hosted') && '1' || '2' }}
         # You can add debug logging to make it easier to see what's failing
         # by adding "DEBUG=pw:browser" in front.
         # Use blob reporter for sharding and merge capabilities
@@ -321,8 +291,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ needs.check-changes.outputs.pr_head_repo || github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ needs.check-changes.outputs.pr_head_ref || github.event.pull_request.head.ref || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || '' }}
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -359,16 +329,15 @@ jobs:
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
-          name: html-report--attempt-${{ github.run_attempt }}
+          name: html-report
           path: playwright-report
           retention-days: 3
+          overwrite: true
 
       - name: Generate Playwright summary
         uses: actions/github-script@v7
         env:
           PLAYWRIGHT_RUN_ID: ${{ github.run_id }}
-          # Pass PR number for workflow_dispatch triggers (from pr-review-responder)
-          PR_NUMBER: ${{ inputs.pr_number }}
         with:
           script: |
             const { run } = require('./scripts/generate-playwright-summary.js');
