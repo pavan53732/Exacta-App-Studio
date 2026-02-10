@@ -78,40 +78,27 @@ export function ProModeSelector() {
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-primary font-medium text-xs-sm">Pro</span>
         </TooltipTrigger>
-        <TooltipContent>Configure Dyad Pro settings</TooltipContent>
+        <TooltipContent>Configure extra features</TooltipContent>
       </Tooltip>
       <PopoverContent className="w-80 border-primary/20">
         <div className="space-y-4">
           <div className="space-y-1">
             <h4 className="font-medium flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-primary font-medium">Dyad Pro</span>
+              <span className="text-primary font-medium">Extra Features</span>
             </h4>
             <div className="h-px bg-gradient-to-r from-primary/50 via-primary/20 to-transparent" />
           </div>
-          {!hasProKey && (
-            <div className="text-sm text-center text-muted-foreground">
-              <a
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary shadow-sm transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                onClick={() => {
-                  ipc.system.openExternalUrl("https://dyad.sh/pro#ai");
-                }}
-                title="Visit dyad.sh/pro to unlock Pro features"
-              >
-                Unlock Pro modes
-              </a>
-            </div>
-          )}
           <div className="flex flex-col gap-3">
             <SelectorRow
               id="pro-enabled"
-              label="Enable Dyad Pro"
-              tooltip="Uses Dyad Pro AI credits for the main AI model and Pro modes."
+              label="Enable Enhanced Mode"
+              tooltip="Enables advanced AI capabilities and Pro features."
               isTogglable={hasProKey}
               settingEnabled={Boolean(settings?.enableDyadPro)}
               toggle={toggleProEnabled}
             />
-            <Accordion>
+            <Accordion type="single" collapsible>
               <AccordionItem
                 value="build-mode-settings"
                 className="rounded-lg border border-border/60 bg-muted/30 px-3 border-b-0"
@@ -124,7 +111,7 @@ export function ProModeSelector() {
                     <SelectorRow
                       id="web-search"
                       label="Web Access"
-                      tooltip="Allows Dyad to access the web (e.g. search for information)"
+                      tooltip="Allows the agent to access the web"
                       isTogglable={proModeTogglable}
                       settingEnabled={Boolean(settings?.enableProWebSearch)}
                       toggle={toggleWebSearch}

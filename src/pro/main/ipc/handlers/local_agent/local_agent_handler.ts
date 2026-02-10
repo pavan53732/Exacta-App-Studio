@@ -152,7 +152,7 @@ export async function handleLocalAgentStream(
     safeSend(event.sender, "chat:response:error", {
       chatId: req.chatId,
       error:
-        "Agent v2 requires Dyad Pro. Please enable Dyad Pro in Settings → Pro.",
+        "Dyad engine setup required. Please configure the engine in Settings.",
     });
     return false;
   }

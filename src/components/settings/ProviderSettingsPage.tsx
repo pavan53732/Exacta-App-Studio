@@ -6,7 +6,7 @@ import { useLanguageModelProviders } from "@/hooks/useLanguageModelProviders";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {} from "@/components/ui/accordion";
+import { } from "@/components/ui/accordion";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -125,7 +125,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     setIsSaving(true);
     setSaveError(null);
     try {
-      // Check if this is the first time user is setting up Dyad Pro
+      // Check if this is the first time user is setting up Enhanced Mode
       const isNewDyadProSetup = isDyad && settings && !hasDyadProKey(settings);
 
       const settingsUpdate: Partial<UserSettings> = {
@@ -180,7 +180,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
     }
   };
 
-  // --- Toggle Dyad Pro Handler ---
+  // --- Toggle Enhanced Mode Handler ---
   const handleToggleDyadPro = async (enabled: boolean) => {
     setIsSaving(true);
     try {
@@ -188,7 +188,7 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
         enableDyadPro: enabled,
       });
     } catch (error: any) {
-      showError(`Error toggling Dyad Pro: ${error}`);
+      showError(`Error toggling Enhanced Mode: ${error}`);
     } finally {
       setIsSaving(false);
     }
@@ -320,13 +320,13 @@ export function ProviderSettingsPage({ provider }: ProviderSettingsPageProps) {
         {isDyad && !settingsLoading && (
           <div className="mt-6 flex items-center justify-between p-4 bg-(--background-lightest) rounded-lg border">
             <div>
-              <h3 className="font-medium">Enable Dyad Pro</h3>
+              <h3 className="font-medium">Enable Enhanced Mode</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Toggle to enable Dyad Pro
+                Toggle to enable advanced capabilities.
               </p>
             </div>
             <Switch
-              aria-label="Enable Dyad Pro"
+              aria-label="Enable Enhanced Mode"
               checked={settings?.enableDyadPro}
               onCheckedChange={handleToggleDyadPro}
               disabled={isSaving}

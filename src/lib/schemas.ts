@@ -411,7 +411,7 @@ export function getEffectiveDefaultChatMode(
  * - User is using local-agent chat mode
  */
 export function isBasicAgentMode(settings: UserSettings): boolean {
-  // BYPASSED: Always return false to disable Basic Agent mode restrictions
+  // BYPASSED: Always return false to avoid restricted basic agent mode
   return false;
 }
 
@@ -421,8 +421,8 @@ export function isSupabaseConnected(settings: UserSettings | null): boolean {
   }
   return Boolean(
     settings.supabase?.accessToken ||
-    (settings.supabase?.organizations &&
-      Object.keys(settings.supabase.organizations).length > 0),
+      (settings.supabase?.organizations &&
+        Object.keys(settings.supabase.organizations).length > 0),
   );
 }
 

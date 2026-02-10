@@ -31,7 +31,7 @@ export function ManageDyadProButton({ className }: { className?: string }) {
         className,
       )}
       onClick={() => {
-        ipc.system.openExternalUrl("https://academy.dyad.sh/subscription");
+        ipc.system.openExternalUrl("https://academy.Dyad.sh/subscription");
       }}
     >
       <Wallet aria-hidden="true" className="w-5 h-5" />
@@ -49,7 +49,7 @@ export function SetupDyadProButton() {
       size="lg"
       className="cursor-pointer w-full bg-(--background-lighter) text-primary"
       onClick={() => {
-        ipc.system.openExternalUrl("https://academy.dyad.sh/settings");
+        ipc.system.openExternalUrl("https://academy.Dyad.sh/settings");
       }}
     >
       <KeyRound aria-hidden="true" />
@@ -65,7 +65,7 @@ export function AiAccessBanner() {
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-white via-indigo-50 to-sky-100 dark:from-indigo-700 dark:via-indigo-700 dark:to-indigo-900 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-black/5 dark:ring-white/10 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
       onClick={() => {
         ipc.system.openExternalUrl(
-          "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=in-app-banner-ai-access",
+          "https://www.Dyad.sh/pro?utm_source=Dyad-app&utm_medium=app&utm_campaign=in-app-banner-ai-access",
         );
       }}
     >
@@ -84,7 +84,7 @@ export function AiAccessBanner() {
           </div>
           <button
             type="button"
-            aria-label="Subscribe to Dyad Pro"
+            aria-label="Subscribe to Dyad"
             className="inline-flex items-center rounded-md bg-white/90 text-indigo-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
             {t("proBanner.getDyadPro")}
@@ -132,7 +132,7 @@ export function SmartContextBanner() {
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 dark:from-emerald-700 dark:via-emerald-700 dark:to-emerald-900 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-emerald-900/10 dark:ring-white/10 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
       onClick={() => {
         ipc.system.openExternalUrl(
-          "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=in-app-banner-smart-context",
+          "https://www.Dyad.sh/pro?utm_source=Dyad-app&utm_medium=app&utm_campaign=in-app-banner-smart-context",
         );
       }}
     >
@@ -156,7 +156,7 @@ export function SmartContextBanner() {
           </div>
           <button
             type="button"
-            aria-label="Get Dyad Pro"
+            aria-label="Get Dyad"
             className="inline-flex items-center rounded-md bg-white/90 text-emerald-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
             {t("proBanner.getDyadPro")}
@@ -174,7 +174,7 @@ export function TurboBanner() {
       className="w-full py-2 sm:py-2.5 md:py-3 rounded-lg bg-gradient-to-br from-rose-50 via-rose-100 to-rose-200 dark:from-rose-800 dark:via-fuchsia-800 dark:to-rose-800 flex items-center justify-center relative overflow-hidden ring-1 ring-inset ring-rose-900/10 dark:ring-white/5 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
       onClick={() => {
         ipc.system.openExternalUrl(
-          "https://www.dyad.sh/pro?utm_source=dyad-app&utm_medium=app&utm_campaign=in-app-banner-turbo",
+          "https://www.Dyad.sh/pro?utm_source=Dyad-app&utm_medium=app&utm_campaign=in-app-banner-turbo",
         );
       }}
     >
@@ -198,7 +198,7 @@ export function TurboBanner() {
           </div>
           <button
             type="button"
-            aria-label="Get Dyad Pro"
+            aria-label="Get Dyad"
             className="inline-flex items-center rounded-md bg-white/90 text-rose-800 hover:bg-white shadow px-3 py-1.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
           >
             {t("proBanner.getDyadPro")}

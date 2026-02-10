@@ -18,7 +18,7 @@
   "selectingFolder": "Selecionando pasta...",
   "selectedFolder": "Pasta selecionada:",
   "clearSelection": "Limpar seleção",
-  "copyToDyadApps": "Copiar para a pasta dyad-apps",
+  "copyToDyadApps": "Copiar para a pasta Dyad-apps",
   "appNameExists": "Já existe um app com este nome. Escolha um nome diferente:",
   "appName": "Nome do app",
   "appNameOptional": "Nome do app (opcional)",
@@ -59,10 +59,10 @@
   "deleteItemTitle": "Excluir {{itemType}}",
   "deleteItemConfirmation": "Tem certeza de que deseja excluir \"{{itemName}}\"? Esta ação não pode ser desfeita.",
   "proBanner": {
-    "manageDyadPro": "Gerenciar Dyad Pro",
-    "alreadyHavePro": "Já tem o Dyad Pro? Adicione sua chave",
+    "manageDyadPro": "Gerenciar Dyad",
+    "alreadyHavePro": "Já tem o Dyad? Adicione sua chave",
     "accessLeadingModels": "Acesse os melhores modelos de IA com um único plano",
-    "getDyadPro": "Obtenha o Dyad Pro",
+    "getDyadPro": "Obtenha o Dyad",
     "upTo3xCheaper": "Até 3x mais barato",
     "byUsingSmartContext": "usando o Contexto Inteligente",
     "generateCode4x": "Gere código 4-10x mais rápido",
@@ -90,7 +90,7 @@
     "notSureWatchVideo": "Não sabe o que fazer? Assista ao vídeo de introdução acima",
     "setupGeminiApiKey": "Configurar Chave de API do Google Gemini",
     "setupOpenRouterApiKey": "Configurar Chave de API do OpenRouter",
-    "setupDyadPro": "Configurar Dyad Pro",
+    "setupDyadPro": "Configurar Dyad",
     "accessAllModels": "Acesse todos os modelos de IA com um único plano",
     "setupOtherProviders": "Configurar outros provedores",
     "openAiAnthropicMore": "OpenAI, Anthropic e mais",
@@ -167,7 +167,7 @@
     "assistant": "Assistente",
     "codebaseSnapshot": "Snapshot da Base de Código",
     "systemInformation": "Informações do Sistema",
-    "dyadVersion": "Versão do Dyad:",
+    "DyadVersion": "Versão do Dyad:",
     "platform": "Plataforma:",
     "architecture": "Arquitetura:",
     "nodeVersion": "Versão do Node:",
@@ -330,8 +330,8 @@
       "addToChat": "Adicionar ao Chat",
       "closeAnnotator": "Fechar Anotador",
       "proFeatureTitle": "O Anotador é um Recurso Pro",
-      "proFeatureDescription": "Desbloqueie a capacidade de anotar capturas de tela e aprimore seu fluxo de trabalho com o Dyad Pro.",
-      "getDyadPro": "Obtenha o Dyad Pro"
+      "proFeatureDescription": "Desbloqueie a capacidade de anotar capturas de tela e aprimore seu fluxo de trabalho com o Dyad.",
+      "getDyadPro": "Obtenha o Dyad"
     }
   },
   "integrations": {

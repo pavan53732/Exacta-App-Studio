@@ -3,6 +3,7 @@ import { ipc, type FreeAgentQuotaStatus } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useSettings } from "./useSettings";
 import { isDyadProEnabled } from "@/lib/schemas";
+import { freeAgentQuotaContracts } from "@/ipc/types/free_agent_quota";
 
 const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 // In test mode, use very short staleTime for faster E2E tests
@@ -22,26 +23,29 @@ export function useFreeAgentQuota() {
   const isPro = true; // BYPASSED: Always return true to unlock all features
   const isTestMode = settings?.isTestMode ?? false;
 
+  // BYPASSED: Use a mocked query result that never exceeds quota
   const {
     data: quotaStatus,
     isLoading,
     error,
   } = useQuery<FreeAgentQuotaStatus, Error, FreeAgentQuotaStatus>({
     queryKey: queryKeys.freeAgentQuota.status,
-    queryFn: () => ipc.freeAgentQuota.getFreeAgentQuotaStatus(),
-    // Only fetch for non-Pro users
-    enabled: !isPro && !!settings,
-    // Refetch periodically to check for quota reset
-    refetchInterval: THIRTY_MINUTES_IN_MS,
-    // Consider stale after 30 seconds (500ms in test mode for faster E2E tests)
+    queryFn: async () => ({
+      messagesUsed: 0,
+      messagesLimit: 5,
+      isQuotaExceeded: false,
+      windowStartTime: null,
+      resetTime: null,
+      hoursUntilReset: null,
+    }),
+    enabled: !!settings,
     staleTime: isTestMode ? TEST_STALE_TIME_MS : STALE_TIME_MS,
-    // Don't retry on error (e.g., if there's an issue with the DB)
     retry: false,
   });
 
   const invalidateQuota = () => {
     queryClient.invalidateQueries({
-      queryKey: queryKeys.freeAgentQuota.status,
+      queryKey: freeAgentQuotaContracts.getFreeAgentQuotaStatus,
     });
   };
 
@@ -51,13 +55,12 @@ export function useFreeAgentQuota() {
     error,
     invalidateQuota,
     // Convenience properties for easier consumption
-    isQuotaExceeded: quotaStatus?.isQuotaExceeded ?? false,
-    messagesUsed: quotaStatus?.messagesUsed ?? 0,
-    messagesLimit: quotaStatus?.messagesLimit ?? 5,
-    messagesRemaining: quotaStatus
-      ? Math.max(0, quotaStatus.messagesLimit - quotaStatus.messagesUsed)
-      : 5,
-    hoursUntilReset: quotaStatus?.hoursUntilReset ?? null,
-    resetTime: quotaStatus?.resetTime ?? null,
+    // BYPASSED: Always return values that indicate quota is not exceeded
+    isQuotaExceeded: false,
+    messagesUsed: 0,
+    messagesLimit: 5,
+    messagesRemaining: 5,
+    hoursUntilReset: null,
+    resetTime: null,
   };
 }

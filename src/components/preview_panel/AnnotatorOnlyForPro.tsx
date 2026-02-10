@@ -7,7 +7,7 @@ interface AnnotatorOnlyForProProps {
 }
 
 export const AnnotatorOnlyForPro = ({ onGoBack }: AnnotatorOnlyForProProps) => {
-  const handleGetPro = () => {
+  const handleEnableEnhancedMode = () => {
     ipc.system.openExternalUrl("https://dyad.sh/pro");
   };
 
@@ -32,21 +32,20 @@ export const AnnotatorOnlyForPro = ({ onGoBack }: AnnotatorOnlyForProProps) => {
 
         {/* Message */}
         <h2 className="text-3xl font-semibold text-foreground mb-4 text-center">
-          Annotator is a Pro Feature
+          Enhanced Mode Feature
         </h2>
         <p className="text-muted-foreground mb-10 text-center max-w-md text-base leading-relaxed">
-          Unlock the ability to annotate screenshots and enhance your workflow
-          with Dyad Pro.
+          Advanced element detection and attribute editing is available
+          with Enhanced Mode.
         </p>
-
-        {/* Get Pro Button */}
-        <Button
-          onClick={handleGetPro}
-          size="lg"
-          className="px-8 shadow-md hover:shadow-lg transition-all"
-        >
-          Get Dyad Pro
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" onClick={onGoBack}>
+            Go Back
+          </Button>
+          <Button onClick={handleEnableEnhancedMode}>
+            Enable Enhanced Mode
+          </Button>
+        </div>
       </div>
     </div>
   );
