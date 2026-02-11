@@ -1,0 +1,16 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Dyad.Guardian -> C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian\bin\Debug\net8.0-windows\win-x64\Dyad.Guardian.dll
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\FirewallWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\JobObjectsWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\TokensWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+
+Build FAILED.
+
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\FirewallWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\JobObjectsWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\TokensWindow.xaml(1,9): error MC3074: The tag 'Window' does not exist in XML namespace 'http://schemas.microsoft.com/winfx/2003/xaml/presentation'. Line 1 Position 9. [C:\Users\pavan\PROJECTS\Exacta-App-Studio\native\Dyad.Guardian.UI\Dyad.Guardian.UI.csproj]
+    0 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:01.64

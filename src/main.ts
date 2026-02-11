@@ -32,8 +32,68 @@ import { cleanupOldAiMessagesJson } from "./pro/main/ipc/handlers/local_agent/ai
 import fs from "fs";
 import { gitAddSafeDirectory } from "./ipc/utils/git_utils";
 import { getDyadAppsBaseDirectory } from "./paths/paths";
+import { spawn, ChildProcess } from "child_process";
 
 log.errorHandler.startCatching();
+
+// Guardian service process
+let guardianProcess: ChildProcess | null = null;
+
+/**
+ * Start the Guardian service process
+ */
+function startGuardianService(): void {
+  // Only start on Windows
+  if (process.platform !== "win32") {
+    logger.log("Guardian service is Windows-only, skipping");
+    return;
+  }
+
+  const guardianPath = app.isPackaged
+    ? path.join(process.resourcesPath, "guardian", "Dyad.Guardian.exe")
+    : path.join(app.getAppPath(), "native", "Dyad.Guardian", "bin", "Debug", "net8.0-windows", "win-x64", "Dyad.Guardian.exe");
+
+  if (!fs.existsSync(guardianPath)) {
+    logger.warn("Guardian executable not found at:", guardianPath);
+    return;
+  }
+
+  logger.log("Starting Guardian service:", guardianPath);
+
+  guardianProcess = spawn(guardianPath, [], {
+    detached: false,
+    windowsHide: true, // Hide console window
+  });
+
+  guardianProcess.stdout?.on("data", (data) => {
+    logger.log("[Guardian]", data.toString().trim());
+  });
+
+  guardianProcess.stderr?.on("data", (data) => {
+    logger.error("[Guardian Error]", data.toString().trim());
+  });
+
+  guardianProcess.on("exit", (code) => {
+    logger.log("Guardian service exited with code:", code);
+    guardianProcess = null;
+  });
+
+  guardianProcess.on("error", (err) => {
+    logger.error("Failed to start Guardian service:", err);
+    guardianProcess = null;
+  });
+}
+
+/**
+ * Stop the Guardian service process
+ */
+function stopGuardianService(): void {
+  if (guardianProcess) {
+    logger.log("Stopping Guardian service");
+    guardianProcess.kill();
+    guardianProcess = null;
+  }
+}
 log.eventLogger.startLogging();
 log.scope.labelPadding = false;
 
@@ -119,6 +179,9 @@ export async function onReady() {
 
   // Start performance monitoring
   startPerformanceMonitoring();
+
+  // Start Guardian security service (Windows only)
+  startGuardianService();
 
   await onFirstRunMaybe(settings);
   createWindow();

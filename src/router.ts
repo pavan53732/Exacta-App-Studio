@@ -9,6 +9,8 @@ import { hubRoute } from "./routes/hub";
 import { libraryRoute } from "./routes/library";
 import { themesRoute } from "./routes/themes";
 
+import { guardianRoute } from "./routes/guardian";
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   hubRoute,
@@ -16,6 +18,7 @@ const routeTree = rootRoute.addChildren([
   themesRoute,
   chatRoute,
   appDetailsRoute,
+  guardianRoute,
   settingsRoute.addChildren([providerSettingsRoute]),
 ]);
 

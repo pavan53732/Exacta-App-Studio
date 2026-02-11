@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  
+  <Package Name="Dyad Guardian Service" 
+           Language="1033" 
+           Version="1.0.0" 
+           Manufacturer="Dyad Technologies" 
+           UpgradeCode="a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+           Scope="perMachine">
+    
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Dyad Guardian is already installed." />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="Dyad Guardian" Level="1">
+      <ComponentGroupRef Id="ServiceComponents" />
+      <ComponentGroupRef Id="DashboardComponents" />
+      <ComponentGroupRef Id="ServiceRegistration" />
+    </Feature>
+
+    <!-- Installation Directory -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Dyad Guardian">
+        <Directory Id="SERVICEFOLDER" Name="Service" />
+        <Directory Id="DASHBOARDFOLDER" Name="Dashboard" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Components for Service -->
+    <ComponentGroup Id="ServiceComponents" Directory="SERVICEFOLDER">
+      <Component Id="ServiceExecutable" Guid="b2c3d4e5-f6a7-8901-bcde-f23456789012">
+        <File Id="DyadGuardianExe" 
+              Source="$(var.Dyad.Guardian.TargetDir)publish\Dyad.Guardian.exe" 
+              KeyPath="yes" />
+        <File Id="DyadGuardianDll" 
+              Source="$(var.Dyad.Guardian.TargetDir)publish\Dyad.Guardian.dll" />
+        <File Id="NewtonsoftJsonDll" 
+              Source="$(var.Dyad.Guardian.TargetDir)publish\Newtonsoft.Json.dll" />
+        <File Id="MicrosoftExtensionsLoggingDll" 
+              Source="$(var.Dyad.Guardian.TargetDir)publish\Microsoft.Extensions.Logging.Abstractions.dll" />
+        <File Id="MicrosoftIdentityModelTokensDll"
+              Source="$(var.Dyad.Guardian.TargetDir)publish\Microsoft.IdentityModel.Tokens.dll" />
+        <File Id="SystemIdentityModelTokensJwtDll"
+              Source="$(var.Dyad.Guardian.TargetDir)publish\System.IdentityModel.Tokens.Jwt.dll" />
+        <File Id="AppsettingsJson"
+              Source="$(var.Dyad.Guardian.ProjectDir)appsettings.json" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Components for Dashboard -->
+    <ComponentGroup Id="DashboardComponents" Directory="DASHBOARDFOLDER">
+      <Component Id="DashboardExecutable" Guid="c3d4e5f6-a7b8-9012-cdef-345678901234">
+        <File Id="DyadGuardianUIExe" 
+              Source="$(var.Dyad.Guardian.UI.TargetDir)Dyad.Guardian.UI.exe" 
+              KeyPath="yes" />
+        <File Id="DyadGuardianUIDll" 
+              Source="$(var.Dyad.Guardian.UI.TargetDir)Dyad.Guardian.UI.dll" />
+        <Shortcut Id="DashboardShortcut" 
+                  Name="Dyad Guardian Dashboard" 
+                  Directory="ProgramMenuFolder" 
+                  WorkingDirectory="DASHBOARDFOLDER"
+                  Icon="DashboardIcon.ico" />
+        <Shortcut Id="DesktopShortcut" 
+                  Name="Dyad Guardian Dashboard" 
+                  Directory="DesktopFolder" 
+                  WorkingDirectory="DASHBOARDFOLDER"
+                  Icon="DashboardIcon.ico" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Windows Service Registration -->
+    <ComponentGroup Id="ServiceRegistration" Directory="SERVICEFOLDER">
+      <Component Id="ServiceInstaller" Guid="d4e5f6a7-b8c9-0123-defa-456789012345">
+        <ServiceInstall Id="DyadGuardianService"
+                        Name="DyadGuardian"
+                        DisplayName="Dyad Guardian Service"
+                        Description="Provides process isolation, capability tokens, and network filtering for Dyad applications."
+                        Start="auto"
+                        Type="ownProcess"
+                        ErrorControl="normal"
+                        Account="NT AUTHORITY\LocalSystem"
+                        Arguments="--service"
+                        Vital="yes">
+          <ServiceDependency Id="RpcSs" />
+        </ServiceInstall>
+        <ServiceControl Id="StartService" 
+                        Start="install" 
+                        Stop="both" 
+                        Remove="uninstall" 
+                        Name="DyadGuardian" 
+                        Wait="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Custom Actions for Elevation -->
+    <Property Id="WIX_ACCOUNT_LOCALSYSTEM" Value="NT AUTHORITY\LocalSystem" />
+    
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    
+    <!-- Icons -->
+    <Icon Id="DashboardIcon.ico" SourceFile="../Dyad.Guardian.UI/Assets/app.ico" />
+    
+    <!-- Custom Action to configure service on install -->
+    <CustomAction Id="ConfigureService" 
+                  Directory="SERVICEFOLDER" 
+                  ExeCommand="[SERVICEFOLDER]Dyad.Guardian.exe --install" 
+                  Execute="deferred" 
+                  Impersonate="no" 
+                  Return="check" />
+    
+    <InstallExecuteSequence>
+      <Custom Action="ConfigureService" After="InstallFiles">
+        <![CDATA[NOT Installed]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+  </Package>
+</Wix>

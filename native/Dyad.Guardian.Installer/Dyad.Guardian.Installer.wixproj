@@ -1,0 +1,19 @@
+<Project Sdk="WixToolset.Sdk/4.0.2">
+  <PropertyGroup>
+    <OutputName>DyadGuardianSetup</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <Configurations>Debug;Release</Configurations>
+    <DefineConstants>$(DefineConstants);Version=1.0.0</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.2" />
+    <PackageReference Include="WixToolset.Firewall.wixext" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Dyad.Guardian/Dyad.Guardian.csproj" />
+    <ProjectReference Include="../Dyad.Guardian.UI/Dyad.Guardian.UI.csproj" />
+  </ItemGroup>
+</Project>

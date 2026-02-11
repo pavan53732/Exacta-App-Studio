@@ -43,7 +43,12 @@
     "e2e": "playwright test",
     "e2e:shard": "playwright test --shard",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "guardian:build": "cd native/Dyad.Guardian && dotnet build",
+    "guardian:publish": "cd native/Dyad.Guardian && dotnet publish -c Release -r win-x64 --self-contained",
+    "guardian:start": "cd native/Dyad.Guardian && dotnet run",
+    "guardian:restore": "cd native/Dyad.Guardian && dotnet restore",
+    "guardian:watch": "cd native/Dyad.Guardian && dotnet watch run"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.46",
