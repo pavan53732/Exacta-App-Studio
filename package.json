@@ -48,7 +48,11 @@
     "guardian:publish": "cd native/Dyad.Guardian && dotnet publish -c Release -r win-x64 --self-contained",
     "guardian:start": "cd native/Dyad.Guardian && dotnet run",
     "guardian:restore": "cd native/Dyad.Guardian && dotnet restore",
-    "guardian:watch": "cd native/Dyad.Guardian && dotnet watch run"
+    "guardian:watch": "cd native/Dyad.Guardian && dotnet watch run",
+    "guardian:installer": "scripts\\build-installer.bat",
+    "guardian:sign": "powershell -ExecutionPolicy Bypass -File scripts\\sign-native.ps1",
+    "guardian:build-and-sign": "npm run guardian:installer && npm run guardian:sign",
+    "sign:native": "npm run guardian:sign"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.46",
