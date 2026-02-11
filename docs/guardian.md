@@ -2,6 +2,8 @@
 
 The **Dyad Guardian Service** is a .NET 8 Windows service that provides enterprise-grade process isolation, capability-based security, and network filtering for the Exacta/Dyad desktop application.
 
+> **Note:** Dyad is an **AI-powered web app builder** (like Lovable, v0, or Bolt). The Guardian Service is **security infrastructure for Dyad itself** - it protects users when running AI-generated code. It is NOT a tool for building Windows native applications.
+
 ## Architecture Overview
 
 ```
@@ -100,7 +102,7 @@ native/Dyad.Guardian/
         ├── GuardianWorker.cs     # Hosted service
         ├── JobObjectManager.cs   # Job Object implementation
         ├── CapabilityTokenService.cs  # Token management
-        └── WfpManager.cs         # Firewall management (stub)
+        └── WfpManager.cs         # Firewall management (full WFP implementation)
 ```
 
 ## Building
@@ -295,46 +297,60 @@ export function useGuardian() {
 
 4. **Input Validation**: All inputs are validated via Zod schemas before reaching the Guardian service.
 
-## Future Enhancements
+## WPF Dashboard
 
-### Phase 4: WPF Dashboard
-
-A system tray dashboard for real-time monitoring:
+The Guardian includes a comprehensive WPF administrative dashboard:
 
 ```
 native/Dyad.Guardian.UI/
-├── MainWindow.xaml          # Process monitor
-├── TrayIcon.xaml            # System tray integration
-├── TokenViewer.xaml         # Active capability tokens
-└── EventLog.xaml            # Security events
+├── JobObjectsWindow.xaml    # Job Object management with DataGrid
+├── TokensWindow.xaml        # Capability token management
+├── FirewallWindow.xaml      # WFP rule management
+└── Styles/
+    └── Styles.xaml          # Consistent UI styling
 ```
 
-### Phase 5: Full WFP Implementation
+**Features:**
+- Real-time data binding with ObservableCollection
+- DispatcherTimer for auto-refresh
+- Full CRUD operations for all security features
+- Consistent styling across all windows
 
-Complete Windows Filtering Platform integration:
+## Deployment
 
-- Kernel-level network filtering
-- Per-process firewall rules
-- Traffic inspection and logging
-- Integration with Windows Defender
+### MSI Installer (WiX)
 
-### Windows Service Mode
+Complete Windows Installer package:
+- Installs Service to `C:\Program Files\Dyad Guardian\Service\`
+- Installs Dashboard to `C:\Program Files\Dyad Guardian\Dashboard\`
+- Registers as Windows Service with auto-start
+- Code signing support via signtool
 
-Convert from console app to Windows Service:
+```bash
+# Build installer
+npm run guardian:installer
 
-```csharp
-// In Program.cs, uncomment:
-builder.Services.AddWindowsService(options =>
-{
-    options.ServiceName = "Dyad Guardian Service";
-});
+# Sign binaries
+npm run guardian:sign -- --CertificatePath "cert.pfx" --CertificatePassword "pass"
 ```
 
-Then install:
-```powershell
-sc create "Dyad Guardian" binPath="C:\Program Files\Dyad\Dyad.Guardian.exe"
-sc start "Dyad Guardian"
-```
+See [guardian-deployment.md](guardian-deployment.md) for full deployment guide.
+
+## Implementation Status
+
+✅ **Completed:**
+- Process Isolation (Job Objects) with full Win32 API integration
+- Capability-Based Security with JWT tokens
+- Network Filtering (WFP) with native P/Invoke calls
+- WPF Dashboard with real-time monitoring
+- MSI Installer with WiX Toolset
+- Code signing workflow
+- E2E testing suite
+
+📝 **Documentation:**
+- [Architecture Overview](#architecture-overview)
+- [Deployment Guide](guardian-deployment.md)
+- API Reference (see below)
 
 ## Troubleshooting
 

@@ -11,6 +11,7 @@ More info at: [https://dyad.sh/](https://dyad.sh/)
 - ⚡️ **Local**: Fast, private and no lock-in.
 - 🛠 **Bring your own keys**: Use your own AI API keys — no vendor lock-in.
 - 🖥️ **Cross-platform**: Easy to run on Mac or Windows.
+- 🔒 **Secure (Windows)**: Built-in process isolation, capability tokens, and network filtering via Guardian Service.
 
 ## 📦 Download
 

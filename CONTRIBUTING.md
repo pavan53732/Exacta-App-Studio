@@ -22,6 +22,32 @@ Dyad is an Electron app.
 npm install
 ```
 
+### Windows: Building the Guardian Service
+
+Dyad includes a native .NET 8 Windows service for security features. To build it:
+
+**Prerequisites:**
+- .NET 8 SDK: https://dotnet.microsoft.com/download/dotnet/8.0
+- Visual Studio 2022 or Build Tools (for WPF Dashboard)
+
+**Build commands:**
+
+```sh
+# Restore dependencies
+npm run guardian:restore
+
+# Build (debug)
+npm run guardian:build
+
+# Build and run
+npm run guardian:start
+
+# Build full installer (Windows only, requires WiX)
+npm run guardian:installer
+```
+
+See [docs/guardian.md](docs/guardian.md) for detailed information about the Guardian service architecture.
+
 **Create the userData directory (required for database)**
 
 ```sh

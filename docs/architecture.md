@@ -10,6 +10,22 @@ Dyad is an Electron app that is a local, open-source alternative to AI app build
 
 If you're not familiar with Electron apps, they are similar to a full-stack JavaScript app where there's a client-side called the **renderer process** which executes the UI code like React and then there's a Node.js process called the **main process** which is comparable to the server-side portion of a full-stack app. The main process is privileged, meaning it has access to the filesystem and other system resources, whereas the renderer process is sandboxed. The renderer process can communicate to the main process using [IPCs](https://en.wikipedia.org/wiki/Inter-process_communication) which is similar to how the browser communicates to the server using HTTP requests.
 
+### Windows: Guardian Service (Native Security Layer)
+
+> **Important:** Dyad is a **web app builder** that creates React/Next.js applications. The Guardian Service is **internal security infrastructure** - NOT a feature for users to build Windows apps.
+
+On Windows, Dyad includes an additional security layer called the **Guardian Service** - a .NET 8 native Windows service that provides:
+
+- **Process Isolation**: Windows Job Objects for sandboxing spawned processes (e.g., when running `npm start` on AI-generated code)
+- **Capability Tokens**: JWT-based access control to restrict what files AI-generated code can access
+- **Network Filtering**: Windows Filtering Platform (WFP) to control network access of sandboxed processes
+
+The Guardian Service communicates with the Electron main process via named pipes (`\\.\pipe\DyadGuardian`). This architecture allows Dyad to leverage native Windows security APIs while maintaining cross-platform compatibility (the service is optional on non-Windows platforms).
+
+**Example Use Case:** When Dyad generates a React app and runs `npm start`, the Guardian Service creates a sandboxed job object with memory/CPU limits to prevent the spawned Node.js process from consuming excessive resources or accessing unauthorized files.
+
+See [guardian.md](guardian.md) for detailed technical documentation.
+
 ## Life of a request
 
 The core workflow of Dyad is that a user sends a prompt to the AI which edits the code and is reflected in the preview. We'll break this down step-by-step.
