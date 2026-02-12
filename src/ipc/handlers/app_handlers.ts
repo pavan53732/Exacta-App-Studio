@@ -32,7 +32,7 @@ import fixPath from "fix-path";
 import killPort from "kill-port";
 import util from "util";
 import log from "electron-log";
-import { runtimeProviderRegistry } from "../runtime/runtime_providers";
+import { runtimeRegistry } from "../runtime/RuntimeProviderRegistry";
 import { executionKernel } from '../security/execution_kernel';
 
 // Helper function for secure command execution through ExecutionKernel
@@ -63,7 +63,7 @@ async function executeSecureCommand(appId: number, appPath: string, command: str
 }
 
 // Helper function to determine runtime provider based on app type
-function getRuntimeProvider(appPath: string): string {
+function getRuntimeProviderId(appPath: string): string {
   try {
     // Check for Node.js project
     if (fs.existsSync(path.join(appPath, 'package.json'))) {
@@ -210,7 +210,7 @@ fixPath();
 async function executeApp({
   appPath,
   appId,
-  event, // Keep event for local-node case
+  event,
   isNeon,
   installCommand,
   startCommand,
@@ -229,8 +229,9 @@ async function executeApp({
   const settings = readSettings();
   const runtimeMode = settings.runtimeMode2 ?? "host";
 
-  if (runtimeMode === "docker") {
-    await executeAppInDocker({
+  // Use RuntimeProvider for host mode (non-Docker)
+  if (runtimeMode === "host") {
+    await executeAppWithProvider({
       appPath,
       appId,
       event,
@@ -239,7 +240,8 @@ async function executeApp({
       startCommand,
     });
   } else {
-    await executeAppLocalNode({
+    // Docker mode still uses the legacy implementation for now
+    await executeAppInDocker({
       appPath,
       appId,
       event,
@@ -247,6 +249,128 @@ async function executeApp({
       installCommand,
       startCommand,
     });
+  }
+}
+
+/**
+ * Execute app using the RuntimeProvider abstraction
+ * This replaces direct spawn() calls with ExecutionKernel-mediated execution
+ */
+async function executeAppWithProvider({
+  appPath,
+  appId,
+  event,
+  isNeon,
+  installCommand,
+  startCommand,
+}: {
+  appPath: string;
+  appId: number;
+  event: Electron.IpcMainInvokeEvent;
+  isNeon: boolean;
+  installCommand?: string | null;
+  startCommand?: string | null;
+}): Promise<void> {
+  // Get the runtime provider (defaults to "node" for now)
+  const runtimeId = getRuntimeProviderId(appPath);
+  const provider = runtimeRegistry.getProvider(runtimeId);
+
+  logger.info(`Using runtime provider "${runtimeId}" for app ${appId}`);
+
+  // Track if we've found the localhost URL for proxy
+  let proxyStarted = false;
+
+  // Create event handler that forwards to UI and handles special cases
+  const onEvent = (eventData: { type: "stdout" | "stderr"; message: string; timestamp: number }) => {
+    const { type, message } = eventData;
+
+    // Add to central log store
+    addLog({
+      level: type === "stderr" ? "error" : "info",
+      type: "server",
+      message,
+      timestamp: Date.now(),
+      appId,
+    });
+
+    // Handle special Neon interactive prompts
+    if (isNeon && message.includes("created or renamed from another")) {
+      // This would need stdin access - for now we log it
+      logger.info(
+        `App ${appId} detected drizzle interactive prompt. Consider auto-responding.`,
+      );
+    }
+
+    // Check for input request pattern
+    const inputRequestPattern = /\s*›\s*\([yY]\/[nN]\)\s*$/;
+    const isInputRequest = inputRequestPattern.test(message);
+    
+    if (isInputRequest) {
+      safeSend(event.sender, "app:output", {
+        type: "input-requested",
+        message,
+        appId,
+      });
+    } else {
+      // Normal output
+      safeSend(event.sender, "app:output", {
+        type,
+        message,
+        appId,
+      });
+
+      // Check for localhost URL and start proxy
+      if (!proxyStarted && type === "stdout") {
+        const urlMatch = message.match(/(https?:\/\/localhost:\d+\/?)/);
+        if (urlMatch) {
+          proxyStarted = true;
+          startProxy(urlMatch[1], {
+            onStarted: (proxyUrl) => {
+              safeSend(event.sender, "app:output", {
+                type: "stdout",
+                message: `[dyad-proxy-server]started=[${proxyUrl}] original=[${urlMatch[1]}]`,
+                appId,
+              });
+            },
+          }).then((worker) => {
+            proxyWorker = worker;
+          });
+        }
+      }
+    }
+  };
+
+  try {
+    // Run the app using the provider
+    const result = await provider.run(
+      {
+        appId,
+        appPath,
+        installCommand,
+        startCommand,
+      },
+      onEvent,
+    );
+
+    if (!result.ready) {
+      throw new Error(result.error || "Failed to start app");
+    }
+
+    // Store the running app info
+    // Note: With RuntimeProvider, we use jobId instead of process for tracking
+    const currentProcessId = processCounter.increment();
+    runningApps.set(appId, {
+      process: null as any, // Provider doesn't expose process directly
+      processId: currentProcessId,
+      isDocker: false,
+      jobId: result.jobId,
+      provider: runtimeId,
+    });
+
+    logger.info(`App ${appId} started with jobId: ${result.jobId}`);
+  } catch (error: any) {
+    logger.error(`Error starting app ${appId} with provider:`, error);
+    throw error;
   }
 }
 

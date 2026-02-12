@@ -11,6 +11,9 @@ export const CreateJobRequestSchema = z.object({
   cpuRatePercent: z.number().min(1).max(100).optional(),
   activeProcessLimit: z.number().optional(),
   killProcessesOnJobClose: z.boolean().default(true),
+  // NEW: Zero-Trust extensions
+  networkPolicy: z.enum(["blocked", "allowed", "local-only"]).optional(),
+  diskQuotaBytes: z.number().optional(),
 });
 
 export const CreateJobResponseSchema = z.object({
@@ -248,6 +251,24 @@ export const guardianContracts = {
     output: ListWfpRulesResponseSchema,
   }),
 
+  // Process Management
+  spawnInJob: defineContract({
+    channel: "guardian:spawn-in-job",
+    input: z.object({
+      jobId: z.string(),
+      command: z.string(),
+      args: z.array(z.string()),
+      cwd: z.string(),
+      env: z.record(z.string()).optional(),
+      token: z.string().optional(),
+    }),
+    output: z.object({
+      success: z.boolean(),
+      pid: z.number().optional(),
+      error: z.string().optional(),
+    }),
+  }),
+
   // Health Check
   pingGuardian: defineContract({
     channel: "guardian:ping",
@@ -273,3 +294,18 @@ export type CapabilityInfo = z.infer<typeof CapabilityInfoSchema>;
 export type CreateWfpRuleRequest = z.infer<typeof CreateWfpRuleRequestSchema>;
 export type WfpRuleInfo = z.infer<typeof WfpRuleInfoSchema>;
 export type GuardianStatus = z.infer<typeof GuardianStatusSchema>;
+
+// Spawn in Job types
+export type SpawnInJobRequest = {
+  jobId: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  env?: Record<string, string>;
+  token?: string;
+};
+export type SpawnInJobResponse = {
+  success: boolean;
+  pid?: number;
+  error?: string;
+};

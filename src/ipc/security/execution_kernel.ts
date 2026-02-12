@@ -2,7 +2,7 @@ import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
-import log from 'electron-log';
+import logger from 'electron-log';
 import { safeJoin } from './path_utils';
 
 // Job Registry for tracking active jobs and sessions
@@ -108,6 +108,12 @@ export interface ExecutionResult {
   duration: number;
   riskLevel: 'low' | 'medium' | 'high';
 }
+
+export type ExecutionEventHandler = (event: { 
+  type: "stdout" | "stderr"; 
+  message: string; 
+  timestamp: number 
+}) => void;
 
 export class ExecutionKernel {
   private static instance: ExecutionKernel;

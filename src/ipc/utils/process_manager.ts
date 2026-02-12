@@ -1,12 +1,16 @@
 import { ChildProcess, spawn } from "node:child_process";
 import treeKill from "tree-kill";
+import { runtimeRegistry } from "../runtime/RuntimeProviderRegistry";
 
 // Define a type for the value stored in runningApps
 export interface RunningAppInfo {
-  process: ChildProcess;
+  process: ChildProcess | null;
   processId: number;
   isDocker: boolean;
   containerName?: string;
+  // RuntimeProvider support
+  jobId?: string;
+  provider?: string;
 }
 
 // Store running app processes
@@ -111,16 +115,33 @@ export function removeDockerVolumesForApp(appId: number): Promise<void> {
 }
 
 /**
- * Stops an app based on its RunningAppInfo (container vs host) and removes it from the running map.
+ * Stops an app based on its RunningAppInfo (container vs host vs runtime provider) and removes it from the running map.
  */
 export async function stopAppByInfo(
   appId: number,
   appInfo: RunningAppInfo,
 ): Promise<void> {
+  // RuntimeProvider case - use provider's stop method
+  if (appInfo.provider && appInfo.jobId) {
+    try {
+      const provider = runtimeRegistry.getProvider(appInfo.provider);
+      await provider.stop(appId, appInfo.jobId);
+      console.log(
+        `Stopped app ${appId} via RuntimeProvider "${appInfo.provider}" with jobId ${appInfo.jobId}`,
+      );
+    } catch (error) {
+      console.warn(
+        `Failed to stop app ${appId} via RuntimeProvider:`, error,
+      );
+    }
+    runningApps.delete(appId);
+    return;
+  }
+
   if (appInfo.isDocker) {
     const containerName = appInfo.containerName || `dyad-app-${appId}`;
     await stopDockerContainer(containerName);
-  } else {
+  } else if (appInfo.process) {
     await killProcess(appInfo.process);
   }
   runningApps.delete(appId);

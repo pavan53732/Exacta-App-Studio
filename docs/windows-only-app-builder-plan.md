@@ -96,6 +96,50 @@ The current codebase has scattered `execPromise()` calls that bypass security. T
 
 ---
 
+## Prerequisites: Guardian Schema Updates (COMPLETED)
+
+The Guardian service schema has been extended to support the ExecutionKernel's zero-trust architecture:
+
+### Updated Schemas in [`src/ipc/types/guardian.ts`](src/ipc/types/guardian.ts)
+
+**CreateJobRequestSchema** now includes:
+
+```typescript
+export const CreateJobRequestSchema = z.object({
+  jobName: z.string(),
+  memoryLimitBytes: z.number().optional(),
+  cpuRatePercent: z.number().min(1).max(100).optional(),
+  activeProcessLimit: z.number().optional(),
+  killProcessesOnJobClose: z.boolean().default(true),
+  // NEW: Zero-Trust extensions
+  networkPolicy: z.enum(["blocked", "allowed", "local-only"]).optional(),
+  diskQuotaBytes: z.number().optional(),
+});
+```
+
+**NEW: spawnInJob Contract** for secure process spawning:
+
+```typescript
+spawnInJob: defineContract({
+  channel: "guardian:spawn-in-job",
+  input: z.object({
+    jobId: z.string(),
+    command: z.string(),
+    args: z.array(z.string()),
+    cwd: z.string(),
+    env: z.record(z.string()).optional(),
+    token: z.string().optional(),
+  }),
+  output: z.object({
+    success: z.boolean(),
+    pid: z.number().optional(),
+    error: z.string().optional(),
+  }),
+}),
+```
+
+---
+
 ## Phase 0: Execution Kernel Foundation (Month 1) - **CRITICAL**
 
 ### 0.1 Execution Kernel Interface
@@ -324,45 +368,32 @@ export class ExecutionKernel {
   }
 
   private async createGuardianJob(options: ExecutionOptions): Promise<string> {
-    // Call Guardian IPC to create Job Object
-    // TODO: Update Guardian Schema to support networkPolicy/diskQuotaBytes
-    // For now we pass basic params and handle network via WFP separately if needed
+    // Call Guardian IPC to create Job Object with full zero-trust extensions
+    // NOTE: Guardian schema now supports networkPolicy and diskQuotaBytes
     const job = await ipc.guardian.createJob({
       jobName: `dyad-exec-${options.appId}-${Date.now()}`,
       memoryLimitBytes: options.memoryLimitBytes,
-      cpuRatePercent: options.cpuRatePercent, // Supported in schema
-      // networkPolicy: options.networkPolicy, // TODO: Add to schema
-      // diskQuotaBytes: options.diskQuotaBytes, // TODO: Add to schema
+      cpuRatePercent: options.cpuRatePercent,
+      networkPolicy: options.networkPolicy, // Now supported in schema
+      diskQuotaBytes: options.diskQuotaBytes, // Now supported in schema
     });
 
     if (!job.success) {
       throw new Error(`Failed to create Guardian Job: ${job.error}`);
     }
 
-    // Apply WFP rules if network blocked - separate call
-    if (options.networkPolicy === "blocked") {
-      await ipc.guardian.createWfpRule({
-        name: `Block-Job-${job.jobName}`,
-        action: "block",
-        direction: "outbound",
-      });
-    }
-
     // Return job name as ID per schema which uses jobName
     return job.jobName;
   }
 
-  // Rename spawnViaGuardian to spawnControlled per audit
   private async spawnControlled(
     jobId: string,
     options: ExecutionOptions,
     token: string,
   ): Promise<any> {
     // Call Guardian IPC to spawn process inside Job Object
-    // TODO: Add 'spawnInJob' contract to Guardian
-    // Currently using hypothetical contract for plan coherence
-    /*
-    return ipc.guardian.spawnInJob({
+    // NOTE: spawnInJob contract is now available in Guardian
+    const result = await ipc.guardian.spawnInJob({
       jobId,
       command: options.command,
       args: options.args,
@@ -370,12 +401,15 @@ export class ExecutionKernel {
       env: options.env,
       token,
     });
-    */
-    // Fallback if not implemented yet:
-    // 1. Spawn suspended process
-    // 2. Assign to Job
-    // 3. Resume
-    throw new Error("Guardian 'spawnInJob' contract pending implementation.");
+
+    if (!result.success) {
+      throw new Error(`Failed to spawn process in job: ${result.error}`);
+    }
+
+    return {
+      jobId,
+      pid: result.pid,
+    };
   }
 
   private async monitorProcess(
@@ -953,6 +987,7 @@ npm run db:migrate
 
 ```typescript
 // Add type exports for stack and runtime
+// NOTE: RuntimeProviderId avoids conflict with RuntimeProvider interface
 export type StackType =
   | "react"
   | "nextjs"
@@ -963,7 +998,8 @@ export type StackType =
   | "console"
   | "maui"
   | "tauri";
-export type RuntimeProvider = "node" | "dotnet" | "tauri";
+
+export type RuntimeProviderId = "node" | "dotnet" | "tauri";
 
 // Update apps type
 export type App = typeof apps.$inferSelect;
