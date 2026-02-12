@@ -13,6 +13,11 @@ public class JobObjectManager : IDisposable
     private readonly Dictionary<string, JobObjectInfo> _jobs = new();
     private readonly object _lock = new();
     
+    /// <summary>
+    /// Event raised when a quota limit is exceeded
+    /// </summary>
+    public event EventHandler<QuotaExceededEventArgs>? QuotaExceeded;
+    
     // Win32 API Constants
     private const int JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008;
     private const int JOB_OBJECT_LIMIT_PROCESS_MEMORY = 0x00000100;
@@ -20,6 +25,8 @@ public class JobObjectManager : IDisposable
     private const int JOB_OBJECT_LIMIT_CPU_RATE = 0x00008000;
     private const int JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
     private const int JOB_OBJECT_LIMIT_PRIORITY_CLASS = 0x00000020;
+    private const int JOB_OBJECT_LIMIT_IO_READ_BYTES = 0x00004000;
+    private const int JOB_OBJECT_LIMIT_IO_WRITE_BYTES = 0x00008000;
     private const int JOB_OBJECT_POST_AT_END_OF_JOB = 1;
     private const uint JOB_OBJECT_MSG_END_OF_JOB_TIME = 1;
     private const uint JOB_OBJECT_MSG_END_OF_PROCESS_TIME = 2;
@@ -91,6 +98,14 @@ public class JobObjectManager : IDisposable
                         _logger.LogInformation("Enabling kill on job close");
                     }
                     
+                    // Disk I/O quota (using IO counters)
+                    if (request.DiskQuotaBytes.HasValue && request.DiskQuotaBytes.Value > 0)
+                    {
+                        // Note: Windows Job Objects don't have direct disk quota limits,
+                        // but we can track I/O counters and enforce via monitoring
+                        _logger.LogInformation("Setting disk quota limit: {DiskQuota} bytes (monitored)", request.DiskQuotaBytes.Value);
+                    }
+                    
                     // Apply limits
                     if (limitInfo.BasicLimitInformation.LimitFlags != 0)
                     {
@@ -140,7 +155,9 @@ public class JobObjectManager : IDisposable
                         CreatedAt = DateTime.UtcNow,
                         MemoryLimit = request.MemoryLimitBytes,
                         CpuRate = request.CpuRatePercent,
-                        ActiveProcessLimit = request.ActiveProcessLimit
+                        ActiveProcessLimit = request.ActiveProcessLimit,
+                        DiskQuotaBytes = request.DiskQuotaBytes,
+                        NetworkPolicy = request.NetworkPolicy
                     };
                     
                     _logger.LogInformation("Created job object '{JobName}'", request.JobName);
@@ -286,6 +303,42 @@ public class JobObjectManager : IDisposable
                     _logger.LogWarning("Failed to query job statistics. Error: {Error}", error);
                 }
                 
+                // Query extended limit information for I/O counters
+                var extendedInfo = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                var extendedReturnLength = 0u;
+                
+                var extResult = QueryInformationJobObjectExtended(
+                    jobInfo.Handle.DangerousGetHandle(),
+                    JobObjectExtendedLimitInformation,
+                    ref extendedInfo,
+                    (uint)Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>(),
+                    ref extendedReturnLength);
+                
+                long diskReadBytes = 0;
+                long diskWriteBytes = 0;
+                
+                if (extResult)
+                {
+                    diskReadBytes = (long)extendedInfo.IoInfo.ReadTransferCount;
+                    diskWriteBytes = (long)extendedInfo.IoInfo.WriteTransferCount;
+                    
+                    // Check disk quota enforcement
+                    if (jobInfo.DiskQuotaBytes.HasValue)
+                    {
+                        var totalDiskIo = diskReadBytes + diskWriteBytes;
+                        if (totalDiskIo > jobInfo.DiskQuotaBytes.Value)
+                        {
+                            OnQuotaExceeded(new QuotaExceededEventArgs
+                            {
+                                JobName = jobName,
+                                QuotaType = QuotaType.DiskTotal,
+                                Limit = jobInfo.DiskQuotaBytes.Value,
+                                CurrentValue = totalDiskIo
+                            });
+                        }
+                    }
+                }
+                
                 return new JobStatistics
                 {
                     JobName = jobName,
@@ -293,11 +346,49 @@ public class JobObjectManager : IDisposable
                     TotalPageFaults = accountingInfo.TotalPageFaults,
                     TotalProcesses = (int)accountingInfo.TotalProcesses,
                     TotalTerminatedProcesses = (int)accountingInfo.TotalTerminatedProcesses,
-                    PeakMemoryUsed = 0, // Would need JOBOBJECT_EXTENDED_LIMIT_INFORMATION for this
-                    CurrentMemoryUsage = 0
+                    PeakMemoryUsed = (long)extendedInfo.PeakProcessMemoryUsed,
+                    CurrentMemoryUsage = (long)extendedInfo.ProcessMemoryLimit,
+                    TotalDiskReadBytes = diskReadBytes,
+                    TotalDiskWriteBytes = diskWriteBytes,
+                    DiskQuotaLimit = jobInfo.DiskQuotaBytes
                 };
             }
         });
+    }
+    
+    /// <summary>
+    /// Check disk quota for a specific job and raise event if exceeded
+    /// </summary>
+    public async Task CheckDiskQuotaAsync(string jobName)
+    {
+        var stats = await GetJobStatisticsAsync(jobName);
+        
+        if (stats.DiskQuotaLimit.HasValue)
+        {
+            var totalDiskIo = stats.TotalDiskReadBytes + stats.TotalDiskWriteBytes;
+            if (totalDiskIo > stats.DiskQuotaLimit.Value)
+            {
+                OnQuotaExceeded(new QuotaExceededEventArgs
+                {
+                    JobName = jobName,
+                    QuotaType = QuotaType.DiskTotal,
+                    Limit = stats.DiskQuotaLimit.Value,
+                    CurrentValue = totalDiskIo
+                });
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Raise the QuotaExceeded event
+    /// </summary>
+    protected virtual void OnQuotaExceeded(QuotaExceededEventArgs e)
+    {
+        _logger.LogWarning(
+            "Quota exceeded for job '{JobName}': {QuotaType} limit {Limit} exceeded (current: {CurrentValue})",
+            e.JobName, e.QuotaType, e.Limit, e.CurrentValue);
+        
+        QuotaExceeded?.Invoke(this, e);
     }
     
     public Task<ListJobsResponse> ListJobsAsync()
@@ -345,6 +436,9 @@ public class JobObjectManager : IDisposable
     
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool QueryInformationJobObject(IntPtr hJob, int JobObjectInfoClass, ref JOBOBJECT_BASIC_ACCOUNTING_INFORMATION lpJobObjectInfo, uint cbJobObjectInfoLength, ref uint lpReturnLength);
+    
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObjectExtended(IntPtr hJob, int JobObjectInfoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInfo, uint cbJobObjectInfoLength, ref uint lpReturnLength);
     
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool SetInformationJobObject(IntPtr hJob, int JobObjectInfoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInfo, uint cbJobObjectInfoLength);
@@ -450,6 +544,8 @@ public class JobObjectManager : IDisposable
         public long? MemoryLimit { get; init; }
         public int? CpuRate { get; init; }
         public int? ActiveProcessLimit { get; init; }
+        public long? DiskQuotaBytes { get; init; }
+        public NetworkPolicy? NetworkPolicy { get; init; }
         public List<int> ProcessIds { get; } = new();
     }
 }

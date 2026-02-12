@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Newtonsoft.Json;
 using Microsoft.Win32;
+using Dyad.Guardian.Messages;
 
 namespace Dyad.Guardian.Services;
 
@@ -24,6 +25,8 @@ public class WfpManager : IDisposable
     private static readonly Guid FWPM_LAYER_INBOUND_IPPACKET_V6 = new Guid("f52032cb-991c-46e7-971d-2601459a91ca");
     private static readonly Guid FWPM_LAYER_ALE_AUTH_CONNECT_V4 = new Guid("c38d57d1-05a7-4c33-904f-7fbceee60e82");
     private static readonly Guid FWPM_LAYER_ALE_AUTH_CONNECT_V6 = new Guid("4a72393b-319f-44bc-84c3-ba54dcb3b6b4");
+    private static readonly Guid FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4 = new Guid("e1cd9fe8-f4b5-4273-96c0-592e487b8650");
+    private static readonly Guid FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6 = new Guid("a3b42c97-9f04-4672-b87e-cee9c483257f");
     
     // Sub-layer GUID for our filters
     private static readonly Guid DYAD_SUBLAYER_GUID = new Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
@@ -31,6 +34,13 @@ public class WfpManager : IDisposable
     // RPC authentication constants
     private const uint RPC_C_AUTHN_WINNT = 10;
     private const uint RPC_C_AUTHN_DEFAULT = unchecked((uint)-1);
+    
+    // Well-known condition field GUIDs
+    private static readonly Guid FWPM_CONDITION_IP_PROTOCOL = new Guid("0c1ba1af-5765-453f-af22-a8f791ac775b");
+    private static readonly Guid FWPM_CONDITION_IP_REMOTE_PORT = new Guid("c35a604d-d22b-4e1a-91b4-68f674ee674b");
+    private static readonly Guid FWPM_CONDITION_IP_LOCAL_PORT = new Guid("0c1ba1af-5765-453f-af22-a8f791ac775b");
+    private static readonly Guid FWPM_CONDITION_IP_REMOTE_ADDRESS = new Guid("4cd62a49-59c3-4969-b7f3-bda5d32890a4");
+    private static readonly Guid FWPM_CONDITION_ALE_APP_ID = new Guid("f68166fd-0682-4c89-b8f5-86436c7ef9b7");
 
     public WfpManager(ILogger<WfpManager> logger)
     {
@@ -312,6 +322,397 @@ public class WfpManager : IDisposable
             }
         });
     }
+
+    #region Network Policy Enforcement
+
+    /// <summary>
+    /// Add a block rule for a specific process path
+    /// </summary>
+    public async Task<string?> AddBlockRuleAsync(string processPath, string? remoteHost = null)
+    {
+        return await Task.Run(() =>
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    var ruleId = Guid.NewGuid().ToString("N");
+                    var ruleName = $"Block-{Path.GetFileNameWithoutExtension(processPath)}";
+
+                    var rule = new WfpRule
+                    {
+                        Id = ruleId,
+                        Name = ruleName,
+                        Direction = "outbound",
+                        Protocol = "any",
+                        RemoteAddress = remoteHost,
+                        Action = "block",
+                        Enabled = true,
+                        CreatedAt = DateTime.UtcNow,
+                        ProcessPath = processPath
+                    };
+
+                    if (_engineHandle != IntPtr.Zero)
+                    {
+                        var filterId = CreateWfpFilter(rule);
+                        if (filterId.HasValue)
+                        {
+                            rule.FilterId = filterId.Value;
+                            _logger.LogInformation("Created WFP block filter for {ProcessPath}", processPath);
+                        }
+                    }
+
+                    _rules[ruleId] = rule;
+                    return ruleId;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to add block rule for {ProcessPath}", processPath);
+                    return null;
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Add an allow rule for a specific process path
+    /// </summary>
+    public async Task<string?> AddAllowRuleAsync(string processPath, string? remoteHost = null)
+    {
+        return await Task.Run(() =>
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    var ruleId = Guid.NewGuid().ToString("N");
+                    var ruleName = $"Allow-{Path.GetFileNameWithoutExtension(processPath)}";
+
+                    var rule = new WfpRule
+                    {
+                        Id = ruleId,
+                        Name = ruleName,
+                        Direction = "outbound",
+                        Protocol = "any",
+                        RemoteAddress = remoteHost,
+                        Action = "allow",
+                        Enabled = true,
+                        CreatedAt = DateTime.UtcNow,
+                        ProcessPath = processPath
+                    };
+
+                    if (_engineHandle != IntPtr.Zero)
+                    {
+                        var filterId = CreateWfpFilter(rule);
+                        if (filterId.HasValue)
+                        {
+                            rule.FilterId = filterId.Value;
+                            _logger.LogInformation("Created WFP allow filter for {ProcessPath}", processPath);
+                        }
+                    }
+
+                    _rules[ruleId] = rule;
+                    return ruleId;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to add allow rule for {ProcessPath}", processPath);
+                    return null;
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Remove a rule by its ID
+    /// </summary>
+    public async Task<bool> RemoveRuleAsync(Guid ruleId)
+    {
+        return await DeleteRuleAsync(ruleId.ToString("N"));
+    }
+
+    /// <summary>
+    /// Clear all rules created by this manager
+    /// </summary>
+    public async Task ClearAllRulesAsync()
+    {
+        await Task.Run(() =>
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    if (_engineHandle != IntPtr.Zero)
+                    {
+                        foreach (var rule in _rules.Values)
+                        {
+                            if (rule.FilterId.HasValue)
+                            {
+                                var result = FwpmFilterDeleteById0(_engineHandle, rule.FilterId.Value);
+                                if (result != 0)
+                                {
+                                    _logger.LogWarning("Failed to delete filter {FilterId}", rule.FilterId.Value);
+                                }
+                            }
+                        }
+                    }
+
+                    _rules.Clear();
+                    _logger.LogInformation("Cleared all WFP rules");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to clear all rules");
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Apply a network policy to a job
+    /// </summary>
+    public async Task<bool> ApplyNetworkPolicyAsync(string jobName, NetworkPolicy policy)
+    {
+        return await Task.Run(() =>
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    _logger.LogInformation(
+                        "Applying network policy to job '{JobName}': AllowAll={AllowAll}, BlockAll={BlockAll}, AllowedHosts={AllowedHosts}, BlockedHosts={BlockedHosts}",
+                        jobName, policy.AllowAll, policy.BlockAll, 
+                        policy.AllowedHosts?.Count ?? 0, policy.BlockedHosts?.Count ?? 0);
+
+                    // Block all traffic if specified
+                    if (policy.BlockAll)
+                    {
+                        var blockAllRule = new WfpRule
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            Name = $"BlockAll-{jobName}",
+                            Direction = "outbound",
+                            Protocol = "any",
+                            Action = "block",
+                            Enabled = true,
+                            CreatedAt = DateTime.UtcNow,
+                            JobName = jobName
+                        };
+
+                        if (_engineHandle != IntPtr.Zero)
+                        {
+                            var filterId = CreateWfpFilter(blockAllRule);
+                            if (filterId.HasValue)
+                            {
+                                blockAllRule.FilterId = filterId.Value;
+                            }
+                        }
+                        _rules[blockAllRule.Id] = blockAllRule;
+
+                        // Also block inbound
+                        var blockInboundRule = new WfpRule
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            Name = $"BlockAll-Inbound-{jobName}",
+                            Direction = "inbound",
+                            Protocol = "any",
+                            Action = "block",
+                            Enabled = true,
+                            CreatedAt = DateTime.UtcNow,
+                            JobName = jobName
+                        };
+
+                        if (_engineHandle != IntPtr.Zero)
+                        {
+                            var filterId = CreateWfpFilter(blockInboundRule);
+                            if (filterId.HasValue)
+                            {
+                                blockInboundRule.FilterId = filterId.Value;
+                            }
+                        }
+                        _rules[blockInboundRule.Id] = blockInboundRule;
+                    }
+
+                    // Allow loopback if specified (default)
+                    if (policy.AllowLoopback)
+                    {
+                        CreateLoopbackAllowRules(jobName);
+                    }
+
+                    // Add allowed hosts
+                    if (policy.AllowedHosts != null)
+                    {
+                        foreach (var host in policy.AllowedHosts)
+                        {
+                            var allowRule = new WfpRule
+                            {
+                                Id = Guid.NewGuid().ToString("N"),
+                                Name = $"Allow-{host}-{jobName}",
+                                Direction = "outbound",
+                                Protocol = "any",
+                                RemoteAddress = host,
+                                Action = "allow",
+                                Enabled = true,
+                                CreatedAt = DateTime.UtcNow,
+                                JobName = jobName
+                            };
+
+                            if (_engineHandle != IntPtr.Zero)
+                            {
+                                var filterId = CreateWfpFilter(allowRule);
+                                if (filterId.HasValue)
+                                {
+                                    allowRule.FilterId = filterId.Value;
+                                }
+                            }
+                            _rules[allowRule.Id] = allowRule;
+                        }
+                    }
+
+                    // Add blocked hosts
+                    if (policy.BlockedHosts != null)
+                    {
+                        foreach (var host in policy.BlockedHosts)
+                        {
+                            var blockRule = new WfpRule
+                            {
+                                Id = Guid.NewGuid().ToString("N"),
+                                Name = $"Block-{host}-{jobName}",
+                                Direction = "outbound",
+                                Protocol = "any",
+                                RemoteAddress = host,
+                                Action = "block",
+                                Enabled = true,
+                                CreatedAt = DateTime.UtcNow,
+                                JobName = jobName
+                            };
+
+                            if (_engineHandle != IntPtr.Zero)
+                            {
+                                var filterId = CreateWfpFilter(blockRule);
+                                if (filterId.HasValue)
+                                {
+                                    blockRule.FilterId = filterId.Value;
+                                }
+                            }
+                            _rules[blockRule.Id] = blockRule;
+                        }
+                    }
+
+                    _logger.LogInformation("Successfully applied network policy to job '{JobName}'", jobName);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to apply network policy to job '{JobName}'", jobName);
+                    return false;
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Create loopback allow rules (127.0.0.1 and ::1)
+    /// </summary>
+    private void CreateLoopbackAllowRules(string jobName)
+    {
+        // IPv4 loopback
+        var loopbackV4Rule = new WfpRule
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = $"Allow-LoopbackV4-{jobName}",
+            Direction = "outbound",
+            Protocol = "any",
+            RemoteAddress = "127.0.0.1",
+            Action = "allow",
+            Enabled = true,
+            CreatedAt = DateTime.UtcNow,
+            JobName = jobName
+        };
+
+        if (_engineHandle != IntPtr.Zero)
+        {
+            var filterId = CreateWfpFilter(loopbackV4Rule);
+            if (filterId.HasValue)
+            {
+                loopbackV4Rule.FilterId = filterId.Value;
+            }
+        }
+        _rules[loopbackV4Rule.Id] = loopbackV4Rule;
+
+        // IPv6 loopback
+        var loopbackV6Rule = new WfpRule
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = $"Allow-LoopbackV6-{jobName}",
+            Direction = "outbound",
+            Protocol = "any",
+            RemoteAddress = "::1",
+            Action = "allow",
+            Enabled = true,
+            CreatedAt = DateTime.UtcNow,
+            JobName = jobName
+        };
+
+        if (_engineHandle != IntPtr.Zero)
+        {
+            var filterId = CreateWfpFilter(loopbackV6Rule);
+            if (filterId.HasValue)
+            {
+                loopbackV6Rule.FilterId = filterId.Value;
+            }
+        }
+        _rules[loopbackV6Rule.Id] = loopbackV6Rule;
+
+        // Inbound loopback
+        var loopbackInboundRule = new WfpRule
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = $"Allow-Loopback-Inbound-{jobName}",
+            Direction = "inbound",
+            Protocol = "any",
+            RemoteAddress = "127.0.0.1",
+            Action = "allow",
+            Enabled = true,
+            CreatedAt = DateTime.UtcNow,
+            JobName = jobName
+        };
+
+        if (_engineHandle != IntPtr.Zero)
+        {
+            var filterId = CreateWfpFilter(loopbackInboundRule);
+            if (filterId.HasValue)
+            {
+                loopbackInboundRule.FilterId = filterId.Value;
+            }
+        }
+        _rules[loopbackInboundRule.Id] = loopbackInboundRule;
+    }
+
+    /// <summary>
+    /// Remove all rules associated with a job
+    /// </summary>
+    public async Task RemoveJobRulesAsync(string jobName)
+    {
+        await Task.Run(() =>
+        {
+            lock (_lock)
+            {
+                var jobRules = _rules.Values.Where(r => r.JobName == jobName).ToList();
+                foreach (var rule in jobRules)
+                {
+                    if (_engineHandle != IntPtr.Zero && rule.FilterId.HasValue)
+                    {
+                        FwpmFilterDeleteById0(_engineHandle, rule.FilterId.Value);
+                    }
+                    _rules.Remove(rule.Id);
+                }
+                _logger.LogInformation("Removed {Count} rules for job '{JobName}'", jobRules.Count, jobName);
+            }
+        });
+    }
+
+    #endregion
 
     /// <summary>
     /// Create a WFP filter for the given rule
@@ -771,5 +1172,7 @@ public class WfpManager : IDisposable
         public required DateTime CreatedAt { get; init; }
         public ulong? FilterId { get; set; }
         public int? ProcessId { get; init; }
+        public string? ProcessPath { get; init; }
+        public string? JobName { get; init; }
     }
 }

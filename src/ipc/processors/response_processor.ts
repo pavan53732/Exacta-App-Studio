@@ -8,6 +8,8 @@ import { safeJoin } from "../utils/path_utils";
 
 import log from "electron-log";
 import { executeAddDependency } from "./executeAddDependency";
+import { executeAddNuget } from "./executeAddNuget";
+import { executeDotnetCommand } from "./executeDotnetCommand";
 import {
   deleteSupabaseFunction,
   deploySupabaseFunction,
@@ -36,6 +38,8 @@ import {
   getDyadAddDependencyTags,
   getDyadExecuteSqlTags,
   getDyadSearchReplaceTags,
+  getDyadAddNugetTags,
+  getDyadDotnetCommandTags,
 } from "../utils/dyad_tag_parser";
 import { applySearchReplace } from "../../pro/main/ipc/processors/search_replace_processor";
 import { storeDbTimestampAtCurrentVersion } from "../utils/neon_timestamp_utils";
@@ -140,7 +144,7 @@ export async function processFullResponseActions(
       logger.error("Error creating Neon branch at current version:", error);
       throw new Error(
         "Could not create Neon branch; database versioning functionality is not working: " +
-          error,
+        error,
       );
     }
   }
@@ -166,6 +170,9 @@ export async function processFullResponseActions(
     const dyadExecuteSqlQueries = chatWithApp.app.supabaseProjectId
       ? getDyadExecuteSqlTags(fullResponse)
       : [];
+    // Windows-only .NET tags
+    const dyadAddNugetPackages = getDyadAddNugetTags(fullResponse);
+    const dyadDotnetCommands = getDyadDotnetCommandTags(fullResponse);
 
     const message = await db.query.messages.findFirst({
       where: and(
@@ -238,6 +245,44 @@ export async function processFullResponseActions(
       const packageLockFilename = "package-lock.json";
       if (fs.existsSync(safeJoin(appPath, packageLockFilename))) {
         writtenFiles.push(packageLockFilename);
+      }
+    }
+
+    // Handle NuGet package installation tags (Windows-only .NET projects)
+    if (dyadAddNugetPackages.length > 0) {
+      try {
+        await executeAddNuget({
+          packages: dyadAddNugetPackages,
+          message: message,
+          appPath,
+          appId: chatWithApp.app.id,
+        });
+      } catch (error) {
+        errors.push({
+          message: `Failed to add NuGet packages: ${dyadAddNugetPackages.join(", ")}`,
+          error: error,
+        });
+      }
+      writtenFiles.push("*.csproj");
+    }
+
+    // Handle dotnet command tags (Windows-only .NET projects)
+    if (dyadDotnetCommands.length > 0) {
+      for (const dotnetCmd of dyadDotnetCommands) {
+        try {
+          await executeDotnetCommand({
+            cmd: dotnetCmd.cmd,
+            args: dotnetCmd.args,
+            message: message,
+            appPath,
+            appId: chatWithApp.app.id,
+          });
+        } catch (error) {
+          errors.push({
+            message: `Failed to execute dotnet command: ${dotnetCmd.cmd}`,
+            error: error,
+          });
+        }
       }
     }
 
@@ -520,7 +565,9 @@ export async function processFullResponseActions(
       writtenFiles.length > 0 ||
       renamedFiles.length > 0 ||
       deletedFiles.length > 0 ||
-      dyadAddDependencyPackages.length > 0;
+      dyadAddDependencyPackages.length > 0 ||
+      dyadAddNugetPackages.length > 0 ||
+      dyadDotnetCommands.length > 0;
 
     let uncommittedFiles: string[] = [];
     let extraFilesError: string | undefined;
@@ -542,6 +589,14 @@ export async function processFullResponseActions(
       if (dyadAddDependencyPackages.length > 0)
         changes.push(
           `added ${dyadAddDependencyPackages.join(", ")} package(s)`,
+        );
+      if (dyadAddNugetPackages.length > 0)
+        changes.push(
+          `added ${dyadAddNugetPackages.join(", ")} NuGet package(s)`,
+        );
+      if (dyadDotnetCommands.length > 0)
+        changes.push(
+          `executed ${dyadDotnetCommands.length} dotnet command(s)`,
         );
       if (dyadExecuteSqlQueries.length > 0)
         changes.push(`executed ${dyadExecuteSqlQueries.length} SQL queries`);
@@ -609,17 +664,17 @@ export async function processFullResponseActions(
   } finally {
     const appendedContent = `
     ${warnings
-      .map(
-        (warning) =>
-          `<dyad-output type="warning" message="${warning.message}">${warning.error}</dyad-output>`,
-      )
-      .join("\n")}
+        .map(
+          (warning) =>
+            `<dyad-output type="warning" message="${warning.message}">${warning.error}</dyad-output>`,
+        )
+        .join("\n")}
     ${errors
-      .map(
-        (error) =>
-          `<dyad-output type="error" message="${error.message}">${error.error}</dyad-output>`,
-      )
-      .join("\n")}
+        .map(
+          (error) =>
+            `<dyad-output type="error" message="${error.message}">${error.error}</dyad-output>`,
+        )
+        .join("\n")}
     `;
     if (appendedContent.length > 0) {
       await db

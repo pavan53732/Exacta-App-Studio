@@ -4,14 +4,18 @@ import {
   previewModeAtom,
   previewPanelKeyAtom,
   selectedAppIdAtom,
+  currentAppAtom,
 } from "../../atoms/appAtoms";
 
 import { CodeView } from "./CodeView";
 import { PreviewIframe } from "./PreviewIframe";
+import { NativeAppPreview } from "./NativeAppPreview";
+import { ConsoleOutputPreview } from "./ConsoleOutputPreview";
+import { HybridPreview } from "./HybridPreview";
 import { Problems } from "./Problems";
 import { ConfigurePanel } from "./ConfigurePanel";
 import { ChevronDown, ChevronUp, Logs } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { Console } from "./Console";
 import { useRunApp } from "@/hooks/useRunApp";
@@ -20,6 +24,8 @@ import { SecurityPanel } from "./SecurityPanel";
 import { PlanPanel } from "./PlanPanel";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useTranslation } from "react-i18next";
+import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
+import type { PreviewStrategy } from "@/ipc/runtime/RuntimeProvider";
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -56,16 +62,60 @@ const ConsoleHeader = ({
   );
 };
 
+// Helper function to determine preview strategy based on app's runtime provider
+function getPreviewStrategy(runtimeProvider?: string | null, stackType?: string | null): PreviewStrategy {
+  if (!runtimeProvider) {
+    return "iframe"; // Default to iframe for legacy apps
+  }
+
+  try {
+    const provider = runtimeRegistry.getProvider(runtimeProvider);
+    return provider.previewStrategy;
+  } catch {
+    // If provider not found, fall back to iframe
+    return "iframe";
+  }
+}
+
+// Component that renders the appropriate preview based on strategy
+function PreviewContent({
+  strategy,
+  loading,
+  key,
+}: {
+  strategy: PreviewStrategy;
+  loading: boolean;
+  key: number;
+}) {
+  switch (strategy) {
+    case "external-window":
+      return <NativeAppPreview key={key} loading={loading} />;
+    case "console-output":
+      return <ConsoleOutputPreview key={key} loading={loading} />;
+    case "hybrid":
+      return <HybridPreview key={key} loading={loading} />;
+    case "iframe":
+    default:
+      return <PreviewIframe key={key} loading={loading} />;
+  }
+}
+
 // Main PreviewPanel component
 export function PreviewPanel() {
   const [previewMode] = useAtom(previewModeAtom);
   const selectedAppId = useAtomValue(selectedAppIdAtom);
+  const currentApp = useAtomValue(currentAppAtom);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const { runApp, stopApp, loading, app } = useRunApp();
   const { loadEdgeLogs } = useSupabase();
   const runningAppIdRef = useRef<number | null>(null);
   const key = useAtomValue(previewPanelKeyAtom);
   const consoleEntries = useAtomValue(appConsoleEntriesAtom);
+
+  // Determine preview strategy based on app's runtime provider
+  const previewStrategy = useMemo(() => {
+    return getPreviewStrategy(app?.runtimeProvider, app?.stackType);
+  }, [app?.runtimeProvider, app?.stackType]);
 
   const latestMessage =
     consoleEntries.length > 0
@@ -145,7 +195,7 @@ export function PreviewPanel() {
           <Panel id="content" minSize={30}>
             <div className="h-full overflow-y-auto">
               {previewMode === "preview" ? (
-                <PreviewIframe key={key} loading={loading} />
+                <PreviewContent strategy={previewStrategy} loading={loading} key={key} />
               ) : previewMode === "code" ? (
                 <CodeView loading={loading} app={app} />
               ) : previewMode === "configure" ? (

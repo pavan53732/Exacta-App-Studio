@@ -189,3 +189,38 @@ export function getDyadSearchReplaceTags(fullResponse: string): {
   }
   return tags;
 }
+
+/**
+ * Parse <dyad-add-nuget packages="..."> tags for NuGet package installation.
+ * Used by Windows-only app builder for .NET projects.
+ */
+export function getDyadAddNugetTags(fullResponse: string): string[] {
+  const dyadAddNugetRegex =
+    /<dyad-add-nuget packages="([^"]+)">[^<]*<\/dyad-add-nuget>/g;
+  let match;
+  const packages: string[] = [];
+  while ((match = dyadAddNugetRegex.exec(fullResponse)) !== null) {
+    packages.push(...unescapeXmlAttr(match[1]).split(" "));
+  }
+  return packages;
+}
+
+/**
+ * Parse <dyad-dotnet-command cmd="..." args="..."> tags for .NET CLI commands.
+ * Used by Windows-only app builder for executing dotnet commands.
+ */
+export function getDyadDotnetCommandTags(
+  fullResponse: string,
+): { cmd: string; args?: string }[] {
+  const dyadDotnetCommandRegex =
+    /<dyad-dotnet-command cmd="([^"]+)"(?: args="([^"]*)")?[^>]*>([\s\S]*?)<\/dyad-dotnet-command>/g;
+  let match;
+  const commands: { cmd: string; args?: string }[] = [];
+  while ((match = dyadDotnetCommandRegex.exec(fullResponse)) !== null) {
+    commands.push({
+      cmd: unescapeXmlAttr(match[1]),
+      args: match[2] ? unescapeXmlAttr(match[2]) : undefined,
+    });
+  }
+  return commands;
+}

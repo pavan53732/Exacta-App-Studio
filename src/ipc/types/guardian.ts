@@ -2,6 +2,20 @@ import { z } from "zod";
 import { defineContract, createClient } from "../contracts/core";
 
 // ============================================================================
+// Network Policy Schemas
+// ============================================================================
+
+export const NetworkPolicySchema = z.object({
+  allowedHosts: z.array(z.string()).optional(),
+  blockedHosts: z.array(z.string()).optional(),
+  allowAll: z.boolean().default(false),
+  blockAll: z.boolean().default(false),
+  allowLoopback: z.boolean().default(true),
+});
+
+export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
+
+// ============================================================================
 // Job Object Schemas
 // ============================================================================
 
@@ -12,7 +26,7 @@ export const CreateJobRequestSchema = z.object({
   activeProcessLimit: z.number().optional(),
   killProcessesOnJobClose: z.boolean().default(true),
   // NEW: Zero-Trust extensions
-  networkPolicy: z.enum(["blocked", "allowed", "local-only"]).optional(),
+  networkPolicy: NetworkPolicySchema.optional(),
   diskQuotaBytes: z.number().optional(),
 });
 
@@ -48,7 +62,32 @@ export const JobStatisticsSchema = z.object({
   totalTerminatedProcesses: z.number(),
   peakMemoryUsed: z.number(),
   currentMemoryUsage: z.number(),
+  // Disk I/O statistics
+  totalDiskReadBytes: z.number().optional(),
+  totalDiskWriteBytes: z.number().optional(),
+  diskQuotaLimit: z.number().optional(),
 });
+
+// Quota exceeded event types
+export const QuotaTypeSchema = z.enum([
+  "Memory",
+  "DiskRead",
+  "DiskWrite",
+  "DiskTotal",
+  "CpuRate",
+  "ProcessCount",
+]);
+
+export const QuotaExceededEventSchema = z.object({
+  jobName: z.string(),
+  quotaType: QuotaTypeSchema,
+  limit: z.number(),
+  currentValue: z.number(),
+  timestamp: z.number(),
+});
+
+export type QuotaType = z.infer<typeof QuotaTypeSchema>;
+export type QuotaExceededEvent = z.infer<typeof QuotaExceededEventSchema>;
 
 export const GetJobStatsRequestSchema = z.object({
   jobName: z.string(),
