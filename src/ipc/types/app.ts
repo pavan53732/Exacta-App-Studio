@@ -51,6 +51,8 @@ export type App = z.infer<typeof AppSchema>;
  */
 export const CreateAppParamsSchema = z.object({
   name: z.string().min(1),
+  runtimeProvider: z.enum(["node", "dotnet", "tauri"]).optional(),
+  stackType: z.string().optional(),
 });
 
 /**

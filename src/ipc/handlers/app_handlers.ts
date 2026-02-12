@@ -941,6 +941,11 @@ export function registerAppHandlers() {
     if (fs.existsSync(fullAppPath)) {
       throw new Error(`App already exists at: ${fullAppPath}`);
     }
+
+    // Determine runtime provider and stack type
+    const runtimeProvider = params.runtimeProvider || "node";
+    const stackType = params.stackType || "react";
+
     // Create a new app
     const [app] = await db
       .insert(apps)
@@ -948,6 +953,8 @@ export function registerAppHandlers() {
         name: params.name,
         // Use the name as the path for now
         path: appPath,
+        runtimeProvider,
+        stackType,
       })
       .returning();
 
@@ -959,12 +966,33 @@ export function registerAppHandlers() {
       })
       .returning();
 
-    await createFromTemplate({
-      fullAppPath,
-    });
+    // Use RuntimeProvider for scaffolding if specified
+    if (runtimeProvider && runtimeProvider !== "node") {
+      try {
+        const provider = runtimeRegistry.getProvider(runtimeProvider);
+        const scaffoldResult = await provider.scaffold({
+          projectName: params.name,
+          fullAppPath,
+          templateId: stackType,
+        });
+
+        if (!scaffoldResult.success) {
+          throw new Error(scaffoldResult.error || "Failed to scaffold app");
+        }
+      } catch (error: any) {
+        logger.error(`Error scaffolding app with ${runtimeProvider}:`, error);
+        // Clean up the created app record
+        await db.delete(apps).where(eq(apps.id, app.id));
+        throw new Error(`Failed to create ${runtimeProvider} app: ${error.message}`);
+      }
+    } else {
+      // Use default template creation for Node.js apps
+      await createFromTemplate({
+        fullAppPath,
+      });
+    }
 
     // Initialize git repo and create first commit
-
     await gitInit({ path: fullAppPath, ref: "main" });
 
     // Stage all files
