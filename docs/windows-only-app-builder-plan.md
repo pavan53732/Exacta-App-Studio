@@ -10,10 +10,74 @@ Transform Dyad into a Windows-focused universal app builder:
 
 ---
 
+## Critical Architecture Decision: Execution Kernel First
+
+**⚠️ BEFORE ANY RUNTIME IMPLEMENTATION**, we must establish the Execution Kernel abstraction.
+
+The current codebase has scattered `execPromise()` calls that bypass security. This plan introduces:
+
+1. **ExecutionKernel** - Centralized, policy-enforced command execution
+2. **RuntimeProvider Interface** - Abstracted runtime implementations
+3. **Capability-Based Security** - All operations validated before execution
+
+**Rule**: No raw `exec()`, `spawn()`, or `execPromise()` in runtime logic. All commands go through `ExecutionKernel.execute()`.
+
+---
+
+## Architecture (Windows-Only)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Dyad Electron App                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                    UI Layer (React + TanStack)                        │   │
+│  │   PreviewPanel │ Chat │ FileTree │ Settings │ Agent Tools            │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                          Runtime Abstraction Layer                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │              RuntimeProviderRegistry                                 │   │
+│  │   NodeRuntimeProvider │ DotNetRuntimeProvider │ TauriRuntimeProvider │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        Execution Kernel (NEW)                                │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  ExecutionKernel.execute()                                           │   │
+│  │    → validateAction()      → Command allowlist, path validation      │   │
+│  │    → classifyRisk()        → low/medium/high risk assessment         │   │
+│  │    → requestCapability()   → JWT token from Guardian                 │   │
+│  │    → createGuardianJob()   → Sandbox for high-risk ops               │   │
+│  │    → spawnControlled()     → Guardian or tracked spawn               │   │
+│  │    → monitorProcess()      → Timeout, stdout/stderr, events          │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                     Windows Guardian Service (Existing)                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
+│  │  Job Object │ │  WFP Rules  │ │   ACL       │ │ Capability Engine   │   │
+│  │  Manager    │ │  (Network)  │ │  (Files)    │ │ (JWT Tokens)        │   │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        Windows Toolchains                                    │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────┐    │
+│  │ Node/npm │ │  .NET    │ │  Rust/   │ │  MSBuild │ │  Code Sign     │    │
+│  │  pnpm    │ │  SDK     │ │  Cargo   │ │          │ │  signtool      │    │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Architecture Principle:** No direct shell execution. All commands flow through the Execution Kernel.
+
+---
+
 ## Codebase Mapping: Plan Concepts to Actual Files
 
 | Plan Concept | Actual Code That Needs Changing |
 |---|---|
+| `ExecutionKernel.execute()` | **NEW** - Replace all direct shell calls |
+| `RuntimeProvider` interface | **NEW** - `src/ipc/runtime/RuntimeProvider.ts` |
+| `NodeRuntimeProvider` | **NEW** - `src/ipc/runtime/providers/NodeRuntimeProvider.ts` |
+| `DotNetRuntimeProvider` | **NEW** - `src/ipc/runtime/providers/DotNetRuntimeProvider.ts` |
+| `TauriRuntimeProvider` | **NEW** - `src/ipc/runtime/providers/TauriRuntimeProvider.ts` |
 | `RuntimeProvider.scaffold()` | [`src/ipc/handlers/createFromTemplate.ts`](src/ipc/handlers/createFromTemplate.ts:12) — currently only handles `"react"` scaffold or GitHub clones |
 | `RuntimeProvider.build()` | [`src/ipc/handlers/app_handlers.ts:2009`](src/ipc/handlers/app_handlers.ts:2009) — [`getCommand()`](src/ipc/handlers/app_handlers.ts:2009) currently defaults to npm |
 | `RuntimeProvider.preview()` | [`src/components/preview_panel/PreviewIframe.tsx:1290`](src/components/preview_panel/PreviewIframe.tsx:1290) — hardcoded `<iframe>` |
@@ -28,667 +92,488 @@ Transform Dyad into a Windows-focused universal app builder:
 
 ---
 
-## Architecture (Windows-Only)
+## Phase 0: Execution Kernel Foundation (Month 1) - **CRITICAL**
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Dyad Electron App                         │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              RuntimeProvider Interface                │   │
-│  │  scaffold() → build() → preview() → package()        │   │
-│  └──────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    Execution Kernel                          │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │   Process   │ │  Capability │ │    Policy   │           │
-│  │   Spawner   │ │   Engine    │ │   Engine    │           │
-│  │  (Sandbox)  │ │ (JWT Tokens)│ │(Determinism)│           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
-│  │    State    │ │   Resource  │ │    Shell    │           │
-│  │   Manager   │ │  Governor   │ │   Gateway   │           │
-│  │(Atomic Txn) │ │(CPU/Mem/IO) │ │(Controlled) │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-├─────────────────────────────────────────────────────────────┤
-│              Windows Implementation (ONLY)                   │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  Guardian Service → Job Objects + WFP + ACL         │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
+### 0.1 Execution Kernel Interface
 
-**Key Advantage:** No cross-platform abstraction needed. Use Windows APIs directly.
-
----
-
-## Phase 1: Guardian Integration & Hardening (Months 1-2)
-
-### 1.1 Complete Guardian Integration
-
-**Existing Guardian Code:** [`src/ipc/handlers/guardian_handlers.ts`](src/ipc/handlers/guardian_handlers.ts)
-
-The Guardian Service becomes THE execution kernel. Extend the existing handlers rather than creating from scratch:
+**NEW File:** `src/ipc/runtime/ExecutionKernel.ts`
 
 ```typescript
-// src/ipc/handlers/guardian_handlers.ts (EXISTING - extend these)
-- guardianContracts.createJob        // Job Object creation
-- guardianContracts.assignProcessToJob  // Process assignment
-- guardianContracts.terminateJob     // Job termination
-- guardianContracts.requestCapability   // JWT capability tokens
-- guardianContracts.createWfpRule    // Windows Filtering Platform
-```
+// src/ipc/runtime/ExecutionKernel.ts
+// CENTRALIZED, POLICY-ENFORCED COMMAND EXECUTION
+// NO raw exec(), spawn(), or execPromise() anywhere else in runtime logic
 
-**Integration Points for Node.js Sandboxing:**
+import { ipc } from "@/ipc/types";
+import log from "electron-log";
 
-```typescript
-// src/ipc/handlers/app_handlers.ts - modify executeAppLocalNode()
-async function executeAppLocalNode({
-  appPath, appId, event, isNeon, installCommand, startCommand,
-}: {
-  appPath: string; appId: number; event: Electron.IpcMainInvokeEvent;
-  isNeon: boolean; installCommand?: string | null; startCommand?: string | null;
-}): Promise<void> {
-  const settings = readSettings();
-  const useGuardian = settings.useGuardianSandboxing ?? true;
+const logger = log.scope("execution-kernel");
+
+export interface ExecutionOptions {
+  command: string;
+  args: string[];
+  cwd: string;
+  appId: number;
   
-  if (useGuardian) {
-    // NEW: Use Guardian for sandboxed execution
+  // Security policies
+  networkPolicy: "allowed" | "blocked" | "restricted";
+  memoryLimitBytes?: number;
+  cpuRatePercent?: number;
+  timeoutMs?: number;
+  
+  // Environment isolation
+  env?: Record<string, string>;
+  readOnlyPaths?: string[];
+  writePaths?: string[];
+}
+
+export interface ExecutionResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  jobId?: string;
+}
+
+export interface ExecutionEvent {
+  type: "stdout" | "stderr" | "ready" | "error" | "timeout" | "resource-limit";
+  message: string;
+  timestamp: number;
+}
+
+export type ExecutionEventHandler = (event: ExecutionEvent) => void;
+
+/**
+ * ExecutionKernel - Single entry point for ALL command execution
+ * 
+ * Architecture:
+ *   ExecutionKernel.execute(action)
+ *     → ValidateAction
+ *     → ClassifyRisk
+ *     → RequestCapability (JWT token)
+ *     → CreateGuardianJob (if needed)
+ *     → SpawnViaGuardian
+ *     → TrackResourceUsage
+ *     → EmitStructuredEvents
+ *     → CommitCheckpoint
+ * 
+ * NO direct shell execution bypasses this layer.
+ */
+export class ExecutionKernel {
+  private static instance: ExecutionKernel;
+  private useGuardian: boolean = true;
+  
+  private constructor() {}
+  
+  static getInstance(): ExecutionKernel {
+    if (!ExecutionKernel.instance) {
+      ExecutionKernel.instance = new ExecutionKernel();
+    }
+    return ExecutionKernel.instance;
+  }
+  
+  /**
+   * Execute a command through the kernel
+   * ALL runtime commands must go through this method
+   */
+  async execute(options: ExecutionOptions, onEvent?: ExecutionEventHandler): Promise<ExecutionResult> {
+    // 1. Validate action against policy
+    await this.validateAction(options);
+    
+    // 2. Classify risk level
+    const riskLevel = this.classifyRisk(options);
+    
+    // 3. Request capability token
+    const capability = await this.requestCapability(options, riskLevel);
+    
+    // 4. Create Guardian job for sandboxing (if enabled)
+    let jobId: string | undefined;
+    if (this.useGuardian && riskLevel !== "low") {
+      jobId = await this.createGuardianJob(options);
+    }
+    
+    // 5. Execute via Guardian or direct (controlled) spawn
+    const result = await this.spawnControlled(options, jobId, onEvent);
+    
+    // 6. Cleanup Guardian job
+    if (jobId) {
+      await this.cleanupGuardianJob(jobId);
+    }
+    
+    return result;
+  }
+  
+  private async validateAction(options: ExecutionOptions): Promise<void> {
+    // Validate command against allowlist
+    const allowedCommands = ["npm", "pnpm", "dotnet", "cargo", "node", "git"];
+    const baseCommand = options.command.split("/").pop()?.split("\\").pop();
+    
+    if (!baseCommand || !allowedCommands.includes(baseCommand)) {
+      throw new Error(`Command not allowed: ${options.command}`);
+    }
+    
+    // Validate paths are within app directory
+    if (!options.cwd.includes(`dyad-app-${options.appId}`) && !options.cwd.includes("templates")) {
+      throw new Error(`Invalid working directory: ${options.cwd}`);
+    }
+  }
+  
+  private classifyRisk(options: ExecutionOptions): "low" | "medium" | "high" {
+    const cmd = options.command.toLowerCase();
+    const args = options.args.join(" ").toLowerCase();
+    
+    // High risk: network access + package installation
+    if (options.networkPolicy === "allowed" && 
+        (args.includes("install") || args.includes("add") || args.includes("restore"))) {
+      return "high";
+    }
+    
+    // Medium risk: network access or build
+    if (options.networkPolicy === "allowed" || args.includes("build")) {
+      return "medium";
+    }
+    
+    return "low";
+  }
+  
+  private async requestCapability(options: ExecutionOptions, riskLevel: string): Promise<any> {
+    // Request capability token from Guardian
+    if (riskLevel === "high") {
+      return await ipc.guardian.requestCapability({
+        action: "execute",
+        resource: options.command,
+        constraints: {
+          network: options.networkPolicy,
+          memory: options.memoryLimitBytes,
+          cpu: options.cpuRatePercent,
+        },
+      });
+    }
+    return null;
+  }
+  
+  private async createGuardianJob(options: ExecutionOptions): Promise<string> {
     const job = await ipc.guardian.createJob({
-      jobName: `dyad-app-${appId}`,
-      memoryLimitBytes: 2 * 1024 * 1024 * 1024, // 2GB
-      cpuRatePercent: 50,
-      networkPolicy: 'allowed',
+      jobName: `dyad-app-${options.appId}-${Date.now()}`,
+      memoryLimitBytes: options.memoryLimitBytes || 2 * 1024 * 1024 * 1024,
+      cpuRatePercent: options.cpuRatePercent || 50,
+      networkPolicy: options.networkPolicy,
+    });
+    return job.id;
+  }
+  
+  private async spawnControlled(
+    options: ExecutionOptions,
+    jobId: string | undefined,
+    onEvent?: ExecutionEventHandler
+  ): Promise<ExecutionResult> {
+    const startTime = Date.now();
+    
+    if (jobId) {
+      // Spawn via Guardian
+      return this.spawnViaGuardian(options, jobId, onEvent);
+    } else {
+      // Low-risk: controlled direct spawn (still tracked)
+      return this.spawnTracked(options, onEvent);
+    }
+  }
+  
+  private async spawnViaGuardian(
+    options: ExecutionOptions,
+    jobId: string,
+    onEvent?: ExecutionEventHandler
+  ): Promise<ExecutionResult> {
+    // Use Guardian for sandboxed execution
+    const proc = await ipc.guardian.spawnInJob(
+      options.command,
+      options.args,
+      jobId,
+      { cwd: options.cwd, env: options.env }
+    );
+    
+    return this.monitorProcess(proc, options, onEvent);
+  }
+  
+  private async spawnTracked(
+    options: ExecutionOptions,
+    onEvent?: ExecutionEventHandler
+  ): Promise<ExecutionResult> {
+    // Even "direct" spawns are tracked and limited
+    const { spawn } = await import("node:child_process");
+    
+    const proc = spawn(options.command, options.args, {
+      cwd: options.cwd,
+      env: { ...process.env, ...options.env },
+      shell: false, // NO shell interpretation
     });
     
-    const proc = await ipc.guardian.spawnInJob('npm', ['run', 'dev'], job.id);
-    // Monitor and enforce limits...
-  } else {
-    // FALLBACK: Existing direct spawn
-    const spawnedProcess = spawn(command, [], { cwd: appPath, shell: true, stdio: "pipe" });
+    return this.monitorProcess(proc, options, onEvent);
   }
-}
-```
-
-### 1.2 Harden Node.js Builds
-
-Extend [`src/ipc/utils/process_manager.ts`](src/ipc/utils/process_manager.ts) with Guardian integration:
-
-```typescript
-// src/ipc/utils/process_manager.ts
-export interface RunningAppInfo {
-  process: ChildProcess;
-  processId: number;
-  isDocker: boolean;
-  containerName?: string;
-  // NEW: Guardian job tracking
-  guardianJobId?: string;
-}
-
-// NEW: Spawn with Guardian sandboxing
-export async function spawnWithGuardian({
-  command,
-  args,
-  cwd,
-  appId,
-  memoryLimitBytes,
-}: SpawnOptions): Promise<RunningAppInfo> {
-  const job = await ipc.guardian.createJob({
-    jobName: `dyad-app-${appId}`,
-    memoryLimitBytes,
-    cpuRatePercent: 50,
-    networkPolicy: 'allowed',
-  });
   
-  const proc = await ipc.guardian.spawnInJob(command, args, job.id);
-  return { process: proc, processId: processCounter.increment(), isDocker: false, guardianJobId: job.id };
-}
-```
-
----
-
-## Phase 2: Database Schema & Core Runtime (Months 2-3)
-
-### 2.1 Database Migration
-
-**File:** [`src/db/schema.ts`](src/db/schema.ts:26)
-
-Add columns to the `apps` table (Dyad uses SQLite + Drizzle ORM, not YAML config):
-
-```typescript
-// src/db/schema.ts
-export const apps = sqliteTable("apps", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  path: text("path").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  private async monitorProcess(
+    proc: any,
+    options: ExecutionOptions,
+    onEvent?: ExecutionEventHandler
+  ): Promise<ExecutionResult> {
+    return new Promise((resolve, reject) => {
+      let stdout = "";
+      let stderr = "";
+      const startTime = Date.now();
+      
+      // Set timeout
+      const timeout = setTimeout(() => {
+        proc.kill();
+        reject(new Error(`Execution timeout after ${options.timeoutMs}ms`));
+      }, options.timeoutMs || 300000); // 5 min default
+      
+      proc.stdout?.on("data", (data: Buffer) => {
+        const chunk = data.toString();
+        stdout += chunk;
+        onEvent?.({ type: "stdout", message: chunk, timestamp: Date.now() });
+      });
+      
+      proc.stderr?.on("data", (data: Buffer) => {
+        const chunk = data.toString();
+        stderr += chunk;
+        onEvent?.({ type: "stderr", message: chunk, timestamp: Date.now() });
+      });
+      
+      proc.on("close", (exitCode: number) => {
+        clearTimeout(timeout);
+        resolve({
+          exitCode,
+          stdout,
+          stderr,
+          durationMs: Date.now() - startTime,
+        });
+      });
+      
+      proc.on("error", (err: Error) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+  }
   
-  // EXISTING columns (plan didn't acknowledge):
-  installCommand: text("install_command"),
-  startCommand: text("start_command"),
-  
-  // NEW columns for Windows app builder:
-  stackType: text("stack_type").default("react"),     // "react" | "nextjs" | "express-react" | "wpf" | "winui3" | "winforms" | "console" | "maui" | "tauri"
-  runtimeProvider: text("runtime_provider").default("node"), // "node" | "dotnet" | "tauri"
-  
-  // Existing columns...
-  githubOrg: text("github_org"),
-  githubRepo: text("github_repo"),
-  // ... rest of existing columns
-});
-```
-
-**Create Migration:**
-```bash
-npm run db:generate
-```
-
-### 2.2 DotNetProvider Implementation
-
-**File:** [`src/ipc/handlers/createFromTemplate.ts`](src/ipc/handlers/createFromTemplate.ts:12)
-
-Modify to support .NET templates:
-
-```typescript
-// src/ipc/handlers/createFromTemplate.ts
-export async function createFromTemplate({
-  fullAppPath,
-  stackType = "react",        // NEW parameter
-  runtimeProvider = "node",   // NEW parameter
-}: {
-  fullAppPath: string;
-  stackType?: string;          // NEW
-  runtimeProvider?: string;    // NEW
-}) {
-  if (runtimeProvider === "node") {
-    // EXISTING: React/web templates
-    const settings = readSettings();
-    const templateId = settings.selectedTemplateId;
-    if (templateId === "react") {
-      await copyDirectoryRecursive(path.join(__dirname, "..", "..", "scaffold"), fullAppPath);
-      return;
+  private async cleanupGuardianJob(jobId: string): Promise<void> {
+    try {
+      await ipc.guardian.terminateJob({ jobId });
+    } catch (error) {
+      logger.warn(`Failed to cleanup Guardian job ${jobId}:`, error);
     }
-    // GitHub clone logic...
-  } else if (runtimeProvider === "dotnet") {
-    // NEW: .NET templates
-    await scaffoldDotNetTemplate({ stackType, fullAppPath });
-  } else if (runtimeProvider === "tauri") {
-    // NEW: Tauri templates
-    await scaffoldTauriTemplate({ stackType, fullAppPath });
   }
 }
 
-// NEW function
-async function scaffoldDotNetTemplate({
-  stackType,
-  fullAppPath,
-}: {
-  stackType: string;
-  fullAppPath: string;
-}) {
-  const templateMap: Record<string, string> = {
-    "wpf": "wpf",
-    "winui3": "winui3",
-    "winforms": "winforms",
-    "console": "console",
-    "maui": "maui",
-  };
-  
-  const dotnetTemplate = templateMap[stackType];
-  if (!dotnetTemplate) {
-    throw new Error(`Unknown .NET template: ${stackType}`);
-  }
-  
-  const projectName = path.basename(fullAppPath);
-  const { execPromise } = await import("../processors/executeAddDependency");
-  await execPromise(`dotnet new ${dotnetTemplate} -n "${projectName}" -o "${fullAppPath}"`);
-}
+// Singleton export
+export const executionKernel = ExecutionKernel.getInstance();
 ```
 
-**File:** [`src/ipc/handlers/app_handlers.ts`](src/ipc/handlers/app_handlers.ts:2009)
+### 0.2 Runtime Provider Interface
 
-Modify `getCommand()` and `executeApp()` for .NET support:
+**NEW File:** `src/ipc/runtime/RuntimeProvider.ts`
 
 ```typescript
-// src/ipc/handlers/app_handlers.ts - modify getCommand()
-function getCommand({
-  appId,
-  installCommand,
-  startCommand,
-  runtimeProvider = "node",  // NEW parameter
-  stackType = "react",       // NEW parameter
-}: {
+// src/ipc/runtime/RuntimeProvider.ts
+// Abstract interface for all runtime implementations
+// UI and IPC call these methods — NOT runtime strings directly
+
+import { ExecutionResult, ExecutionEventHandler } from "./ExecutionKernel";
+
+export interface ScaffoldOptions {
+  projectName: string;
+  fullAppPath: string;
+  templateId?: string;
+}
+
+export interface ScaffoldResult {
+  success: boolean;
+  entryPoint?: string;
+  error?: string;
+}
+
+export interface BuildOptions {
   appId: number;
+  appPath: string;
+  configuration?: "Debug" | "Release";
+}
+
+export interface BuildResult {
+  success: boolean;
+  outputPath?: string;
+  errors?: string[];
+  warnings?: string[];
+}
+
+export interface RunOptions {
+  appId: number;
+  appPath: string;
   installCommand?: string | null;
   startCommand?: string | null;
-  runtimeProvider?: string;   // NEW
-  stackType?: string;         // NEW
-}) {
-  const hasCustomCommands = !!installCommand?.trim() && !!startCommand?.trim();
-  if (hasCustomCommands) {
-    return `${installCommand!.trim()} && ${startCommand!.trim()}`;
-  }
-  
-  // NEW: Runtime-specific default commands
-  if (runtimeProvider === "dotnet") {
-    return getDotNetDefaultCommand({ stackType, appPath: "" }); // appPath determined at call site
-  } else if (runtimeProvider === "tauri") {
-    return getTauriDefaultCommand();
-  }
-  
-  // EXISTING: Node default
-  return getDefaultCommand(appId);
 }
 
-// NEW: .NET command builder
-function getDotNetDefaultCommand({
-  stackType,
-  appPath,
-}: {
-  stackType: string;
-  appPath: string;
-}): string {
-  switch (stackType) {
-    case "wpf":
-    case "winui3":
-    case "winforms":
-      return `dotnet build && dotnet run`;
-    case "console":
-      return `dotnet run`;
-    case "maui":
-      return `dotnet build -f net8.0-windows10.0.19041.0`;
-    default:
-      return `dotnet run`;
-  }
+export interface RunResult {
+  processId?: number;
+  ready: boolean;
+  error?: string;
 }
-```
 
-### 2.3 App-Ready Detection for Native Apps
+export type PreviewStrategy = "iframe" | "external-window" | "console-output" | "hybrid";
 
-**File:** [`src/ipc/handlers/app_handlers.ts`](src/ipc/handlers/app_handlers.ts:343)
-
-Currently detects app readiness by matching `localhost:PORT` in stdout. For native apps, extend the detection:
-
-```typescript
-// src/ipc/handlers/app_handlers.ts - modify listenToProcess()
-function listenToProcess({
-  process: spawnedProcess,
-  appId,
-  isNeon,
-  event,
-  runtimeProvider = "node",  // NEW
-  stackType = "react",       // NEW
-}: {
-  process: ChildProcess;
+export interface PreviewOptions {
   appId: number;
-  isNeon: boolean;
-  event: Electron.IpcMainInvokeEvent;
-  runtimeProvider?: string;   // NEW
-  stackType?: string;         // NEW
-}) {
-  spawnedProcess.stdout?.on("data", async (data) => {
-    const message = util.stripVTControlCharacters(data.toString());
-    
-    // EXISTING: Node web app detection
-    if (runtimeProvider === "node") {
-      const urlMatch = message.match(/(https?:\/\/localhost:\d+\/?)/);
-      if (urlMatch) {
-        proxyWorker = await startProxy(urlMatch[1], { /* ... */ });
+  appPath: string;
+  onScreenshot?: (dataUrl: string) => void;
+  onConsoleOutput?: (output: string) => void;
+}
+
+export interface PackageOptions {
+  appPath: string;
+  outputFormat: "exe" | "msi" | "msix" | "single-file";
+  architecture?: "x64" | "x86" | "arm64";
+}
+
+/**
+ * RuntimeProvider - Abstract base for all runtime implementations
+ * 
+ * Implementations:
+ *   - NodeRuntimeProvider (React, Next.js, etc.)
+ *   - DotNetRuntimeProvider (WPF, WinUI 3, WinForms, Console, MAUI)
+ *   - TauriRuntimeProvider (Tauri)
+ * 
+ * NO direct shell execution in implementations.
+ * All commands go through ExecutionKernel.
+ */
+export interface RuntimeProvider {
+  readonly runtimeId: string;
+  readonly runtimeName: string;
+  readonly supportedStackTypes: string[];
+  readonly previewStrategy: PreviewStrategy;
+  
+  // Prerequisites
+  checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }>;
+  installPrerequisites?(): Promise<void>;
+  
+  // Project lifecycle
+  scaffold(options: ScaffoldOptions): Promise<ScaffoldResult>;
+  resolveDependencies(options: { appPath: string; appId: number }): Promise<ExecutionResult>;
+  build(options: BuildOptions, onEvent?: ExecutionEventHandler): Promise<BuildResult>;
+  run(options: RunOptions, onEvent?: ExecutionEventHandler): Promise<RunResult>;
+  stop(appId: number): Promise<void>;
+  
+  // Preview
+  startPreview(options: PreviewOptions): Promise<void>;
+  stopPreview(appId: number): Promise<void>;
+  captureScreenshot?(appId: number): Promise<string>; // Base64 data URL
+  
+  // Packaging
+  package?(options: PackageOptions): Promise<ExecutionResult>;
+  
+  // Readiness detection
+  isReady(message: string): boolean;
+}
+```
+
+### 0.3 Runtime Provider Registry
+
+**NEW File:** `src/ipc/runtime/RuntimeProviderRegistry.ts`
+
+```typescript
+// src/ipc/runtime/RuntimeProviderRegistry.ts
+// Central registry for runtime providers
+// NO scattered runtime branching across the codebase
+
+import { RuntimeProvider } from "./RuntimeProvider";
+import { nodeRuntimeProvider } from "./providers/NodeRuntimeProvider";
+import { dotNetRuntimeProvider } from "./providers/DotNetRuntimeProvider";
+import { tauriRuntimeProvider } from "./providers/TauriRuntimeProvider";
+
+class RuntimeProviderRegistry {
+  private providers: Map<string, RuntimeProvider> = new Map();
+  
+  constructor() {
+    // Register built-in providers
+    this.register(nodeRuntimeProvider);
+    this.register(dotNetRuntimeProvider);
+    this.register(tauriRuntimeProvider);
+  }
+  
+  register(provider: RuntimeProvider): void {
+    this.providers.set(provider.runtimeId, provider);
+  }
+  
+  getProvider(runtimeId: string): RuntimeProvider {
+    const provider = this.providers.get(runtimeId);
+    if (!provider) {
+      throw new Error(`Unknown runtime: ${runtimeId}`);
+    }
+    return provider;
+  }
+  
+  getProviderForStack(stackType: string): RuntimeProvider {
+    for (const provider of this.providers.values()) {
+      if (provider.supportedStackTypes.includes(stackType)) {
+        return provider;
       }
     }
-    
-    // NEW: .NET native app detection
-    if (runtimeProvider === "dotnet") {
-      // WPF/WinForms: Process spawned successfully + no crash within 3s
-      // Console: First stdout output
-      if (stackType === "console" && message.length > 0) {
-        safeSend(event.sender, "app:output", {
-          type: "ready",
-          message: "Console app started",
-          appId,
-        });
-      }
-    }
-    
-    // NEW: Tauri detection (has web layer)
-    if (runtimeProvider === "tauri") {
-      const urlMatch = message.match(/(https?:\/\/localhost:\d+\/?)/);
-      if (urlMatch) {
-        proxyWorker = await startProxy(urlMatch[1], { /* ... */ });
-      }
-    }
-  });
+    throw new Error(`No provider found for stack type: ${stackType}`);
+  }
   
-  // NEW: For native apps, use process spawn success as readiness signal
-  if (runtimeProvider === "dotnet" && stackType !== "console") {
-    setTimeout(() => {
-      if (spawnedProcess.exitCode === null) {
-        safeSend(event.sender, "app:output", {
-          type: "ready",
-          message: "Native app started successfully",
-          appId,
-        });
-      }
-    }, 3000); // 3 second grace period
+  listProviders(): RuntimeProvider[] {
+    return Array.from(this.providers.values());
   }
 }
+
+export const runtimeRegistry = new RuntimeProviderRegistry();
 ```
 
-### 2.4 System Prompt Architecture
+### 0.4 Refactor Existing Code to Use Kernel
 
-**Files:** Create new prompt files, modify [`src/prompts/system_prompt.ts`](src/prompts/system_prompt.ts:62)
-
-```
-src/prompts/
-├── system_prompt.ts          (modify role description conditionally)
-├── local_agent_prompt.ts     (modify role description conditionally)
-├── supabase_prompt.ts        (existing - keep for web apps)
-├── dotnet_wpf_prompt.ts      (NEW)
-├── dotnet_winui_prompt.ts    (NEW)
-├── dotnet_winforms_prompt.ts (NEW)
-├── dotnet_console_prompt.ts  (NEW)
-└── tauri_prompt.ts           (NEW)
-```
-
-**Modify:** [`src/prompts/system_prompt.ts`](src/prompts/system_prompt.ts)
+**File:** [`src/ipc/processors/executeAddDependency.ts`](src/ipc/processors/executeAddDependency.ts)
 
 ```typescript
-// src/prompts/system_prompt.ts - modify constructSystemPrompt()
-export const constructSystemPrompt = ({
-  aiRules,
-  chatMode = "build",
-  enableTurboEditsV2,
-  themePrompt,
-  readOnly,
-  basicAgentMode,
-  stackType = "react",        // NEW parameter
-  runtimeProvider = "node",   // NEW parameter
-}: {
-  aiRules: string | undefined;
-  chatMode?: "build" | "ask" | "agent" | "local-agent" | "plan";
-  enableTurboEditsV2: boolean;
-  themePrompt?: string;
-  readOnly?: boolean;
-  basicAgentMode?: boolean;
-  stackType?: string;          // NEW
-  runtimeProvider?: string;    // NEW
-}) => {
-  // EXISTING code...
-  
-  let systemPrompt = getSystemPromptForChatMode({ chatMode, enableTurboEditsV2 });
-  
-  // NEW: Conditional role description based on stack type
-  const roleDescription = getRoleDescriptionForStack({ stackType, runtimeProvider });
-  systemPrompt = systemPrompt.replace("<role> You are Dyad, an AI editor that creates and modifies web applications.", roleDescription);
-  
-  systemPrompt = systemPrompt.replace("[[AI_RULES]]", aiRules ?? getDefaultAiRules({ stackType, runtimeProvider }));
-  
-  // NEW: Append stack-specific prompts
-  if (runtimeProvider === "dotnet") {
-    systemPrompt += "\n\n" + getDotNetPromptForStack(stackType);
-  } else if (runtimeProvider === "tauri") {
-    systemPrompt += "\n\n" + TAURI_PROMPT;
-  }
-  
-  // Append theme prompt if provided
-  if (themePrompt) {
-    systemPrompt += "\n\n" + themePrompt;
-  }
-  
-  return systemPrompt;
-};
+// src/ipc/processors/executeAddDependency.ts
+// REFACTORED to use ExecutionKernel
 
-// NEW: Get role description based on stack
-function getRoleDescriptionForStack({
-  stackType,
-  runtimeProvider,
-}: {
-  stackType: string;
-  runtimeProvider: string;
-}): string {
-  if (runtimeProvider === "dotnet") {
-    return `<role> You are Dyad, an AI editor that creates and modifies Windows desktop applications using .NET.`;
-  } else if (runtimeProvider === "tauri") {
-    return `<role> You are Dyad, an AI editor that creates and modifies desktop applications using Tauri (Rust + Web frontend).`;
-  }
-  return `<role> You are Dyad, an AI editor that creates and modifies web applications.`;
-}
-
-// NEW: Stack-specific AI rules
-function getDefaultAiRules({
-  stackType,
-  runtimeProvider,
-}: {
-  stackType: string;
-  runtimeProvider: string;
-}): string {
-  if (runtimeProvider === "dotnet") {
-    return getDotNetAiRules(stackType);
-  } else if (runtimeProvider === "tauri") {
-    return TAURI_AI_RULES;
-  }
-  return DEFAULT_AI_RULES; // Existing web app rules
-}
-```
-
-**New File:** `src/prompts/dotnet_wpf_prompt.ts`
-
-```typescript
-export const DOTNET_WPF_PROMPT = `
-# .NET WPF Development
-
-You are a Windows XAML expert for WPF applications.
-
-## Tech Stack
-- .NET 6/7/8
-- WPF with XAML 2009
-- MVVM pattern (Model-View-ViewModel)
-
-## XAML Controls
-- Button, TextBox, TextBlock, Label
-- ListView, DataGrid, TreeView
-- Navigation patterns with Frame
-- Dialogs: OpenFileDialog, SaveFileDialog (Windows native)
-
-## Data Binding
-- Use {Binding} for XAML binding
-- Implement INotifyPropertyChanged for ViewModels
-- Use ObservableCollection<T> for lists
-
-## Available Dyad Tags for WPF
-- <dyad-write path="MainWindow.xaml"> - Write XAML files
-- <dyad-write path="ViewModels/MainViewModel.cs"> - Write ViewModel classes
-- <dyad-add-nuget packages="PackageName"> - Add NuGet packages
-- <dyad-dotnet-command cmd="build"> - Run dotnet CLI commands
-
-## Project Structure
-MyWpfApp/
-├── MyWpfApp.csproj
-├── App.xaml
-├── MainWindow.xaml          // You generate this
-├── MainWindow.xaml.cs
-├── ViewModels/              // MVVM ViewModels
-│   └── MainViewModel.cs     // You generate this
-└── Views/                   // Additional views
-    └── UserControl1.xaml
-
-## Windows APIs Available
-- Windows.Storage (file access)
-- Windows.UI.Notifications (toast notifications)
-- Windows.ApplicationModel (packaging)
-
-Generate production-ready WPF apps with proper MVVM separation, async/await for I/O, and Windows-native look and feel.
-`;
-```
-
----
-
-## Phase 3: New Dyad Tags for .NET (Months 3-4)
-
-### 3.1 New Dyad Tags
-
-**File:** [`src/ipc/utils/dyad_tag_parser.ts`](src/ipc/utils/dyad_tag_parser.ts)
-
-Add parsers for new tags:
-
-```typescript
-// src/ipc/utils/dyad_tag_parser.ts
-
-// NEW: Parse <dyad-add-nuget packages="...">
-export function getDyadAddNugetTags(fullResponse: string): string[] {
-  const dyadAddNugetRegex = /<dyad-add-nuget packages="([^"]+)">[^<]*<\/dyad-add-nuget>/g;
-  let match;
-  const packages: string[] = [];
-  while ((match = dyadAddNugetRegex.exec(fullResponse)) !== null) {
-    packages.push(...unescapeXmlAttr(match[1]).split(" "));
-  }
-  return packages;
-}
-
-// NEW: Parse <dyad-dotnet-command cmd="...">
-export function getDyadDotnetCommandTags(fullResponse: string): string[] {
-  const dyadDotnetCommandRegex = /<dyad-dotnet-command cmd="([^"]+)"[^>]*>[\s\S]*?<\/dyad-dotnet-command>/g;
-  let match;
-  const commands: string[] = [];
-  while ((match = dyadDotnetCommandRegex.exec(fullResponse)) !== null) {
-    commands.push(unescapeXmlAttr(match[1]));
-  }
-  return commands;
-}
-
-// NEW: Parse <dyad-add-cargo-dependency packages="..."> (for Tauri)
-export function getDyadAddCargoDependencyTags(fullResponse: string): string[] {
-  const dyadAddCargoRegex = /<dyad-add-cargo-dependency packages="([^"]+)">[^<]*<\/dyad-add-cargo-dependency>/g;
-  let match;
-  const packages: string[] = [];
-  while ((match = dyadAddCargoRegex.exec(fullResponse)) !== null) {
-    packages.push(...unescapeXmlAttr(match[1]).split(" "));
-  }
-  return packages;
-}
-```
-
-### 3.2 Response Processor Updates
-
-**File:** [`src/ipc/processors/response_processor.ts`](src/ipc/processors/response_processor.ts)
-
-Add processing for new tags:
-
-```typescript
-// src/ipc/processors/response_processor.ts
-import {
-  getDyadWriteTags,
-  getDyadRenameTags,
-  getDyadDeleteTags,
-  getDyadAddDependencyTags,
-  getDyadExecuteSqlTags,
-  getDyadSearchReplaceTags,
-  // NEW imports:
-  getDyadAddNugetTags,
-  getDyadDotnetCommandTags,
-  getDyadAddCargoDependencyTags,
-} from "../utils/dyad_tag_parser";
-
-// NEW: Import NuGet execution
-import { executeAddNuget } from "./executeAddNuget";
-import { executeDotnetCommand } from "./executeDotnetCommand";
-
-export async function processFullResponseActions(
-  fullResponse: string,
-  chatId: number,
-  { chatSummary, messageId }: { chatSummary: string | undefined; messageId: number; }
-): Promise<{ updatedFiles?: boolean; error?: string; extraFiles?: string[]; extraFilesError?: string; }> {
-  // EXISTING code...
-  
-  // Extract all tags
-  const dyadWriteTags = getDyadWriteTags(fullResponse);
-  const dyadRenameTags = getDyadRenameTags(fullResponse);
-  const dyadDeletePaths = getDyadDeleteTags(fullResponse);
-  const dyadAddDependencyPackages = getDyadAddDependencyTags(fullResponse);
-  const dyadExecuteSqlQueries = chatWithApp.app.supabaseProjectId ? getDyadExecuteSqlTags(fullResponse) : [];
-  
-  // NEW: Extract .NET specific tags
-  const dyadAddNugetPackages = getDyadAddNugetTags(fullResponse);
-  const dyadDotnetCommands = getDyadDotnetCommandTags(fullResponse);
-  const dyadAddCargoPackages = getDyadAddCargoDependencyTags(fullResponse);
-  
-  // NEW: Handle NuGet package installation
-  if (dyadAddNugetPackages.length > 0) {
-    try {
-      await executeAddNuget({
-        packages: dyadAddNugetPackages,
-        message: message,
-        appPath,
-      });
-    } catch (error) {
-      errors.push({
-        message: `Failed to add NuGet packages: ${dyadAddNugetPackages.join(", ")}`,
-        error: error,
-      });
-    }
-    writtenFiles.push("*.csproj");
-  }
-  
-  // NEW: Handle dotnet CLI commands
-  for (const command of dyadDotnetCommands) {
-    try {
-      await executeDotnetCommand({ command, appPath });
-    } catch (error) {
-      errors.push({
-        message: `Failed to execute dotnet command: ${command}`,
-        error: error,
-      });
-    }
-  }
-  
-  // EXISTING: File operations (writes, renames, deletes)...
-}
-```
-
-### 3.3 New Processor Files
-
-**New File:** `src/ipc/processors/executeAddNuget.ts`
-
-```typescript
+import { executionKernel } from "../runtime/ExecutionKernel";
 import { db } from "../../db";
 import { messages } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { Message } from "@/ipc/types";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 
-export const execPromise = promisify(exec);
-
-export async function executeAddNuget({
+export async function executeAddDependency({
   packages,
   message,
   appPath,
+  appId,
 }: {
   packages: string[];
   message: Message;
   appPath: string;
+  appId: number;  // NEW: required for kernel
 }) {
-  const results: string[] = [];
-  
-  for (const packageName of packages) {
-    const { stdout, stderr } = await execPromise(
-      `dotnet add package ${packageName}`,
-      { cwd: appPath }
-    );
-    results.push(stdout + (stderr ? `\n${stderr}` : ""));
-  }
-  
-  const combinedResults = results.join("\n---\n");
-  
+  const packageStr = packages.join(" ");
+
+  // REFACTORED: Use ExecutionKernel instead of direct execPromise
+  const result = await executionKernel.execute({
+    command: "sh",
+    args: ["-c", `(pnpm add ${packageStr}) || (npm install --legacy-peer-deps ${packageStr})`],
+    cwd: appPath,
+    appId,
+    networkPolicy: "allowed",
+    memoryLimitBytes: 2 * 1024 * 1024 * 1024, // 2GB
+    timeoutMs: 300000, // 5 minutes
+  });
+
+  const installResults = result.stdout + (result.stderr ? `\n${result.stderr}` : "");
+
   // Update the message content with the installation results
   const updatedContent = message.content.replace(
     new RegExp(
-      `<dyad-add-nuget packages="${packages.join(" ")}">[^<]*</dyad-add-nuget>`,
+      `<dyad-add-dependency packages="${packages.join(" ")}">[^<]*</dyad-add-dependency>`,
       "g"
     ),
-    `<dyad-add-nuget packages="${packages.join(" ")}">${combinedResults}</dyad-add-nuget>`
+    `<dyad-add-dependency packages="${packages.join(" ")}">${installResults}</dyad-add-dependency>`
   );
-  
+
   // Save the updated message back to the database
   await db
     .update(messages)
@@ -699,148 +584,567 @@ export async function executeAddNuget({
 
 ---
 
-## Phase 4: Preview Strategy (Months 4-5)
+## Phase 1: Node Runtime Provider (Month 1-2)
 
-### 4.1 Preview Panel Architecture
+Extract existing Node.js logic into a proper RuntimeProvider.
 
-**Files:**
-- [`src/components/preview_panel/PreviewPanel.tsx`](src/components/preview_panel/PreviewPanel.tsx:147)
-- [`src/components/preview_panel/PreviewIframe.tsx`](src/components/preview_panel/PreviewIframe.tsx:1290)
+**NEW File:** `src/ipc/runtime/providers/NodeRuntimeProvider.ts`
 
-```mermaid
-graph TD
-    A[App stackType?] -->|react/nextjs/express| B[iframe preview<br/>Current behavior]
-    A -->|tauri| C[iframe for web layer<br/>+ External window launch]
-    A -->|wpf/winui3/winforms| D[External window launch<br/>+ Screenshot capture to preview panel]
-    A -->|console| E[Terminal output panel<br/>Replace iframe with terminal view]
+```typescript
+// src/ipc/runtime/providers/NodeRuntimeProvider.ts
+// Node.js runtime implementation
+
+import { RuntimeProvider, ScaffoldOptions, ScaffoldResult, BuildOptions, BuildResult, RunOptions, RunResult, PreviewOptions, PackageOptions } from "../RuntimeProvider";
+import { executionKernel } from "../ExecutionKernel";
+import { getAppPort } from "../../../../shared/ports";
+import path from "node:path";
+import fs from "node:fs-extra";
+import { copyDirectoryRecursive } from "../../utils/file_utils";
+
+export const nodeRuntimeProvider: RuntimeProvider = {
+  runtimeId: "node",
+  runtimeName: "Node.js",
+  supportedStackTypes: ["react", "nextjs", "express-react"],
+  previewStrategy: "iframe",
+  
+  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+    try {
+      await executionKernel.execute({
+        command: "node",
+        args: ["--version"],
+        cwd: process.cwd(),
+        appId: 0,
+        networkPolicy: "blocked",
+      });
+      return { installed: true, missing: [] };
+    } catch {
+      return { installed: false, missing: ["Node.js"] };
+    }
+  },
+  
+  async scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
+    try {
+      if (options.templateId === "react") {
+        await copyDirectoryRecursive(
+          path.join(__dirname, "..", "..", "..", "scaffold"),
+          options.fullAppPath
+        );
+        return { success: true, entryPoint: "src/main.tsx" };
+      }
+      
+      // GitHub clone logic via kernel
+      // ...
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  },
+  
+  async resolveDependencies(options: { appPath: string; appId: number }) {
+    return executionKernel.execute({
+      command: "sh",
+      args: ["-c", "pnpm install || npm install --legacy-peer-deps"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed",
+      memoryLimitBytes: 2 * 1024 * 1024 * 1024,
+      timeoutMs: 300000,
+    });
+  },
+  
+  async build(options: BuildOptions, onEvent) {
+    const result = await executionKernel.execute({
+      command: "npm",
+      args: ["run", "build"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "blocked",
+      timeoutMs: 300000,
+    }, onEvent);
+    
+    return {
+      success: result.exitCode === 0,
+      errors: result.exitCode !== 0 ? [result.stderr] : undefined,
+    };
+  },
+  
+  async run(options: RunOptions, onEvent) {
+    const port = getAppPort(options.appId);
+    const hasCustomCommands = !!options.installCommand?.trim() && !!options.startCommand?.trim();
+    
+    const command = hasCustomCommands
+      ? `${options.installCommand} && ${options.startCommand}`
+      : `(pnpm install && pnpm run dev --port ${port}) || (npm install --legacy-peer-deps && npm run dev -- --port ${port})`;
+    
+    const result = await executionKernel.execute({
+      command: "sh",
+      args: ["-c", command],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed",
+      memoryLimitBytes: 2 * 1024 * 1024 * 1024,
+    }, onEvent);
+    
+    return {
+      ready: result.exitCode === 0,
+    };
+  },
+  
+  async stop(appId: number) {
+    // Stop logic via process_manager
+    const { stopAppByInfo, runningApps } = await import("../../utils/process_manager");
+    const appInfo = runningApps.get(appId);
+    if (appInfo) {
+      await stopAppByInfo(appId, appInfo);
+    }
+  },
+  
+  async startPreview(options: PreviewOptions) {
+    // Node apps use iframe - no external window needed
+  },
+  
+  async stopPreview(appId: number) {
+    // Cleanup handled by stop()
+  },
+  
+  isReady(message: string): boolean {
+    // Node web apps ready when localhost URL detected
+    return /https?:\/\/localhost:\d+/.test(message);
+  },
+};
 ```
 
-**Modify:** [`src/components/preview_panel/PreviewPanel.tsx`](src/components/preview_panel/PreviewPanel.tsx)
+---
+
+## Phase 2: Database Schema (Month 2)
+
+**File:** [`src/db/schema.ts`](src/db/schema.ts:26)
+
+```typescript
+// src/db/schema.ts
+export const apps = sqliteTable("apps", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  
+  // EXISTING columns
+  installCommand: text("install_command"),
+  startCommand: text("start_command"),
+  
+  // NEW columns for Windows app builder
+  stackType: text("stack_type").default("react"),
+  runtimeProvider: text("runtime_provider").default("node"),
+  
+  // Existing columns...
+  githubOrg: text("github_org"),
+  githubRepo: text("github_repo"),
+  // ... rest of existing columns
+});
+```
+
+---
+
+## Phase 3: .NET Runtime Provider (Months 3-4)
+
+**NEW File:** `src/ipc/runtime/providers/DotNetRuntimeProvider.ts`
+
+```typescript
+// src/ipc/runtime/providers/DotNetRuntimeProvider.ts
+// .NET runtime implementation with security controls
+
+import { RuntimeProvider, ScaffoldOptions, ScaffoldResult, BuildOptions, BuildResult, RunOptions, RunResult, PreviewOptions, PackageOptions } from "../RuntimeProvider";
+import { executionKernel } from "../ExecutionKernel";
+import path from "node:path";
+
+export const dotNetRuntimeProvider: RuntimeProvider = {
+  runtimeId: "dotnet",
+  runtimeName: ".NET",
+  supportedStackTypes: ["wpf", "winui3", "winforms", "console", "maui"],
+  previewStrategy: "external-window", // Native apps need external window
+  
+  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+    const missing: string[] = [];
+    
+    try {
+      await executionKernel.execute({
+        command: "dotnet",
+        args: ["--version"],
+        cwd: process.cwd(),
+        appId: 0,
+        networkPolicy: "blocked",
+      });
+    } catch {
+      missing.push(".NET SDK");
+    }
+    
+    return { installed: missing.length === 0, missing };
+  },
+  
+  async scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
+    const templateMap: Record<string, string> = {
+      "wpf": "wpf",
+      "winui3": "winui3",
+      "winforms": "winforms",
+      "console": "console",
+      "maui": "maui",
+    };
+    
+    const dotnetTemplate = templateMap[options.templateId || "console"];
+    if (!dotnetTemplate) {
+      return { success: false, error: `Unknown .NET template: ${options.templateId}` };
+    }
+    
+    const projectName = path.basename(options.fullAppPath);
+    
+    try {
+      await executionKernel.execute({
+        command: "dotnet",
+        args: ["new", dotnetTemplate, "-n", projectName, "-o", options.fullAppPath],
+        cwd: path.dirname(options.fullAppPath),
+        appId: 0, // Scaffold phase - no specific app
+        networkPolicy: "blocked",
+        timeoutMs: 60000,
+      });
+      
+      return { success: true, entryPoint: `${projectName}.csproj` };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  },
+  
+  async resolveDependencies(options: { appPath: string; appId: number }) {
+    // HIGH SECURITY: NuGet restore has network access but is sandboxed
+    return executionKernel.execute({
+      command: "dotnet",
+      args: ["restore"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed", // NuGet needs network
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024, // 4GB for large restores
+      timeoutMs: 600000, // 10 minutes
+    });
+  },
+  
+  async build(options: BuildOptions, onEvent) {
+    const config = options.configuration || "Debug";
+    
+    const result = await executionKernel.execute({
+      command: "dotnet",
+      args: ["build", "-c", config, "-v", "n"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "blocked", // Build should not need network
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024, // 4GB for MSBuild
+      timeoutMs: 600000,
+    }, onEvent);
+    
+    // Parse build errors/warnings from output
+    const errors = result.stdout.match(/error [A-Z]+\d+:.*/g) || [];
+    const warnings = result.stdout.match(/warning [A-Z]+\d+:.*/g) || [];
+    
+    return {
+      success: result.exitCode === 0,
+      outputPath: path.join(options.appPath, "bin", config),
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  },
+  
+  async run(options: RunOptions, onEvent) {
+    // For native apps, we launch externally and monitor
+    const result = await executionKernel.execute({
+      command: "dotnet",
+      args: ["run"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed",
+      memoryLimitBytes: 2 * 1024 * 1024 * 1024,
+    }, onEvent);
+    
+    return {
+      ready: result.exitCode === 0 || result.exitCode === null, // null = still running
+    };
+  },
+  
+  async stop(appId: number) {
+    // Kill dotnet processes for this app
+    const { execPromise } = await import("../../processors/executeAddDependency");
+    try {
+      await execPromise(`taskkill /F /IM dotnet.exe /FI "WINDOWTITLE eq *dyad-app-${appId}*"`);
+    } catch {
+      // Process may already be stopped
+    }
+  },
+  
+  async startPreview(options: PreviewOptions) {
+    // Native apps launch in external window
+    // Preview panel shows status + logs only
+  },
+  
+  async stopPreview(appId: number) {
+    await this.stop(appId);
+  },
+  
+  async captureScreenshot(appId: number): Promise<string> {
+    // Use Windows API to capture screenshot of native window
+    // Return base64 data URL
+    throw new Error("Screenshot not yet implemented");
+  },
+  
+  isReady(message: string): boolean {
+    // Console apps: any stdout means ready
+    // GUI apps: window creation is detected via separate mechanism
+    return message.length > 0;
+  },
+  
+  // Packaging support
+  async package(options: PackageOptions) {
+    const args = ["publish", "-c", "Release"];
+    
+    if (options.outputFormat === "single-file") {
+      args.push("/p:PublishSingleFile=true", "--self-contained");
+    }
+    
+    if (options.architecture) {
+      args.push("-r", `win-${options.architecture}`);
+    }
+    
+    return executionKernel.execute({
+      command: "dotnet",
+      args,
+      cwd: options.appPath,
+      appId: 0,
+      networkPolicy: "blocked",
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+      timeoutMs: 600000,
+    });
+  },
+};
+```
+
+---
+
+## Phase 4: Agent Tools via Kernel (Months 4-5)
+
+**CRITICAL**: Agent tools must NOT bypass policy. They call ExecutionKernel.
+
+**NEW File:** `src/pro/main/ipc/handlers/local_agent/tools/run_dotnet_command.ts`
+
+```typescript
+// src/pro/main/ipc/handlers/local_agent/tools/run_dotnet_command.ts
+import { z } from "zod";
+import type { ToolDefinition } from "../types";
+import { executionKernel } from "../../../../../../ipc/runtime/ExecutionKernel";
+
+export const runDotnetCommandTool: ToolDefinition = {
+  name: "run_dotnet_command",
+  description: "Execute a dotnet CLI command through the secure ExecutionKernel",
+  inputSchema: z.object({
+    command: z.string().describe("The dotnet command to run (e.g., 'build', 'run')"),
+    args: z.array(z.string()).optional().describe("Command arguments"),
+    working_dir: z.string().optional().describe("Working directory"),
+  }),
+  modifiesState: true,
+  async execute({ command, args = [], working_dir }, ctx) {
+    const cwd = working_dir || ctx.appPath;
+    
+    // SECURITY: All execution goes through kernel
+    const result = await executionKernel.execute({
+      command: "dotnet",
+      args: [command, ...args],
+      cwd,
+      appId: ctx.appId,
+      networkPolicy: command === "restore" || args.includes("add") ? "allowed" : "blocked",
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+      timeoutMs: 300000,
+    });
+    
+    return `Exit code: ${result.exitCode}\nStdout:\n${result.stdout}\nStderr:\n${result.stderr}`;
+  },
+  getConsentPreview({ command, args }) {
+    return `Run: dotnet ${command} ${args?.join(" ") || ""}`;
+  },
+};
+```
+
+---
+
+## Phase 5: Preview Panel with Runtime Abstraction (Months 5-6)
+
+**File:** [`src/components/preview_panel/PreviewPanel.tsx`](src/components/preview_panel/PreviewPanel.tsx:147)
 
 ```typescript
 // src/components/preview_panel/PreviewPanel.tsx
-import { NativeAppPreview } from "./NativeAppPreview";   // NEW
-import { ConsolePreview } from "./ConsolePreview";       // NEW
+// REFACTORED to use RuntimeProvider abstraction
 
-// Main PreviewPanel component
+import { runtimeRegistry } from "../../../../ipc/runtime/RuntimeProviderRegistry";
+
 export function PreviewPanel() {
   const [previewMode] = useAtom(previewModeAtom);
   const selectedAppId = useAtomValue(selectedAppIdAtom);
-  const app = useAtomValue(selectedAppAtom); // NEW: Get full app details
+  const app = useAtomValue(selectedAppAtom);
   
-  // NEW: Determine preview strategy based on stack type
+  // Get runtime provider based on app's runtime
+  const runtimeProvider = app?.runtimeProvider 
+    ? runtimeRegistry.getProvider(app.runtimeProvider)
+    : null;
+  
   const getPreviewComponent = () => {
-    const runtimeProvider = app?.runtimeProvider ?? "node";
-    const stackType = app?.stackType ?? "react";
-    
-    if (runtimeProvider === "node") {
+    if (!runtimeProvider) {
       return <PreviewIframe key={key} loading={loading} />;
-    } else if (runtimeProvider === "dotnet") {
-      if (stackType === "console") {
-        return <ConsolePreview appId={selectedAppId} />;
-      } else {
-        // WPF, WinUI 3, WinForms
-        return <NativeAppPreview appId={selectedAppId} stackType={stackType} />;
-      }
-    } else if (runtimeProvider === "tauri") {
-      // Tauri has web layer + native
-      return <TauriPreview appId={selectedAppId} />;
     }
-    return <PreviewIframe key={key} loading={loading} />;
+    
+    // Use provider's preview strategy
+    switch (runtimeProvider.previewStrategy) {
+      case "iframe":
+        return <PreviewIframe key={key} loading={loading} />;
+        
+      case "external-window":
+        return <NativeAppPreview 
+          appId={selectedAppId} 
+          stackType={app?.stackType || ""}
+          runtimeProvider={runtimeProvider}
+        />;
+        
+      case "console-output":
+        return <ConsolePreview 
+          appId={selectedAppId} 
+          runtimeProvider={runtimeProvider}
+        />;
+        
+      case "hybrid":
+        return <HybridPreview 
+          appId={selectedAppId}
+          runtimeProvider={runtimeProvider}
+        />;
+        
+      default:
+        return <PreviewIframe key={key} loading={loading} />;
+    }
   };
   
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden">
-        <PanelGroup direction="vertical">
-          <Panel id="content" minSize={30}>
-            <div className="h-full overflow-y-auto">
-              {previewMode === "preview" ? (
-                getPreviewComponent() // NEW: Dynamic preview component
-              ) : previewMode === "code" ? (
-                <CodeView loading={loading} app={app} />
-              ) : previewMode === "configure" ? (
-                <ConfigurePanel />
-              ) : // ... other modes
-            </div>
-          </Panel>
-        </PanelGroup>
-      </div>
-    </div>
-  );
+  // ... rest of component
 }
 ```
 
-**New File:** `src/components/preview_panel/NativeAppPreview.tsx`
+**NEW File:** `src/components/preview_panel/NativeAppPreview.tsx` (Revised)
 
 ```typescript
 // src/components/preview_panel/NativeAppPreview.tsx
-import { useState, useEffect } from "react";
+// Revised: No continuous screenshot polling
+// Launch external window, show status + logs
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Square } from "lucide-react";
-import { ipc } from "@/ipc/types";
+import { Play, Square, Camera } from "lucide-react";
+import { RuntimeProvider } from "../../../../ipc/runtime/RuntimeProvider";
 
 interface NativeAppPreviewProps {
   appId: number;
   stackType: string;
+  runtimeProvider: RuntimeProvider;
 }
 
-export function NativeAppPreview({ appId, stackType }: NativeAppPreviewProps) {
+export function NativeAppPreview({ appId, stackType, runtimeProvider }: NativeAppPreviewProps) {
   const [isRunning, setIsRunning] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   
   const launchApp = async () => {
-    await ipc.app.runNativeApp({ appId });
+    setLogs([]);
     setIsRunning(true);
     
-    // Start screenshot capture loop
-    startScreenshotCapture();
+    await runtimeProvider.run(
+      { appId, appPath: "" }, // appPath resolved internally
+      (event) => {
+        if (event.type === "stdout" || event.type === "stderr") {
+          setLogs(prev => [...prev, event.message]);
+        }
+      }
+    );
   };
   
   const stopApp = async () => {
-    await ipc.app.stopNativeApp({ appId });
+    await runtimeProvider.stop(appId);
     setIsRunning(false);
   };
   
-  const startScreenshotCapture = () => {
-    // Capture screenshot every 2 seconds while app is running
-    const interval = setInterval(async () => {
-      try {
-        const screenshotData = await ipc.app.captureNativeAppScreenshot({ appId });
-        setScreenshot(screenshotData);
-      } catch (error) {
-        // App may have closed
-        clearInterval(interval);
-        setIsRunning(false);
-      }
-    }, 2000);
+  // ON-DEMAND screenshot only (not continuous polling)
+  const captureScreenshot = async () => {
+    if (runtimeProvider.captureScreenshot) {
+      const dataUrl = await runtimeProvider.captureScreenshot(appId);
+      setScreenshot(dataUrl);
+    }
   };
   
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-white p-4">
+    <div className="flex flex-col h-full bg-gray-900 text-white p-4">
       {!isRunning ? (
-        <div className="text-center">
-          <p className="mb-4">{stackType.toUpperCase()} Application</p>
+        <div className="flex flex-col items-center justify-center h-full">
+          <p className="mb-4 text-lg">{stackType.toUpperCase()} Application</p>
+          <p className="mb-4 text-sm text-gray-400">
+            Native apps launch in an external window
+          </p>
           <Button onClick={launchApp} className="flex items-center gap-2">
             <Play size={16} />
             Launch App
           </Button>
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <p>App is running</p>
-            <Button onClick={stopApp} variant="destructive" className="flex items-center gap-2">
-              <Square size={16} />
-              Stop App
-            </Button>
+        <div className="flex flex-col h-full">
+          <div className="flex justify-between items-center mb-4 p-2 bg-gray-800 rounded">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>App is running (external window)</span>
+            </div>
+            <div className="flex gap-2">
+              {runtimeProvider.captureScreenshot && (
+                <Button 
+                  onClick={captureScreenshot} 
+                  size="sm" 
+                  variant="outline"
+                  className="flex items-center gap-1"
+                >
+                  <Camera size={14} />
+                  Screenshot
+                </Button>
+              )}
+              <Button 
+                onClick={stopApp} 
+                size="sm" 
+                variant="destructive"
+                className="flex items-center gap-1"
+              >
+                <Square size={14} />
+                Stop
+              </Button>
+            </div>
           </div>
+          
+          {/* Logs panel */}
+          <div className="flex-1 overflow-auto font-mono text-sm bg-gray-950 p-2 rounded">
+            {logs.length === 0 ? (
+              <p className="text-gray-500">Waiting for output...</p>
+            ) : (
+              logs.map((log, i) => (
+                <div key={i} className="whitespace-pre-wrap">{log}</div>
+              ))
+            )}
+          </div>
+          
+          {/* On-demand screenshot (not continuous) */}
           {screenshot && (
-            <img 
-              src={screenshot} 
-              alt="App Preview" 
-              className="max-w-full max-h-full object-contain border rounded"
-            />
+            <div className="mt-4 border rounded p-2">
+              <p className="text-sm text-gray-400 mb-2">Last Screenshot:</p>
+              <img 
+                src={screenshot} 
+                alt="App Screenshot" 
+                className="max-w-full max-h-48 object-contain"
+              />
+            </div>
           )}
         </div>
       )}
@@ -849,483 +1153,126 @@ export function NativeAppPreview({ appId, stackType }: NativeAppPreviewProps) {
 }
 ```
 
-**New File:** `src/components/preview_panel/ConsolePreview.tsx`
+---
+
+## Phase 6: New Dyad Tags (Months 6-7)
+
+**File:** [`src/ipc/utils/dyad_tag_parser.ts`](src/ipc/utils/dyad_tag_parser.ts)
 
 ```typescript
-// src/components/preview_panel/ConsolePreview.tsx
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Play, Square, Terminal } from "lucide-react";
-import { ipc } from "@/ipc/types";
-
-interface ConsolePreviewProps {
-  appId: number;
+// NEW: Parse <dyad-add-nuget packages="...">
+export function getDyadAddNugetTags(fullResponse: string): string[] {
+  const dyadAddNugetRegex = /<dyad-add-nuget packages="([^"]+)">[^<]*<\/dyad-add-nuget>/g;
+  let match;
+  const packages: string[] = [];
+  while ((match = dyadAddNugetRegex.exec(fullResponse)) !== null) {
+    packages.push(...unescapeXmlAttr(match[1]).split(" "));
+  }
+  return packages;
 }
+```
 
-export function ConsolePreview({ appId }: ConsolePreviewProps) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [output, setOutput] = useState<string[]>([]);
-  const outputEndRef = useRef<HTMLDivElement>(null);
+**File:** [`src/ipc/processors/response_processor.ts`](src/ipc/processors/response_processor.ts)
+
+```typescript
+// REFACTORED to use RuntimeProvider
+import { runtimeRegistry } from "../runtime/RuntimeProviderRegistry";
+
+export async function processFullResponseActions(
+  fullResponse: string,
+  chatId: number,
+  { chatSummary, messageId }: { chatSummary: string | undefined; messageId: number; }
+) {
+  // ... get chatWithApp ...
   
-  useEffect(() => {
-    // Listen for console output
-    const unsubscribe = ipc.app.onAppOutput(({ appId: id, type, message }) => {
-      if (id === appId) {
-        setOutput(prev => [...prev, `[${type}] ${message}`]);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [appId]);
-  
-  useEffect(() => {
-    // Auto-scroll to bottom
-    outputEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [output]);
-  
-  const runApp = async () => {
-    setOutput([]);
-    await ipc.app.runApp({ appId });
-    setIsRunning(true);
-  };
-  
-  const stopApp = async () => {
-    await ipc.app.stopApp({ appId });
-    setIsRunning(false);
-  };
-  
-  return (
-    <div className="flex flex-col h-full bg-gray-900 text-white">
-      <div className="flex items-center justify-between p-2 border-b border-gray-700">
-        <div className="flex items-center gap-2">
-          <Terminal size={16} />
-          <span>Console Output</span>
-        </div>
-        {!isRunning ? (
-          <Button onClick={runApp} size="sm" className="flex items-center gap-1">
-            <Play size={14} />
-            Run
-          </Button>
-        ) : (
-          <Button onClick={stopApp} size="sm" variant="destructive" className="flex items-center gap-1">
-            <Square size={14} />
-            Stop
-          </Button>
-        )}
-      </div>
-      <div className="flex-1 overflow-auto p-2 font-mono text-sm">
-        {output.length === 0 ? (
-          <p className="text-gray-500">Click "Run" to start the console application...</p>
-        ) : (
-          output.map((line, i) => (
-            <div key={i} className="whitespace-pre-wrap break-all">
-              {line}
-            </div>
-          ))
-        )}
-        <div ref={outputEndRef} />
-      </div>
-    </div>
+  // Get runtime provider for this app
+  const runtimeProvider = runtimeRegistry.getProvider(
+    chatWithApp.app.runtimeProvider || "node"
   );
+  
+  // Handle NuGet packages via provider
+  const dyadAddNugetPackages = getDyadAddNugetTags(fullResponse);
+  if (dyadAddNugetPackages.length > 0) {
+    try {
+      // SECURITY: Goes through kernel
+      await runtimeProvider.resolveDependencies({
+        appPath,
+        appId: chatWithApp.app.id,
+      });
+    } catch (error) {
+      errors.push({
+        message: `Failed to restore dependencies`,
+        error: error,
+      });
+    }
+  }
 }
 ```
 
 ---
 
-## Phase 5: Template Selection UI (Months 5-6)
+## Phase 7: System Prompts (Months 7-8)
 
-### 5.1 Project Type Selector
-
-**File:** Modify app creation flow to include project type selector
+**NEW File:** `src/prompts/dotnet_wpf_prompt.ts`
 
 ```typescript
-// src/components/app_creation/CreateAppDialog.tsx (NEW or existing)
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+export const DOTNET_WPF_PROMPT = `
+# .NET WPF Development
 
-const PROJECT_TYPES = [
-  { id: "react", label: "React Web App", runtime: "node", icon: "⚛️" },
-  { id: "nextjs", label: "Next.js Web App", runtime: "node", icon: "▲" },
-  { id: "wpf", label: "WPF Desktop App", runtime: "dotnet", icon: "🪟" },
-  { id: "winui3", label: "WinUI 3 Desktop App", runtime: "dotnet", icon: "🪟" },
-  { id: "winforms", label: "WinForms Desktop App", runtime: "dotnet", icon: "🪟" },
-  { id: "console", label: "Console Application", runtime: "dotnet", icon: "⌨️" },
-  { id: "maui", label: ".NET MAUI (Windows)", runtime: "dotnet", icon: "📱" },
-  { id: "tauri", label: "Tauri Desktop App", runtime: "tauri", icon: "🦀" },
-];
+You are a Windows XAML expert for WPF applications.
 
-export function CreateAppDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [selectedType, setSelectedType] = useState("react");
-  const [appName, setAppName] = useState("");
-  
-  const createApp = async () => {
-    const projectType = PROJECT_TYPES.find(t => t.id === selectedType);
-    if (!projectType) return;
-    
-    await ipc.app.createApp({
-      name: appName,
-      stackType: projectType.id,
-      runtimeProvider: projectType.runtime,
-    });
-    
-    onClose();
-  };
-  
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Create New App</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="appName">App Name</Label>
-            <input
-              id="appName"
-              value={appName}
-              onChange={(e) => setAppName(e.target.value)}
-              placeholder="MyApp"
-              className="w-full mt-1"
-            />
-          </div>
-          
-          <div>
-            <Label>Project Type</Label>
-            <RadioGroup value={selectedType} onValueChange={setSelectedType} className="grid grid-cols-2 gap-4 mt-2">
-              {PROJECT_TYPES.map((type) => (
-                <div key={type.id} className="flex items-center space-x-2">
-                  <RadioGroupItem value={type.id} id={type.id} />
-                  <Label htmlFor={type.id} className="flex items-center gap-2 cursor-pointer">
-                    <span>{type.icon}</span>
-                    <span>{type.label}</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-          
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={createApp} disabled={!appName.trim()}>Create App</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-```
+## Available Dyad Tags
+- <dyad-write path="MainWindow.xaml"> - Write XAML files
+- <dyad-add-nuget packages="PackageName"> - Add NuGet packages
+- <dyad-command type="rebuild"></dyad-command> - Rebuild the app
 
-**File:** [`src/ipc/handlers/app_handlers.ts`](src/ipc/handlers/app_handlers.ts) - Modify `createApp` handler
+## Security Notice
+All commands execute through Dyad's secure ExecutionKernel with:
+- Network policy enforcement
+- Memory limits (4GB for builds)
+- Timeout protection (10 min max)
+- Capability-based access control
 
-```typescript
-// src/ipc/handlers/app_handlers.ts
-export function registerAppHandlers() {
-  createTypedHandler(appContracts.createApp, async (_, params) => {
-    const { name, stackType = "react", runtimeProvider = "node" } = params;  // NEW params
-    const appPath = name;
-    const fullAppPath = getDyadAppPath(appPath);
-    
-    if (fs.existsSync(fullAppPath)) {
-      throw new Error(`App already exists at: ${fullAppPath}`);
-    }
-    
-    // Create a new app with stack type and runtime provider
-    const [app] = await db
-      .insert(apps)
-      .values({
-        name,
-        path: appPath,
-        stackType,         // NEW
-        runtimeProvider,   // NEW
-      })
-      .returning();
-    
-    // Create an initial chat for this app
-    const [chat] = await db
-      .insert(chats)
-      .values({ appId: app.id })
-      .returning();
-    
-    // Pass stack type and runtime provider to template creation
-    await createFromTemplate({
-      fullAppPath,
-      stackType,         // NEW
-      runtimeProvider,   // NEW
-    });
-    
-    // Initialize git repo...
-    
-    return {
-      app: { ...app, resolvedPath: fullAppPath },
-      chatId: chat.id,
-    };
-  });
-}
+Generate production-ready WPF apps with proper MVVM separation.
+`;
 ```
 
 ---
 
-## Phase 6: Agent v2 Tool Additions (Months 6-7)
+## Summary of Architectural Changes
 
-### 6.1 New Agent Tools for Native Apps
-
-**File:** [`src/pro/main/ipc/handlers/local_agent/tool_definitions.ts`](src/pro/main/ipc/handlers/local_agent/tool_definitions.ts)
-
-Add new tools for .NET development:
-
-```typescript
-// src/pro/main/ipc/handlers/local_agent/tools/run_dotnet_command.ts
-import { z } from "zod";
-import type { ToolDefinition } from "./types";
-import { execPromise } from "@/ipc/processors/executeAddDependency";
-
-export const runDotnetCommandTool: ToolDefinition = {
-  name: "run_dotnet_command",
-  description: "Execute a dotnet CLI command (build, run, add package, etc.)",
-  inputSchema: z.object({
-    command: z.string().describe("The dotnet command to run (e.g., 'build', 'run', 'add package Newtonsoft.Json')"),
-    working_dir: z.string().optional().describe("Working directory for the command"),
-  }),
-  modifiesState: true,
-  async execute({ command, working_dir }, ctx) {
-    const cwd = working_dir || ctx.appPath;
-    const { stdout, stderr } = await execPromise(`dotnet ${command}`, { cwd });
-    return stdout + (stderr ? `\nStderr: ${stderr}` : "");
-  },
-  getConsentPreview({ command }) {
-    return `Run: dotnet ${command}`;
-  },
-};
-
-// src/pro/main/ipc/handlers/local_agent/tools/add_nuget_package.ts
-import { z } from "zod";
-import type { ToolDefinition } from "./types";
-
-export const addNugetPackageTool: ToolDefinition = {
-  name: "add_nuget_package",
-  description: "Add a NuGet package to a .NET project",
-  inputSchema: z.object({
-    package_name: z.string().describe("Name of the NuGet package to add"),
-    version: z.string().optional().describe("Specific version to install"),
-    project_path: z.string().optional().describe("Path to .csproj file (default: finds first .csproj)"),
-  }),
-  modifiesState: true,
-  async execute({ package_name, version, project_path }, ctx) {
-    let cmd = `dotnet add ${project_path || "package"} package ${package_name}`;
-    if (version) {
-      cmd += ` --version ${version}`;
-    }
-    const { stdout, stderr } = await execPromise(cmd, { cwd: ctx.appPath });
-    return stdout + (stderr ? `\nStderr: ${stderr}` : "");
-  },
-  getConsentPreview({ package_name, version }) {
-    return `Add NuGet package: ${package_name}${version ? `@${version}` : ""}`;
-  },
-};
-
-// src/pro/main/ipc/handlers/local_agent/tools/read_build_output.ts
-import { z } from "zod";
-import type { ToolDefinition } from "./types";
-import fs from "node:fs";
-import path from "node:path";
-
-export const readBuildOutputTool: ToolDefinition = {
-  name: "read_build_output",
-  description: "Read MSBuild errors and warnings from build output",
-  inputSchema: z.object({
-    build_log_path: z.string().optional().describe("Path to build log file (default: searches for latest build output)"),
-  }),
-  modifiesState: false,
-  async execute({ build_log_path }, ctx) {
-    // Look for build errors in common locations
-    const possiblePaths = [
-      build_log_path,
-      path.join(ctx.appPath, "msbuild.log"),
-      path.join(ctx.appPath, "obj", "project.assets.json"),
-    ].filter(Boolean);
-    
-    for (const logPath of possiblePaths) {
-      if (fs.existsSync(logPath!)) {
-        const content = fs.readFileSync(logPath!, "utf8");
-        // Parse and format MSBuild errors
-        const errors = content.match(/error [A-Z]+\d+:.*/g) || [];
-        const warnings = content.match(/warning [A-Z]+\d+:.*/g) || [];
-        return `Errors: ${errors.length}\n${errors.join("\n")}\n\nWarnings: ${warnings.length}\n${warnings.join("\n")}`;
-      }
-    }
-    return "No build output found";
-  },
-};
-
-// src/pro/main/ipc/handlers/local_agent/tools/launch_native_app.ts
-import { z } from "zod";
-import type { ToolDefinition } from "./types";
-import { spawn } from "node:child_process";
-import path from "node:path";
-
-export const launchNativeAppTool: ToolDefinition = {
-  name: "launch_native_app",
-  description: "Launch the built native executable",
-  inputSchema: z.object({
-    executable_path: z.string().optional().describe("Path to executable (default: finds in bin/Debug or bin/Release)"),
-    arguments: z.array(z.string()).optional().describe("Command line arguments to pass"),
-  }),
-  modifiesState: true,
-  async execute({ executable_path, arguments: args }, ctx) {
-    // Find the executable if not specified
-    let exePath = executable_path;
-    if (!exePath) {
-      const possiblePaths = [
-        path.join(ctx.appPath, "bin", "Debug", "net8.0-windows", "*.exe"),
-        path.join(ctx.appPath, "bin", "Release", "net8.0-windows", "*.exe"),
-      ];
-      // Find first .exe
-      const glob = await import("glob");
-      for (const pattern of possiblePaths) {
-        const matches = glob.globSync(pattern);
-        if (matches.length > 0) {
-          exePath = matches[0];
-          break;
-        }
-      }
-    }
-    
-    if (!exePath || !fs.existsSync(exePath)) {
-      throw new Error("Could not find executable. Please build the project first.");
-    }
-    
-    const proc = spawn(exePath, args || [], { detached: true });
-    return `Launched: ${exePath} (PID: ${proc.pid})`;
-  },
-  getConsentPreview({ executable_path }) {
-    return `Launch native app: ${executable_path || "auto-detect"}`;
-  },
-};
-```
-
-**File:** [`src/pro/main/ipc/handlers/local_agent/tool_definitions.ts`](src/pro/main/ipc/handlers/local_agent/tool_definitions.ts) - Register new tools
-
-```typescript
-// src/pro/main/ipc/handlers/local_agent/tool_definitions.ts
-import { runDotnetCommandTool } from "./tools/run_dotnet_command";
-import { addNugetPackageTool } from "./tools/add_nuget_package";
-import { readBuildOutputTool } from "./tools/read_build_output";
-import { launchNativeAppTool } from "./tools/launch_native_app";
-
-export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
-  // EXISTING tools...
-  writeFileTool,
-  editFileTool,
-  searchReplaceTool,
-  deleteFileTool,
-  renameFileTool,
-  addDependencyTool,
-  executeSqlTool,
-  readFileTool,
-  listFilesTool,
-  // ... other existing tools
-  
-  // NEW: .NET specific tools
-  runDotnetCommandTool,
-  addNugetPackageTool,
-  readBuildOutputTool,
-  launchNativeAppTool,
-  
-  // Plan mode tools
-  planningQuestionnaireTool,
-  writePlanTool,
-  exitPlanTool,
-];
-```
+| Issue | Original Plan | Revised Plan |
+|-------|---------------|--------------|
+| Shell authority | Scattered `execPromise()` calls | **ExecutionKernel** - single entry point |
+| Runtime branching | `if (runtime === "dotnet")` scattered | **RuntimeProvider** interface with registry |
+| Readiness detection | 3s timeout | Provider-specific `isReady()` method |
+| NuGet security | Direct execution | Kernel with network policy + limits |
+| Screenshot polling | Every 2 seconds continuous | On-demand only |
+| Agent tools | Direct `execPromise()` | Calls `ExecutionKernel.execute()` |
 
 ---
 
-## Phase 7: Packaging & Distribution (Months 7-9)
+## Security Checklist
 
-### 7.1 Windows Output Formats
-
-| Format | Use Case | Command | Distribution |
-|--------|----------|---------|--------------|
-| Single-file .exe | Portable apps | `dotnet publish --self-contained -r win-x64 /p:PublishSingleFile=true` | Direct download |
-| .msi | Enterprise deployment | WiX Toolset or MSBuild | SCCM, Group Policy |
-| .msix | Microsoft Store | `msbuild /t:publish /p:AppxPackage=true` | Store, App Installer |
-| Framework-dependent | .NET pre-installed | `dotnet publish` | Developers |
-
-### 7.2 Windows Code Signing
-
-```typescript
-// src/ipc/handlers/packaging_handlers.ts (NEW)
-import { ipcMain } from "electron";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-
-const execPromise = promisify(exec);
-
-export function registerPackagingHandlers() {
-  ipcMain.handle("package:sign", async (_, { binaryPath, certificatePath, password }) => {
-    // Use signtool.exe for code signing
-    const signtoolPath = "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.19041.0\\x64\\signtool.exe";
-    
-    const command = `"${signtoolPath}" sign /f "${certificatePath}" /p "${password}" /tr http://timestamp.digicert.com /td sha256 /fd sha256 "${binaryPath}"`;
-    
-    const { stdout, stderr } = await execPromise(command);
-    return { success: true, output: stdout + stderr };
-  });
-  
-  ipcMain.handle("package:create-msix", async (_, { appPath, outputPath, publisher }) => {
-    // Use MSBuild to create MSIX package
-    const command = `msbuild "${appPath}" /t:publish /p:Configuration=Release /p:AppxPackage=true /p:PackageLocation="${outputPath}" /p:Publisher="${publisher}"`;
-    
-    const { stdout, stderr } = await execPromise(command, { cwd: appPath });
-    return { success: true, output: stdout + stderr };
-  });
-}
-```
+- [ ] NO raw `exec()`, `spawn()`, `execPromise()` in runtime logic
+- [ ] ALL commands go through `ExecutionKernel.execute()`
+- [ ] Network policy enforced for package restores
+- [ ] Memory limits enforced (2-4GB per operation)
+- [ ] Timeout protection (5-10 min max)
+- [ ] Agent tools call kernel, not shell directly
+- [ ] Guardian sandboxing for high-risk operations
 
 ---
 
-## Timeline (Windows-Only)
+## Timeline (Revised)
 
 ```
 Month  1  2  3  4  5  6  7  8  9
-      ├─ Guardian + DB Schema ─┤
-           ├─ Core Runtime ─┤
-                ├─ Preview + Tags ─┤
+      ├─ Execution Kernel ─┤
+           ├─ Node Provider ─┤
+                ├─ .NET Provider ─┤
                      ├─ UI + Agent Tools ─┤
-                          ├─ Packaging ─┤
+                          ├─ Polish ─┤
 ```
 
-**Total: 9 months** (vs 18 months for cross-platform)
-
----
-
-## Summary of Required Plan Changes (Addressed)
-
-| # | Issue | Fix |
-|---|-------|-----|
-| 1 | No mapping to actual code files | Added file-level references throughout |
-| 2 | No DB schema migration plan | Added `stackType`/`runtimeProvider` columns to [`apps`](src/db/schema.ts:26) table; acknowledged existing `installCommand`/`startCommand` |
-| 3 | XAML prompt not integrated with prompt system | Defined new prompt files and conditional loading in [`system_prompt.ts`](src/prompts/system_prompt.ts) |
-| 4 | No new dyad tags defined | Added `<dyad-add-nuget>`, `<dyad-dotnet-command>`, `<dyad-add-cargo-dependency>` with parsers |
-| 5 | Preview strategy incomplete for non-web apps | Defined iframe vs. external window vs. terminal per stack type |
-| 6 | No app-ready detection for native | Defined per-runtime detection strategies in [`app_handlers.ts`](src/ipc/handlers/app_handlers.ts:343) |
-| 7 | `dyad.config.yaml` conflicts with SQLite architecture | Replaced with DB columns + existing Configure panel |
-| 8 | Guardian integration too abstract | Referenced existing [`guardian_handlers.ts`](src/ipc/handlers/guardian_handlers.ts) handlers |
-| 9 | No agent v2 tool additions | Defined `run_dotnet_command`, `add_nuget_package`, `read_build_output`, `launch_native_app` tools |
-| 10 | No template selection UI described | Added project type selector component and modified [`createApp`](src/ipc/handlers/app_handlers.ts) handler |
-
----
-
-## Next Steps
-
-1. **Create database migration** for `stackType` and `runtimeProvider` columns
-2. **Modify** [`createFromTemplate.ts`](src/ipc/handlers/createFromTemplate.ts) to support .NET scaffolding
-3. **Add** new prompt files for .NET stacks
-4. **Implement** new dyad tag parsers and processors
-5. **Create** `NativeAppPreview` and `ConsolePreview` components
-6. **Add** project type selector to app creation UI
-7. **Implement** new agent tools for .NET development
+**Total: 9 months** with proper architecture foundation.
