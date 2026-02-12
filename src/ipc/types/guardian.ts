@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineContract, createClient } from "../utils/contracts";
+import { defineContract, createClient } from "../contracts/core";
 
 // ============================================================================
 // Job Object Schemas
@@ -179,75 +179,75 @@ export const guardianContracts = {
     input: CreateJobRequestSchema,
     output: CreateJobResponseSchema,
   }),
-  
+
   assignProcessToJob: defineContract({
     channel: "guardian:assign-process",
     input: AssignProcessRequestSchema,
     output: AssignProcessResponseSchema,
   }),
-  
+
   terminateJob: defineContract({
     channel: "guardian:terminate-job",
     input: TerminateJobRequestSchema,
     output: TerminateJobResponseSchema,
   }),
-  
+
   getJobStats: defineContract({
     channel: "guardian:get-job-stats",
     input: GetJobStatsRequestSchema,
     output: JobStatisticsSchema,
   }),
-  
+
   listJobs: defineContract({
     channel: "guardian:list-jobs",
     input: z.void(),
     output: ListJobsResponseSchema,
   }),
-  
+
   // Capability Token Contracts
   requestCapability: defineContract({
     channel: "guardian:request-capability",
     input: RequestCapabilityRequestSchema,
     output: CapabilityTokenSchema,
   }),
-  
+
   validateCapability: defineContract({
     channel: "guardian:validate-capability",
     input: ValidateCapabilityRequestSchema,
     output: ValidateCapabilityResponseSchema,
   }),
-  
+
   revokeCapability: defineContract({
     channel: "guardian:revoke-capability",
     input: RevokeCapabilityRequestSchema,
     output: RevokeCapabilityResponseSchema,
   }),
-  
+
   listCapabilities: defineContract({
     channel: "guardian:list-capabilities",
     input: z.void(),
     output: ListCapabilitiesResponseSchema,
   }),
-  
+
   // WFP Contracts
   createWfpRule: defineContract({
     channel: "guardian:create-wfp-rule",
     input: CreateWfpRuleRequestSchema,
     output: CreateWfpRuleResponseSchema,
   }),
-  
+
   deleteWfpRule: defineContract({
     channel: "guardian:delete-wfp-rule",
     input: DeleteWfpRuleRequestSchema,
     output: DeleteWfpRuleResponseSchema,
   }),
-  
+
   listWfpRules: defineContract({
     channel: "guardian:list-wfp-rules",
     input: z.void(),
     output: ListWfpRulesResponseSchema,
   }),
-  
+
   // Health Check
   pingGuardian: defineContract({
     channel: "guardian:ping",
