@@ -5,8 +5,80 @@ import fs from 'fs';
 import log from 'electron-log';
 import { safeJoin } from './path_utils';
 
-const logger = log.scope('execution-kernel');
-const execPromise = promisify(exec);
+// Job Registry for tracking active jobs and sessions
+class JobRegistry {
+  private jobs: Map<number, { jobId: string; appId: number; createdAt: Date; mode: 'ephemeral' | 'session' }> = new Map();
+  private appJobs: Map<number, string[]> = new Map();
+  
+  registerJob(appId: number, jobId: string, mode: 'ephemeral' | 'session' = 'ephemeral'): void {
+    const jobInfo = {
+      jobId,
+      appId,
+      createdAt: new Date(),
+      mode
+    };
+    
+    this.jobs.set(jobId, jobInfo);
+    
+    if (!this.appJobs.has(appId)) {
+      this.appJobs.set(appId, []);
+    }
+    this.appJobs.get(appId)!.push(jobId);
+    
+    logger.info(`Registered job ${jobId} for app ${appId} (mode: ${mode})`);
+  }
+  
+  getJob(jobId: string): { jobId: string; appId: number; createdAt: Date; mode: 'ephemeral' | 'session' } | undefined {
+    return this.jobs.get(jobId);
+  }
+  
+  getJobsForApp(appId: number): string[] {
+    return this.appJobs.get(appId) || [];
+  }
+  
+  unregisterJob(jobId: string): boolean {
+    const job = this.jobs.get(jobId);
+    if (job) {
+      this.jobs.delete(jobId);
+      
+      const appJobs = this.appJobs.get(job.appId);
+      if (appJobs) {
+        const index = appJobs.indexOf(jobId);
+        if (index > -1) {
+          appJobs.splice(index, 1);
+        }
+        if (appJobs.length === 0) {
+          this.appJobs.delete(job.appId);
+        }
+      }
+      
+      logger.info(`Unregistered job ${jobId} for app ${job.appId}`);
+      return true;
+    }
+    return false;
+  }
+  
+  getAllJobs(): Array<{ jobId: string; appId: number; createdAt: Date; mode: 'ephemeral' | 'session' }> {
+    return Array.from(this.jobs.values());
+  }
+  
+  cleanupExpiredJobs(maxAgeMinutes: number = 60): number {
+    const now = Date.now();
+    const maxAgeMs = maxAgeMinutes * 60 * 1000;
+    let cleanedCount = 0;
+    
+    for (const [jobId, jobInfo] of this.jobs.entries()) {
+      if (now - jobInfo.createdAt.getTime() > maxAgeMs) {
+        this.unregisterJob(jobId);
+        cleanedCount++;
+      }
+    }
+    
+    return cleanedCount;
+  }
+}
+
+const jobRegistry = new JobRegistry();
 
 export interface KernelOptions {
   appId: number;
@@ -14,10 +86,13 @@ export interface KernelOptions {
   timeout?: number;
   memoryLimitMB?: number;
   cpuLimitPercent?: number;
+  cpuRatePercent?: number;  // Added for compatibility
   diskQuotaMB?: number;
   workspaceSizeLimitMB?: number;
   networkAccess?: boolean;
   maxProcesses?: number;
+  env?: Record<string, string>;  // Added environment variables support
+  mode?: 'ephemeral' | 'session';  // Added execution mode
 }
 
 export interface KernelCommand {
@@ -198,20 +273,21 @@ export class ExecutionKernel {
     command: string, 
     args: string[], 
     options: KernelOptions,
-    riskLevel: 'low' | 'medium' | 'high'
+    riskLevel: 'low' | 'medium' | 'high',
+    jobId: string
   ): Promise<Omit<ExecutionResult, 'duration' | 'riskLevel'>> {
     // Validate everything first
     await this.validatePath(options.cwd, options.appId);
     const validatedCommand = await this.validateExecutable(command);
     
-    logger.info(`Executing via Guardian: ${validatedCommand} ${args.join(' ')} [Risk: ${riskLevel}]`);
+    logger.info(`Executing via Guardian: ${validatedCommand} ${args.join(' ')} [Risk: ${riskLevel}, Job: ${jobId}]`);
     
     // ALL commands go through Guardian - no exceptions
     // This replaces the previous spawnTracked() bypass
     
     // In a real implementation, this would call the Guardian service
     // For now, we'll simulate the secure execution
-    const result = await this.simulateGuardianExecution(validatedCommand, args, options, riskLevel);
+    const result = await this.simulateGuardianExecution(validatedCommand, args, options, riskLevel, jobId);
     
     return result;
   }
@@ -223,7 +299,8 @@ export class ExecutionKernel {
     command: string,
     args: string[],
     options: KernelOptions,
-    riskLevel: 'low' | 'medium' | 'high'
+    riskLevel: 'low' | 'medium' | 'high',
+    jobId: string
   ): Promise<Omit<ExecutionResult, 'duration' | 'riskLevel'>> {
     // This is where the actual Guardian service integration would happen
     // For now, we simulate the secure execution
@@ -238,7 +315,8 @@ export class ExecutionKernel {
         cwd: options.cwd,
         timeout,
         windowsHide: true,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, ...options.env } // Include custom environment variables
       });
       
       let stdout = '';
@@ -280,6 +358,11 @@ export class ExecutionKernel {
   async execute(kernelCommand: KernelCommand, defaultOptions: KernelOptions, providerName: string = 'default'): Promise<ExecutionResult> {
     const options = { ...defaultOptions, ...kernelCommand.options };
     
+    // Set default mode if not specified
+    if (!options.mode) {
+      options.mode = 'ephemeral';
+    }
+    
     // Validate command is allowed
     if (!this.ALLOWED_COMMANDS.has(kernelCommand.command)) {
       throw new Error(`Command not allowed: ${kernelCommand.command}`);
@@ -296,17 +379,24 @@ export class ExecutionKernel {
     // Apply risk-based resource limits
     const riskAdjustedOptions = this.applyRiskBasedLimits(options, riskLevel);
     
+    // Generate unique job ID
+    const jobId = `job_${options.appId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Register job in registry
+    jobRegistry.registerJob(options.appId, jobId, options.mode);
+    
     const startTime = Date.now();
     
     try {
-      logger.info(`Executing via Guardian: ${validatedCommand} ${kernelCommand.args.join(' ')} [Risk: ${riskLevel}, Provider: ${providerName}]`);
+      logger.info(`Executing via Guardian: ${validatedCommand} ${kernelCommand.args.join(' ')} [Risk: ${riskLevel}, Provider: ${providerName}, Job: ${jobId}]`);
       
       // Execute through Guardian (no direct execution paths)
       const result = await this.executeThroughGuardian(
         validatedCommand,
         kernelCommand.args,
         riskAdjustedOptions,
-        riskLevel
+        riskLevel,
+        jobId
       );
       
       const duration = Date.now() - startTime;
@@ -314,7 +404,12 @@ export class ExecutionKernel {
       // Check post-execution workspace limits
       await this.enforceWorkspaceLimits(options.cwd, options);
       
-      logger.info(`Command completed in ${duration}ms with exit code ${result.exitCode}`);
+      logger.info(`Command completed in ${duration}ms with exit code ${result.exitCode} [Job: ${jobId}]`);
+      
+      // Clean up ephemeral jobs immediately
+      if (options.mode === 'ephemeral') {
+        jobRegistry.unregisterJob(jobId);
+      }
       
       return {
         ...result,
@@ -325,6 +420,9 @@ export class ExecutionKernel {
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error(`Command failed after ${duration}ms:`, error);
+      
+      // Clean up job on failure
+      jobRegistry.unregisterJob(jobId);
       
       throw new Error(`Execution failed: ${(error as Error).message}`);
     }
@@ -417,6 +515,54 @@ export class ExecutionKernel {
   }
 
   /**
+   * Real implementation of getDirectorySize for disk quota enforcement
+   */
+  private async getDirectorySize(dirPath: string): Promise<number> {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      let totalSize = 0;
+      const visited = new Set<string>();
+      
+      const calculateSize = async (currentPath: string): Promise<number> => {
+        // Prevent infinite loops from circular symlinks
+        const realPath = await fs.promises.realpath(currentPath);
+        if (visited.has(realPath)) {
+          return 0;
+        }
+        visited.add(realPath);
+        
+        let size = 0;
+        const stats = await fs.promises.stat(currentPath);
+        
+        if (stats.isDirectory()) {
+          try {
+            const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+            for (const entry of entries) {
+              const entryPath = path.join(currentPath, entry.name);
+              size += await calculateSize(entryPath);
+            }
+          } catch (error) {
+            // Skip inaccessible directories
+            logger.debug(`Skipping inaccessible directory ${currentPath}:`, error);
+          }
+        } else {
+          size = stats.size;
+        }
+        
+        return size;
+      };
+      
+      totalSize = await calculateSize(dirPath);
+      return totalSize;
+    } catch (error) {
+      logger.error(`Failed to calculate directory size for ${dirPath}:`, error);
+      return 0;
+    }
+  }
+
+  /**
    * Check if disk quota would be exceeded
    */
   async checkDiskQuota(cwd: string, quotaMB: number): Promise<boolean> {
@@ -494,26 +640,83 @@ export class ExecutionKernel {
   }
 
   /**
-   * Get trusted executable paths for validation
+   * Terminate a specific job by ID
    */
-  private getTrustedExecutablePaths(): Record<string, string[]> {
-    const programFiles = process.env.PROGRAMFILES || 'C:\\Program Files';
-    const programFilesX86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
-    const appData = process.env.APPDATA || '';
-    const localAppData = process.env.LOCALAPPDATA || '';
+  async terminateJob(jobId: string): Promise<boolean> {
+    const job = jobRegistry.getJob(jobId);
+    if (!job) {
+      logger.warn(`Job ${jobId} not found for termination`);
+      return false;
+    }
     
+    try {
+      // In a real implementation, this would call Guardian service to terminate the job
+      // For simulation, we'll just unregister it
+      logger.info(`Terminating job ${jobId} for app ${job.appId}`);
+      
+      // Unregister the job
+      const success = jobRegistry.unregisterJob(jobId);
+      
+      if (success) {
+        logger.info(`Successfully terminated job ${jobId}`);
+      }
+      
+      return success;
+    } catch (error) {
+      logger.error(`Failed to terminate job ${jobId}:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Terminate all jobs for a specific app
+   */
+  async terminateAppJobs(appId: number): Promise<number> {
+    const jobIds = jobRegistry.getJobsForApp(appId);
+    let terminatedCount = 0;
+    
+    for (const jobId of jobIds) {
+      if (await this.terminateJob(jobId)) {
+        terminatedCount++;
+      }
+    }
+    
+    logger.info(`Terminated ${terminatedCount} jobs for app ${appId}`);
+    return terminatedCount;
+  }
+  
+  /**
+   * Get job status information
+   */
+  getJobStatus(jobId: string): { jobId: string; appId: number; createdAt: Date; mode: 'ephemeral' | 'session'; status: 'running' | 'completed' | 'failed' } | null {
+    const job = jobRegistry.getJob(jobId);
+    if (!job) {
+      return null;
+    }
+    
+    // In a real implementation, this would check actual process status
+    // For now, we'll return a simulated status
     return {
-      'npm': [appData, localAppData, programFiles, programFilesX86],
-      'pnpm': [appData, localAppData, programFiles, programFilesX86],
-      'yarn': [appData, localAppData, programFiles, programFilesX86],
-      'dotnet': [programFiles, programFilesX86],
-      'git': [programFiles, programFilesX86],
-      'node': [programFiles, programFilesX86],
-      'cargo': [appData, localAppData],
-      'rustc': [appData, localAppData],
-      'powershell': [process.env.WINDIR || 'C:\\Windows\\System32'],
-      'pwsh': [programFiles, programFilesX86]
+      ...job,
+      status: 'running' // Simulated status
     };
+  }
+  
+  /**
+   * Get all active jobs
+   */
+  getAllActiveJobs(): Array<{ jobId: string; appId: number; createdAt: Date; mode: 'ephemeral' | 'session'; status: 'running' | 'completed' | 'failed' }> {
+    return jobRegistry.getAllJobs().map(job => ({
+      ...job,
+      status: 'running' as const // Simulated status
+    }));
+  }
+  
+  /**
+   * Cleanup expired jobs
+   */
+  cleanupExpiredJobs(maxAgeMinutes: number = 60): number {
+    return jobRegistry.cleanupExpiredJobs(maxAgeMinutes);
   }
 }
 
