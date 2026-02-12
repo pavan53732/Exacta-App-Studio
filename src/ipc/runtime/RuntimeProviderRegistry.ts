@@ -4,6 +4,7 @@
 
 import type { RuntimeProvider } from "./RuntimeProvider";
 import { nodeRuntimeProvider } from "./providers/NodeRuntimeProvider";
+import { dotNetRuntimeProvider } from "./providers/DotNetRuntimeProvider";
 
 class RuntimeProviderRegistry {
   private providers: Map<string, RuntimeProvider> = new Map();
@@ -39,3 +40,4 @@ export const runtimeRegistry = new RuntimeProviderRegistry();
 
 // Register default providers
 runtimeRegistry.register(nodeRuntimeProvider);
+runtimeRegistry.register(dotNetRuntimeProvider);
