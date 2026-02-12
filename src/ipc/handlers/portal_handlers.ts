@@ -32,6 +32,8 @@ export function registerPortalHandlers() {
       // Run the migration command through ExecutionKernel for security
       logger.info(`Running migrate:create for app ${appId} at ${appPath}`);
 
+      let migrationOutput = "";
+
       try {
         const options = {
           appId,
@@ -40,18 +42,18 @@ export function registerPortalHandlers() {
           memoryLimitMB: 1000, // 1GB memory limit
           networkAccess: false // Database migrations shouldn't need network
         };
-        
+
         // Execute npm run migrate:create with proper arguments
         const result = await executionKernel.execute(
-          { 
-            command: 'npm', 
-            args: ['run', 'migrate:create', '--', '--skip-empty'] 
+          {
+            command: 'npm',
+            args: ['run', 'migrate:create', '--', '--skip-empty']
           },
           options
         );
-        
-        const migrationOutput = result.stdout + (result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : "");
-        
+
+        migrationOutput = result.stdout + (result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : "");
+
         if (result.exitCode === 0) {
           if (result.stdout.includes("Migration created at")) {
             logger.info(`migrate:create completed successfully for app ${appId}`);
@@ -64,11 +66,11 @@ export function registerPortalHandlers() {
           const errorMessage = `Migration creation failed (exit code ${result.exitCode})\n\n${migrationOutput}`;
           throw new Error(errorMessage);
         }
-        
+
         // Handle the stdin interaction that was in the original code
         // This would need to be handled differently in the ExecutionKernel approach
         // For now, we'll assume the --skip-empty flag handles the interaction
-        
+
       } catch (error) {
         logger.error(`Failed to run migrate:create for app ${appId}:`, error);
         throw error;
@@ -86,7 +88,7 @@ export function registerPortalHandlers() {
           );
           throw new Error(
             "Could not store Neon timestamp at current version; database versioning functionality is not working: " +
-              error,
+            error,
           );
         }
       }

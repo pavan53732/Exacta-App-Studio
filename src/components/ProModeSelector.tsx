@@ -98,7 +98,7 @@ export function ProModeSelector() {
               settingEnabled={Boolean(settings?.enableDyadPro)}
               toggle={toggleProEnabled}
             />
-            <Accordion type="single" collapsible>
+            <Accordion collapsible>
               <AccordionItem
                 value="build-mode-settings"
                 className="rounded-lg border border-border/60 bg-muted/30 px-3 border-b-0"

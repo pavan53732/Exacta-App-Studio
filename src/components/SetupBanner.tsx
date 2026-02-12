@@ -323,7 +323,7 @@ export function SetupBanner() {
               </p>
 
               <SetupProviderCard
-                variant="Dyad"
+                variant="dyad"
                 onClick={handleDyadSetupClick}
                 tabIndex={isNodeSetupComplete ? 0 : -1}
                 leadingIcon={

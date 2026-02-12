@@ -45,12 +45,12 @@ async function executeSecureCommand(appId: number, appPath: string, command: str
       memoryLimitMB: 2000, // 2GB memory limit
       networkAccess: true // Apps may need network access
     };
-    
+
     const result = await executionKernel.execute(
       { command, args },
       options
     );
-    
+
     return {
       stdout: result.stdout,
       stderr: result.stderr,
@@ -69,13 +69,13 @@ function getRuntimeProviderId(appPath: string): string {
     if (fs.existsSync(path.join(appPath, 'package.json'))) {
       return 'node';
     }
-    
+
     // Check for .NET project
     const files = fs.readdirSync(appPath);
     if (files.some(file => file.endsWith('.csproj') || file.endsWith('.sln'))) {
       return 'dotnet';
     }
-    
+
     // Default to node
     return 'node';
   } catch (error) {
@@ -304,7 +304,7 @@ async function executeAppWithProvider({
     // Check for input request pattern
     const inputRequestPattern = /\s*›\s*\([yY]\/[nN]\)\s*$/;
     const isInputRequest = inputRequestPattern.test(message);
-    
+
     if (isInputRequest) {
       safeSend(event.sender, "app:output", {
         type: "input-requested",
@@ -427,8 +427,7 @@ async function executeAppLocalNode({
       .join(", ");
 
     logger.error(
-      `Failed to spawn process for app ${appId}. Command="${command}", CWD="${appPath}", ${details}\nSTDERR:\n${
-        errorOutput || "(empty)"
+      `Failed to spawn process for app ${appId}. Command="${command}", CWD="${appPath}", ${details}\nSTDERR:\n${errorOutput || "(empty)"
       }`,
     );
 
@@ -732,8 +731,7 @@ RUN npm install -g pnpm
       .join(", ");
 
     logger.error(
-      `Failed to spawn Docker container for app ${appId}. ${details}\nSTDERR:\n${
-        errorOutput || "(empty)"
+      `Failed to spawn Docker container for app ${appId}. ${details}\nSTDERR:\n${errorOutput || "(empty)"
       }`,
     );
 
@@ -1238,15 +1236,24 @@ export function registerAppHandlers() {
         return;
       }
 
-      const { process, processId } = appInfo;
+      const { process: appProcess, processId } = appInfo;
+
+      if (!appProcess) {
+        logger.log(
+          `App ${appId} process is null. Cleaning up map.`,
+        );
+        runningApps.delete(appId);
+        return;
+      }
+
       logger.log(
-        `Found running app ${appId} with processId ${processId} (PID: ${process.pid}). Attempting to stop.`,
+        `Found running app ${appId} with processId ${processId} (PID: ${appProcess.pid}). Attempting to stop.`,
       );
 
       // Check if the process is already exited or closed
-      if (process.exitCode !== null || process.signalCode !== null) {
+      if (appProcess.exitCode !== null || appProcess.signalCode !== null) {
         logger.log(
-          `Process for app ${appId} (PID: ${process.pid}) already exited (code: ${process.exitCode}, signal: ${process.signalCode}). Cleaning up map.`,
+          `Process for app ${appId} (PID: ${appProcess.pid}) already exited (code: ${appProcess.exitCode}, signal: ${appProcess.signalCode}). Cleaning up map.`,
         );
         runningApps.delete(appId); // Ensure cleanup if somehow missed
         return;
@@ -1256,16 +1263,16 @@ export function registerAppHandlers() {
         await stopAppByInfo(appId, appInfo);
 
         // Now, safely remove the app from the map *after* confirming closure
-        removeAppIfCurrentProcess(appId, process);
+        removeAppIfCurrentProcess(appId, appProcess);
 
         return;
       } catch (error: any) {
         logger.error(
-          `Error stopping app ${appId} (PID: ${process.pid}, processId: ${processId}):`,
+          `Error stopping app ${appId} (PID: ${appProcess.pid}, processId: ${processId}):`,
           error,
         );
         // Attempt cleanup even if an error occurred during the stop process
-        removeAppIfCurrentProcess(appId, process);
+        removeAppIfCurrentProcess(appId, appProcess);
         throw new Error(`Failed to stop app ${appId}: ${error.message}`);
       }
     });
@@ -1390,7 +1397,7 @@ export function registerAppHandlers() {
         logger.error("Error storing Neon timestamp at current version:", error);
         throw new Error(
           "Could not store Neon timestamp at current version; database versioning functionality is not working: " +
-            error,
+          error,
         );
       }
     }
@@ -1850,15 +1857,19 @@ export function registerAppHandlers() {
       throw new Error(`App ${appId} is not running`);
     }
 
-    const { process } = appInfo;
+    const appProcess = appInfo.process;
 
-    if (!process.stdin) {
+    if (!appProcess) {
+      throw new Error(`App ${appId} process is null`);
+    }
+
+    if (!appProcess.stdin) {
       throw new Error(`App ${appId} process has no stdin available`);
     }
 
     try {
       // Write the response to stdin with a newline
-      process.stdin.write(`${response}\n`);
+      appProcess.stdin.write(`${response}\n`);
       logger.debug(`Sent response '${response}' to app ${appId} stdin`);
     } catch (error: any) {
       logger.error(`Error sending response to app ${appId}:`, error);

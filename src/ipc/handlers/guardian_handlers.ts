@@ -22,13 +22,16 @@ let _connectionPromise: Promise<void> | null = null;
  * Get or create IPC client connection to Guardian service
  */
 async function getIpcClient(): Promise<net.Socket> {
-  if (_ipcClient?.readyState === "open") {
+  const clientReadyState = _ipcClient?.readyState as string | undefined;
+
+  if (clientReadyState === "open" || clientReadyState === "readOnly" || clientReadyState === "writeOnly") {
     return _ipcClient;
   }
 
   if (_connectionPromise) {
     await _connectionPromise;
-    if (_ipcClient?.readyState === "open") {
+    const afterConnectReadyState = _ipcClient?.readyState as string | undefined;
+    if (afterConnectReadyState === "open" || afterConnectReadyState === "readOnly" || afterConnectReadyState === "writeOnly") {
       return _ipcClient;
     }
   }
@@ -41,7 +44,8 @@ async function getIpcClient(): Promise<net.Socket> {
   await _connectionPromise;
   _connectionPromise = null;
 
-  if (!_ipcClient || _ipcClient.readyState !== "open") {
+  const finalReadyState = _ipcClient?.readyState as string | undefined;
+  if (!_ipcClient || (finalReadyState !== "open" && finalReadyState !== "readOnly" && finalReadyState !== "writeOnly")) {
     throw new Error("Failed to connect to Guardian service");
   }
 

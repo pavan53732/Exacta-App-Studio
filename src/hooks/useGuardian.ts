@@ -31,7 +31,7 @@ export const guardianKeys = {
 export function useGuardianStatus() {
   return useQuery({
     queryKey: guardianKeys.status(),
-    queryFn: guardianClient.pingGuardian,
+    queryFn: () => guardianClient.pingGuardian(),
     refetchInterval: 5000, // Ping every 5 seconds
     retry: 2,
   });
@@ -45,7 +45,7 @@ export function useGuardianJobs() {
 
   const jobs = useQuery({
     queryKey: guardianKeys.jobs(),
-    queryFn: guardianClient.listJobs,
+    queryFn: () => guardianClient.listJobs(),
     refetchInterval: 2000,
   });
 
@@ -146,7 +146,7 @@ export function useGuardianCapabilities() {
 
   const capabilities = useQuery({
     queryKey: guardianKeys.capabilities(),
-    queryFn: guardianClient.listCapabilities,
+    queryFn: () => guardianClient.listCapabilities(),
     refetchInterval: 5000,
   });
 
@@ -224,7 +224,7 @@ export function useGuardianFirewall() {
 
   const rules = useQuery({
     queryKey: guardianKeys.wfpRules(),
-    queryFn: guardianClient.listWfpRules,
+    queryFn: () => guardianClient.listWfpRules(),
     refetchInterval: 5000,
   });
 

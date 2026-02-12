@@ -45,7 +45,7 @@ export function useFreeAgentQuota() {
 
   const invalidateQuota = () => {
     queryClient.invalidateQueries({
-      queryKey: freeAgentQuotaContracts.getFreeAgentQuotaStatus,
+      queryKey: ["free-agent-quota", "status"],
     });
   };
 

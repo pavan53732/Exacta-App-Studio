@@ -284,14 +284,19 @@ export const guardianClient = createClient(guardianContracts);
 export type CreateJobRequest = z.infer<typeof CreateJobRequestSchema>;
 export type CreateJobResponse = z.infer<typeof CreateJobResponseSchema>;
 export type JobStatistics = z.infer<typeof JobStatisticsSchema>;
+export type AssignProcessRequest = z.infer<typeof AssignProcessRequestSchema>;
+export type TerminateJobRequest = z.infer<typeof TerminateJobRequestSchema>;
+export type GetJobStatsRequest = z.infer<typeof GetJobStatsRequestSchema>;
 
 export type RequestCapabilityRequest = z.infer<typeof RequestCapabilityRequestSchema>;
 export type CapabilityToken = z.infer<typeof CapabilityTokenSchema>;
 export type ValidateCapabilityRequest = z.infer<typeof ValidateCapabilityRequestSchema>;
 export type ValidateCapabilityResponse = z.infer<typeof ValidateCapabilityResponseSchema>;
 export type CapabilityInfo = z.infer<typeof CapabilityInfoSchema>;
+export type RevokeCapabilityRequest = z.infer<typeof RevokeCapabilityRequestSchema>;
 
 export type CreateWfpRuleRequest = z.infer<typeof CreateWfpRuleRequestSchema>;
+export type DeleteWfpRuleRequest = z.infer<typeof DeleteWfpRuleRequestSchema>;
 export type WfpRuleInfo = z.infer<typeof WfpRuleInfoSchema>;
 export type GuardianStatus = z.infer<typeof GuardianStatusSchema>;
 
