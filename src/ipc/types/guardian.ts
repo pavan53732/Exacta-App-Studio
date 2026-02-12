@@ -66,7 +66,7 @@ export const RequestCapabilityRequestSchema = z.object({
   subject: z.string(), // Who is requesting (user/app)
   resource: z.string(), // What resource (file:/path, process:cmd, network:host)
   action: z.enum(["read", "write", "execute", "connect", "admin"]),
-  constraints: z.record(z.unknown()).optional(),
+  constraints: z.record(z.string(), z.unknown()).optional(),
   expiresInSeconds: z.number().default(3600),
 });
 
@@ -89,7 +89,7 @@ export const ValidateCapabilityResponseSchema = z.object({
   subject: z.string().optional(),
   resource: z.string().optional(),
   action: z.string().optional(),
-  claims: z.record(z.unknown()).optional(),
+  claims: z.record(z.string(), z.unknown()).optional(),
   error: z.string().optional(),
 });
 
@@ -259,7 +259,7 @@ export const guardianContracts = {
       command: z.string(),
       args: z.array(z.string()),
       cwd: z.string(),
-      env: z.record(z.string()).optional(),
+      env: z.record(z.string(), z.string()).optional(),
       token: z.string().optional(),
     }),
     output: z.object({
