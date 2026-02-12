@@ -625,10 +625,10 @@ export const nodeRuntimeProvider: RuntimeProvider = {
   async scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
     try {
       if (options.templateId === "react") {
-        await copyDirectoryRecursive(
-          path.join(__dirname, "..", "..", "..", "scaffold"),
-          options.fullAppPath
-        );
+        // FIXED: Use app.getAppPath() instead of relative paths
+        const { app } = await import("electron");
+        const scaffoldSource = path.join(app.getAppPath(), "scaffold");
+        await copyDirectoryRecursive(scaffoldSource, options.fullAppPath);
         return { success: true, entryPoint: "src/main.tsx" };
       }
       
@@ -743,6 +743,48 @@ export const apps = sqliteTable("apps", {
   githubRepo: text("github_repo"),
   // ... rest of existing columns
 });
+```
+
+### 2.1 Generate Drizzle Migration
+
+After updating `src/db/schema.ts`, generate the migration:
+
+```bash
+# Generate migration file
+npm run db:generate
+
+# This creates: drizzle/0026_add_stack_type_columns.sql
+```
+
+**Migration File:** `drizzle/0026_add_stack_type_columns.sql`
+
+```sql
+-- Migration: Add stack_type and runtime_provider columns to apps table
+ALTER TABLE apps ADD COLUMN stack_type text DEFAULT 'react';
+ALTER TABLE apps ADD COLUMN runtime_provider text DEFAULT 'node';
+
+-- Update existing apps to have default values
+UPDATE apps SET stack_type = 'react' WHERE stack_type IS NULL;
+UPDATE apps SET runtime_provider = 'node' WHERE runtime_provider IS NULL;
+```
+
+**Apply Migration:**
+```bash
+npm run db:migrate
+```
+
+### 2.2 TypeScript Types Update
+
+**File:** `src/db/schema.ts` (add types)
+
+```typescript
+// Add type exports for stack and runtime
+export type StackType = "react" | "nextjs" | "express-react" | "wpf" | "winui3" | "winforms" | "console" | "maui" | "tauri";
+export type RuntimeProvider = "node" | "dotnet" | "tauri";
+
+// Update apps type
+export type App = typeof apps.$inferSelect;
+export type NewApp = typeof apps.$inferInsert;
 ```
 
 ---
@@ -921,6 +963,177 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       memoryLimitBytes: 4 * 1024 * 1024 * 1024,
       timeoutMs: 600000,
     });
+  },
+};
+```
+
+---
+
+## Phase 3.5: Tauri Runtime Provider (Month 4)
+
+**NEW File:** `src/ipc/runtime/providers/TauriRuntimeProvider.ts`
+
+```typescript
+// src/ipc/runtime/providers/TauriRuntimeProvider.ts
+// Tauri runtime implementation for Rust + WebView2 apps
+
+import { RuntimeProvider, ScaffoldOptions, ScaffoldResult, BuildOptions, BuildResult, RunOptions, RunResult, PreviewOptions, PackageOptions } from "../RuntimeProvider";
+import { executionKernel } from "../ExecutionKernel";
+import path from "node:path";
+
+export const tauriRuntimeProvider: RuntimeProvider = {
+  runtimeId: "tauri",
+  runtimeName: "Tauri",
+  supportedStackTypes: ["tauri"],
+  previewStrategy: "hybrid", // Has web layer + native window
+  
+  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+    const missing: string[] = [];
+    
+    try {
+      await executionKernel.execute({
+        command: "cargo",
+        args: ["--version"],
+        cwd: process.cwd(),
+        appId: 0,
+        networkPolicy: "blocked",
+      });
+    } catch {
+      missing.push("Rust/Cargo");
+    }
+    
+    try {
+      await executionKernel.execute({
+        command: "node",
+        args: ["--version"],
+        cwd: process.cwd(),
+        appId: 0,
+        networkPolicy: "blocked",
+      });
+    } catch {
+      missing.push("Node.js");
+    }
+    
+    // Check for tauri-cli
+    try {
+      await executionKernel.execute({
+        command: "cargo",
+        args: ["tauri", "--version"],
+        cwd: process.cwd(),
+        appId: 0,
+        networkPolicy: "blocked",
+      });
+    } catch {
+      missing.push("Tauri CLI (cargo install tauri-cli)");
+    }
+    
+    return { installed: missing.length === 0, missing };
+  },
+  
+  async scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
+    try {
+      // Use npm create tauri-app@latest
+      await executionKernel.execute({
+        command: "npm",
+        args: ["create", "tauri-app@latest", "--", "--name", options.projectName, "--template", "vanilla", "--manager", "npm"],
+        cwd: path.dirname(options.fullAppPath),
+        appId: 0,
+        networkPolicy: "allowed", // Need network for template download
+        timeoutMs: 300000,
+      });
+      
+      return { success: true, entryPoint: "src-tauri/src/main.rs" };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  },
+  
+  async resolveDependencies(options: { appPath: string; appId: number }) {
+    // Install Node dependencies
+    const nodeResult = await executionKernel.execute({
+      command: "npm",
+      args: ["install"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed",
+      memoryLimitBytes: 2 * 1024 * 1024 * 1024,
+      timeoutMs: 300000,
+    });
+    
+    // Install Rust dependencies via cargo
+    const rustResult = await executionKernel.execute({
+      command: "cargo",
+      args: ["fetch"],
+      cwd: path.join(options.appPath, "src-tauri"),
+      appId: options.appId,
+      networkPolicy: "allowed",
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+      timeoutMs: 600000,
+    });
+    
+    return {
+      exitCode: nodeResult.exitCode === 0 && rustResult.exitCode === 0 ? 0 : 1,
+      stdout: nodeResult.stdout + "\n" + rustResult.stdout,
+      stderr: nodeResult.stderr + "\n" + rustResult.stderr,
+      durationMs: nodeResult.durationMs + rustResult.durationMs,
+    };
+  },
+  
+  async build(options: BuildOptions, onEvent) {
+    const result = await executionKernel.execute({
+      command: "cargo",
+      args: ["tauri", "build"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "blocked",
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+      timeoutMs: 600000,
+    }, onEvent);
+    
+    return {
+      success: result.exitCode === 0,
+      outputPath: path.join(options.appPath, "src-tauri", "target", "release"),
+      errors: result.exitCode !== 0 ? [result.stderr] : undefined,
+    };
+  },
+  
+  async run(options: RunOptions, onEvent) {
+    // Tauri dev mode - starts web dev server + native window
+    const result = await executionKernel.execute({
+      command: "cargo",
+      args: ["tauri", "dev"],
+      cwd: options.appPath,
+      appId: options.appId,
+      networkPolicy: "allowed", // Dev server needs network
+      memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+    }, onEvent);
+    
+    return {
+      ready: result.exitCode === 0 || result.exitCode === null,
+    };
+  },
+  
+  async stop(appId: number) {
+    // Kill cargo and Node processes
+    const { execPromise } = await import("../../processors/executeAddDependency");
+    try {
+      await execPromise(`taskkill /F /IM cargo.exe /FI "WINDOWTITLE eq *tauri*"`);
+    } catch {
+      // Process may already be stopped
+    }
+  },
+  
+  async startPreview(options: PreviewOptions) {
+    // Tauri has hybrid preview - web layer in iframe + native window
+  },
+  
+  async stopPreview(appId: number) {
+    await this.stop(appId);
+  },
+  
+  isReady(message: string): boolean {
+    // Tauri ready when dev server URL appears
+    return /https?:\/\/localhost:\d+/.test(message);
   },
 };
 ```
@@ -1153,9 +1366,177 @@ export function NativeAppPreview({ appId, stackType, runtimeProvider }: NativeAp
 }
 ```
 
+**NEW File:** `src/components/preview_panel/ConsoleOutputPreview.tsx`
+
+```typescript
+// src/components/preview_panel/ConsoleOutputPreview.tsx
+// Console app preview - shows terminal output instead of iframe
+
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Play, Square, Terminal, Copy, Trash } from "lucide-react";
+import { RuntimeProvider } from "../../../../ipc/runtime/RuntimeProvider";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface ConsoleOutputPreviewProps {
+  appId: number;
+  runtimeProvider: RuntimeProvider;
+}
+
+export function ConsoleOutputPreview({ appId, runtimeProvider }: ConsoleOutputPreviewProps) {
+  const [isRunning, setIsRunning] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [exitCode, setExitCode] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
+  
+  const runApp = async () => {
+    setLogs([]);
+    setExitCode(null);
+    setIsRunning(true);
+    
+    try {
+      const result = await runtimeProvider.run(
+        { appId, appPath: "" },
+        (event) => {
+          if (event.type === "stdout" || event.type === "stderr") {
+            setLogs(prev => [...prev, event.message]);
+          }
+        }
+      );
+      
+      setExitCode(result.ready ? 0 : 1);
+    } catch (error) {
+      setLogs(prev => [...prev, `Error: ${error}`]);
+      setExitCode(1);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+  
+  const stopApp = async () => {
+    await runtimeProvider.stop(appId);
+    setIsRunning(false);
+  };
+  
+  const copyLogs = () => {
+    navigator.clipboard.writeText(logs.join("\n"));
+  };
+  
+  const clearLogs = () => {
+    setLogs([]);
+    setExitCode(null);
+  };
+  
+  return (
+    <div className="flex flex-col h-full bg-gray-950 text-gray-100 font-mono text-sm">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between p-2 bg-gray-900 border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <Terminal size={16} className="text-blue-400" />
+          <span className="font-semibold">Console Output</span>
+          {isRunning && (
+            <span className="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded">
+              Running
+            </span>
+          )}
+          {exitCode !== null && !isRunning && (
+            <span className={`text-xs px-2 py-0.5 rounded ${
+              exitCode === 0 
+                ? "bg-green-900 text-green-300" 
+                : "bg-red-900 text-red-300"
+            }`}>
+              Exit: {exitCode}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-1">
+          {!isRunning ? (
+            <Button 
+              onClick={runApp} 
+              size="sm" 
+              className="h-7 flex items-center gap-1"
+            >
+              <Play size={14} />
+              Run
+            </Button>
+          ) : (
+            <Button 
+              onClick={stopApp} 
+              size="sm" 
+              variant="destructive"
+              className="h-7 flex items-center gap-1"
+            >
+              <Square size={14} />
+              Stop
+            </Button>
+          )}
+          
+          <Button 
+            onClick={copyLogs} 
+            size="sm" 
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            disabled={logs.length === 0}
+          >
+            <Copy size={14} />
+          </Button>
+          
+          <Button 
+            onClick={clearLogs} 
+            size="sm" 
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            disabled={logs.length === 0}
+          >
+            <Trash size={14} />
+          </Button>
+        </div>
+      </div>
+      
+      {/* Log output */}
+      <ScrollArea ref={scrollRef} className="flex-1 p-2">
+        {logs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <Terminal size={48} className="mb-4 opacity-20" />
+            <p>Click "Run" to execute the console application</p>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {logs.map((log, i) => (
+              <div key={i} className="whitespace-pre-wrap break-all">
+                <span className="text-gray-600 select-none mr-2">
+                  {new Date().toLocaleTimeString()}
+                </span>
+                {log}
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      
+      {/* Status bar */}
+      <div className="p-2 bg-gray-900 border-t border-gray-800 text-xs text-gray-500 flex justify-between">
+        <span>{logs.length} lines</span>
+        <span>UTF-8</span>
+      </div>
+    </div>
+  );
+}
+```
+
 ---
 
 ## Phase 6: New Dyad Tags (Months 6-7)
+
+### 6.1 Tag Parsers
 
 **File:** [`src/ipc/utils/dyad_tag_parser.ts`](src/ipc/utils/dyad_tag_parser.ts)
 
@@ -1169,6 +1550,139 @@ export function getDyadAddNugetTags(fullResponse: string): string[] {
     packages.push(...unescapeXmlAttr(match[1]).split(" "));
   }
   return packages;
+}
+
+// NEW: Parse <dyad-dotnet-command cmd="...">
+export function getDyadDotnetCommandTags(fullResponse: string): { cmd: string; args?: string }[] {
+  const dyadDotnetCommandRegex = /<dyad-dotnet-command cmd="([^"]+)"(?: args="([^"]*)")?[^>]*>[\s\S]*?<\/dyad-dotnet-command>/g;
+  let match;
+  const commands: { cmd: string; args?: string }[] = [];
+  while ((match = dyadDotnetCommandRegex.exec(fullResponse)) !== null) {
+    commands.push({
+      cmd: unescapeXmlAttr(match[1]),
+      args: match[2] ? unescapeXmlAttr(match[2]) : undefined,
+    });
+  }
+  return commands;
+}
+```
+
+### 6.2 Tag Processors
+
+**NEW File:** `src/ipc/processors/executeAddNuget.ts`
+
+```typescript
+// src/ipc/processors/executeAddNuget.ts
+// Processor for <dyad-add-nuget> tags
+
+import { executionKernel } from "../runtime/ExecutionKernel";
+import { db } from "../../db";
+import { messages } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import { Message } from "@/ipc/types";
+
+export async function executeAddNuget({
+  packages,
+  message,
+  appPath,
+  appId,
+}: {
+  packages: string[];
+  message: Message;
+  appPath: string;
+  appId: number;
+}) {
+  const results: string[] = [];
+  
+  for (const packageName of packages) {
+    try {
+      const result = await executionKernel.execute({
+        command: "dotnet",
+        args: ["add", "package", packageName],
+        cwd: appPath,
+        appId,
+        networkPolicy: "allowed", // NuGet needs network
+        memoryLimitBytes: 2 * 1024 * 1024 * 1024,
+        timeoutMs: 120000, // 2 minutes per package
+      });
+      
+      results.push(`Package: ${packageName}\n${result.stdout}\n${result.stderr}`);
+    } catch (error) {
+      results.push(`Package: ${packageName}\nERROR: ${error}`);
+    }
+  }
+  
+  const combinedResults = results.join("\n---\n");
+  
+  // Update the message content with installation results
+  const updatedContent = message.content.replace(
+    new RegExp(
+      `<dyad-add-nuget packages="${packages.join(" ")}">[^<]*</dyad-add-nuget>`,
+      "g"
+    ),
+    `<dyad-add-nuget packages="${packages.join(" ")}">\n${combinedResults}\n</dyad-add-nuget>`
+  );
+  
+  await db
+    .update(messages)
+    .set({ content: updatedContent })
+    .where(eq(messages.id, message.id));
+}
+```
+
+**NEW File:** `src/ipc/processors/executeDotnetCommand.ts`
+
+```typescript
+// src/ipc/processors/executeDotnetCommand.ts
+// Processor for <dyad-dotnet-command> tags
+
+import { executionKernel } from "../runtime/ExecutionKernel";
+import { db } from "../../db";
+import { messages } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import { Message } from "@/ipc/types";
+
+export async function executeDotnetCommand({
+  command,
+  args,
+  message,
+  appPath,
+  appId,
+}: {
+  command: string;
+  args?: string;
+  message: Message;
+  appPath: string;
+  appId: number;
+}) {
+  const allArgs = args ? args.split(" ").filter(Boolean) : [];
+  
+  const result = await executionKernel.execute({
+    command: "dotnet",
+    args: [command, ...allArgs],
+    cwd: appPath,
+    appId,
+    networkPolicy: command === "restore" || command === "add" ? "allowed" : "blocked",
+    memoryLimitBytes: 4 * 1024 * 1024 * 1024,
+    timeoutMs: 300000,
+  });
+  
+  const output = `Exit Code: ${result.exitCode}\n\nSTDOUT:\n${result.stdout}\n\nSTDERR:\n${result.stderr}`;
+  
+  // Update the message content with command output
+  const argsAttr = args ? ` args="${args}"` : "";
+  const updatedContent = message.content.replace(
+    new RegExp(
+      `<dyad-dotnet-command cmd="${command}"${argsAttr}[^>]*>[\s\S]*?</dyad-dotnet-command>`,
+      "g"
+    ),
+    `<dyad-dotnet-command cmd="${command}"${argsAttr}>\n${output}\n</dyad-dotnet-command>`
+  );
+  
+  await db
+    .update(messages)
+    .set({ content: updatedContent })
+    .where(eq(messages.id, message.id));
 }
 ```
 
@@ -1221,10 +1735,34 @@ export const DOTNET_WPF_PROMPT = `
 
 You are a Windows XAML expert for WPF applications.
 
+## Tech Stack
+- .NET 6/7/8
+- WPF with XAML
+- MVVM pattern
+
 ## Available Dyad Tags
-- <dyad-write path="MainWindow.xaml"> - Write XAML files
+- <dyad-write path="MainWindow.xaml"> - Write XAML UI files
+- <dyad-write path="ViewModels/MainViewModel.cs"> - Write ViewModels
 - <dyad-add-nuget packages="PackageName"> - Add NuGet packages
+- <dyad-dotnet-command cmd="build"> - Run dotnet commands
 - <dyad-command type="rebuild"></dyad-command> - Rebuild the app
+
+## Project Structure
+AppName/
+├── AppName.csproj
+├── App.xaml
+├── MainWindow.xaml              // Main window XAML
+├── MainWindow.xaml.cs
+├── ViewModels/                  // MVVM ViewModels
+│   └── MainViewModel.cs
+└── Views/                       // User controls
+    └── UserControl1.xaml
+
+## XAML Best Practices
+- Use MVVM pattern with data binding
+- Implement INotifyPropertyChanged
+- Use ObservableCollection<T> for lists
+- Leverage built-in WPF controls
 
 ## Security Notice
 All commands execute through Dyad's secure ExecutionKernel with:
@@ -1233,8 +1771,110 @@ All commands execute through Dyad's secure ExecutionKernel with:
 - Timeout protection (10 min max)
 - Capability-based access control
 
-Generate production-ready WPF apps with proper MVVM separation.
+Generate production-ready WPF apps with proper MVVM separation, async/await for I/O, and Windows-native look and feel.
 `;
+```
+
+**NEW File:** `src/prompts/tauri_prompt.ts`
+
+```typescript
+export const TAURI_PROMPT = `
+# Tauri Desktop Development
+
+You are a Tauri expert for building secure, lightweight desktop applications with Rust and web technologies.
+
+## Tech Stack
+- Tauri v2 (Rust + WebView2)
+- Frontend: vanilla JS or framework of choice
+- Backend: Rust
+- WebView2 on Windows
+
+## Available Dyad Tags
+- <dyad-write path="src-tauri/src/main.rs"> - Write Rust backend code
+- <dyad-write path="src-tauri/tauri.conf.json"> - Tauri configuration
+- <dyad-write path="src/index.html"> - Frontend HTML/JS
+- <dyad-command type="rebuild"></dyad-command> - Rebuild the app
+
+## Project Structure
+AppName/
+├── src/                         // Frontend code
+│   ├── index.html
+│   ├── main.js
+│   └── styles.css
+├── src-tauri/                   // Rust backend
+│   ├── src/
+│   │   └── main.rs              // Main Rust entry
+│   ├── Cargo.toml               // Rust dependencies
+│   └── tauri.conf.json          // Tauri config
+└── package.json
+
+## Rust Tauri Commands
+Define commands in main.rs:
+\`\`\`rust
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+\`\`\`
+
+Invoke from frontend:
+\`\`\`javascript
+import { invoke } from '@tauri-apps/api/core';
+const response = await invoke('greet', { name: 'World' });
+\`\`\`
+
+## Security Best Practices
+- Use Tauri's permission system
+- Validate all inputs in Rust commands
+- Use capability-based security
+- Minimize frontend privileges
+
+## Security Notice
+All commands execute through Dyad's secure ExecutionKernel with:
+- Network policy enforcement
+- Memory limits (4GB for builds)
+- Timeout protection (10 min max)
+- Capability-based access control
+
+Generate secure, fast Tauri apps with proper separation between frontend and backend.
+`;
+```
+
+### 7.1 Prompt Loading Integration
+
+**File:** `src/prompts/system_prompt.ts` (update)
+
+```typescript
+// Add imports for new prompts
+import { DOTNET_WPF_PROMPT } from "./dotnet_wpf_prompt";
+import { TAURI_PROMPT } from "./tauri_prompt";
+
+// Update constructSystemPrompt to conditionally append prompts
+export const constructSystemPrompt = ({
+  aiRules,
+  chatMode = "build",
+  enableTurboEditsV2,
+  themePrompt,
+  readOnly,
+  basicAgentMode,
+  stackType = "react",
+  runtimeProvider = "node",
+}: {
+  // ... existing params
+  stackType?: string;
+  runtimeProvider?: string;
+}) => {
+  // ... existing logic
+  
+  // NEW: Append stack-specific prompts
+  if (runtimeProvider === "dotnet") {
+    systemPrompt += "\n\n" + DOTNET_WPF_PROMPT;
+  } else if (runtimeProvider === "tauri") {
+    systemPrompt += "\n\n" + TAURI_PROMPT;
+  }
+  
+  // ... rest of existing logic
+};
 ```
 
 ---
