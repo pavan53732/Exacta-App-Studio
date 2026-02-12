@@ -16,7 +16,7 @@ import {
 import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
 import { getAppPort } from "../../../../shared/ports";
 import path from "node:path";
-import fs from "node:fs-extra";
+import fs from "fs-extra";
 import { copyDirectoryRecursive } from "../../utils/file_utils";
 
 // Type for event handlers

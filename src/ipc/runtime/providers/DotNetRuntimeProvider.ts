@@ -17,11 +17,11 @@ import {
 import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
 import { getAppPort } from "../../../../shared/ports";
 import path from "node:path";
-import fs from "node:fs-extra";
+import fs from "fs-extra";
 import { copyDirectoryRecursive } from "../../utils/file_utils";
 
 // Type for event handlers
- type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
+type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
 
 // .NET project templates
 const DOTNET_TEMPLATES: Record<string, string> = {
@@ -68,21 +68,21 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
   getRiskProfile(command: string, args: string[]): RiskProfile {
     const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
-    
+
     // High risk: Network operations, package restore with external sources
-    if (fullCmd.includes("restore") || 
-        fullCmd.includes("add package") ||
-        fullCmd.includes("nuget")) {
+    if (fullCmd.includes("restore") ||
+      fullCmd.includes("add package") ||
+      fullCmd.includes("nuget")) {
       return "high";
     }
-    
+
     // Medium risk: Build/publish (high CPU/Mem, disk writes)
-    if (fullCmd.includes("build") || 
-        fullCmd.includes("publish") ||
-        fullCmd.includes("pack")) {
+    if (fullCmd.includes("build") ||
+      fullCmd.includes("publish") ||
+      fullCmd.includes("pack")) {
       return "medium";
     }
-    
+
     // Low risk: Version checks, clean, list
     return "low";
   },
@@ -98,9 +98,9 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
       // Create project using dotnet CLI template
       const result = await executionKernel.execute(
-        { 
-          command: "dotnet", 
-          args: ["new", templateName, "-n", options.projectName, "-o", ".", "--force"] 
+        {
+          command: "dotnet",
+          args: ["new", templateName, "-n", options.projectName, "-o", ".", "--force"]
         },
         {
           appId: 0,
@@ -112,9 +112,9 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       );
 
       if (result.exitCode !== 0) {
-        return { 
-          success: false, 
-          error: `Template creation failed: ${result.stderr}` 
+        return {
+          success: false,
+          error: `Template creation failed: ${result.stderr}`
         };
       }
 
@@ -144,11 +144,11 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
   async build(options: BuildOptions, onEvent?: ExecutionEventHandler): Promise<BuildResult> {
     const config = options.configuration || "Debug";
-    
+
     const result = await executionKernel.execute(
-      { 
-        command: "dotnet", 
-        args: ["build", "--configuration", config, "--verbosity", "normal"] 
+      {
+        command: "dotnet",
+        args: ["build", "--configuration", config, "--verbosity", "normal"]
       },
       {
         appId: options.appId,
@@ -163,7 +163,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     // Parse build output for errors and warnings
     const errors: string[] = [];
     const warnings: string[] = [];
-    
+
     const lines = result.stderr.split('\n');
     for (const line of lines) {
       if (line.includes("error CS") || line.includes("error MSB")) {
@@ -224,13 +224,13 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
   async startPreview(options: PreviewOptions): Promise<void> {
     // For .NET desktop apps, "preview" means running the built executable
     // This is different from Node.js iframe preview
-    
+
     const buildPath = path.join(options.appPath, "bin", "Debug");
-    
+
     // Find the .exe file
     const files = await fs.readdir(buildPath);
     const exeFile = files.find(f => f.endsWith(".exe"));
-    
+
     if (!exeFile) {
       throw new Error("No executable found. Build the project first.");
     }
@@ -255,7 +255,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
   async package(options: PackageOptions): Promise<ExecutionResult> {
     // Create deployment package using dotnet publish
     const outputPath = path.join(options.appPath, "publish");
-    
+
     const args = [
       "publish",
       "--configuration", "Release",
@@ -291,7 +291,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       /Content root path/i,
       /Build succeeded/i,
     ];
-    
+
     return readyPatterns.some(pattern => pattern.test(message));
   },
 
@@ -300,11 +300,11 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     const extensionMap: Record<string, string> = {
       wpf: ".csproj",
       winui3: ".csproj",
-      winforms: ".csproj", 
+      winforms: ".csproj",
       console: ".csproj",
       maui: ".csproj",
     };
-    
+
     const ext = extensionMap[templateId] || ".csproj";
     return `${projectName}${ext}`;
   },

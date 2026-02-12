@@ -18,6 +18,18 @@ vi.mock("../../security/execution_kernel", () => ({
   },
 }));
 
+// Mock electron module for scaffold method
+vi.mock("electron", () => ({
+  app: {
+    getAppPath: vi.fn(() => "/mock/app/path"),
+  },
+}));
+
+// Mock copyDirectoryRecursive for scaffold method
+vi.mock("../../utils/file_utils", () => ({
+  copyDirectoryRecursive: vi.fn(),
+}));
+
 vi.mock("electron-log", () => ({
   default: {
     scope: vi.fn(() => ({

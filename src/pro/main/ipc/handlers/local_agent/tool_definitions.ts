@@ -30,6 +30,8 @@ import { codeSearchTool } from "./tools/code_search";
 import { planningQuestionnaireTool } from "./tools/planning_questionnaire";
 import { writePlanTool } from "./tools/write_plan";
 import { exitPlanTool } from "./tools/exit_plan";
+import { runDotnetCommandTool } from "./tools/run_dotnet_command";
+import { runCargoCommandTool } from "./tools/run_cargo_command";
 import type { LanguageModelV3ToolResultOutput } from "@ai-sdk/provider";
 import {
   escapeXmlAttr,
@@ -64,6 +66,9 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   webCrawlTool,
   updateTodosTool,
   runTypeChecksTool,
+  // Runtime-specific build tools (Windows-only app builder)
+  runDotnetCommandTool,
+  runCargoCommandTool,
   // Plan mode tools
   planningQuestionnaireTool,
   writePlanTool,

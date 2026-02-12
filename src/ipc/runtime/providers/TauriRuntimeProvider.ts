@@ -17,10 +17,10 @@ import {
 import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
 import { getAppPort } from "../../../../shared/ports";
 import path from "node:path";
-import fs from "node:fs-extra";
+import fs from "fs-extra";
 
 // Type for event handlers
- type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
+type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
 
 export const tauriRuntimeProvider: RuntimeProvider = {
   runtimeId: "tauri",
@@ -69,24 +69,32 @@ export const tauriRuntimeProvider: RuntimeProvider = {
   },
 
   getRiskProfile(command: string, args: string[]): RiskProfile {
-    const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
-    
-    // High risk: Network operations, native compilation
-    if (fullCmd.includes("npm install") || 
-        fullCmd.includes("pnpm install") ||
-        fullCmd.includes("yarn") ||
-        fullCmd.includes("cargo install")) {
-      return "high";
+    const sub = args[0] || "";
+
+    // Tauri-specific commands via cargo
+    if (command === "cargo" && sub === "tauri") {
+      const tauriSub = args[1] || "";
+      if (tauriSub === "init") return "high"; // Modifies project structure
     }
-    
+
+    // npm create commands (e.g., create-tauri-app, create-vite)
+    if (command === "npm" && sub === "create") return "high"; // Network + disk write
+
+    // High risk: Network operations, native compilation
+    if (command === "npm" && sub === "install") return "high";
+    if (command === "pnpm" && sub === "install") return "high";
+    if (command === "yarn") return "high";
+    if (command === "cargo" && sub === "install") return "high";
+
     // Medium risk: Build (compiles Rust code + web assets)
-    if (fullCmd.includes("tauri build") || 
-        fullCmd.includes("cargo build") ||
-        fullCmd.includes("npm run build") ||
-        fullCmd.includes("vite build")) {
+    const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
+    if (fullCmd.includes("tauri build") ||
+      fullCmd.includes("cargo build") ||
+      fullCmd.includes("npm run build") ||
+      fullCmd.includes("vite build")) {
       return "medium";
     }
-    
+
     // Low risk: Development server, version checks
     return "low";
   },
@@ -95,21 +103,21 @@ export const tauriRuntimeProvider: RuntimeProvider = {
     try {
       const stackType = options.templateId || "tauri-react";
       const framework = stackType.replace("tauri-", ""); // Extract "react" from "tauri-react"
-      
+
       // Tauri projects have a specific structure:
       // - Frontend in root (React/Vue/Svelte)
       // - Rust backend in src-tauri/
-      
+
       // First, scaffold the frontend
-      const frontendTemplate = framework === "react" ? "react-ts" : 
-                               framework === "vue" ? "vue-ts" :
-                               framework === "svelte" ? "svelte-ts" : "react-ts";
-      
+      const frontendTemplate = framework === "react" ? "react-ts" :
+        framework === "vue" ? "vue-ts" :
+          framework === "svelte" ? "svelte-ts" : "react-ts";
+
       // Use npm create vite for frontend
       const frontendResult = await executionKernel.execute(
-        { 
-          command: "npm", 
-          args: ["create", "vite@latest", ".", "--", "--template", frontendTemplate] 
+        {
+          command: "npm",
+          args: ["create", "vite@latest", ".", "--", "--template", frontendTemplate]
         },
         {
           appId: 0,
@@ -121,17 +129,17 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       );
 
       if (frontendResult.exitCode !== 0) {
-        return { 
-          success: false, 
-          error: `Frontend scaffolding failed: ${frontendResult.stderr}` 
+        return {
+          success: false,
+          error: `Frontend scaffolding failed: ${frontendResult.stderr}`
         };
       }
 
       // Initialize Tauri in the project
       const tauriResult = await executionKernel.execute(
-        { 
-          command: "npm", 
-          args: ["run", "tauri", "init", "--", "--ci"] 
+        {
+          command: "npm",
+          args: ["run", "tauri", "init", "--", "--ci"]
         },
         {
           appId: 0,
@@ -144,16 +152,16 @@ export const tauriRuntimeProvider: RuntimeProvider = {
 
       if (tauriResult.exitCode !== 0) {
         // Tauri init might fail if not installed globally, try alternative
-        return { 
-          success: true, 
+        return {
+          success: true,
           entryPoint: "src-tauri/src/main.rs",
           warning: "Tauri init may need manual setup. Run: npm install @tauri-apps/cli --save-dev && npx tauri init"
         };
       }
 
-      return { 
-        success: true, 
-        entryPoint: "src-tauri/src/main.rs" 
+      return {
+        success: true,
+        entryPoint: "src-tauri/src/main.rs"
       };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -190,9 +198,9 @@ export const tauriRuntimeProvider: RuntimeProvider = {
 
     // Tauri build compiles both frontend and Rust backend
     const result = await executionKernel.execute(
-      { 
-        command: "npm", 
-        args: ["run", "tauri", "build", "--", isDebug ? "--debug" : ""].filter(Boolean) 
+      {
+        command: "npm",
+        args: ["run", "tauri", "build", "--", isDebug ? "--debug" : ""].filter(Boolean)
       },
       {
         appId: options.appId,
@@ -207,7 +215,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
     // Parse Tauri build output for errors
     const errors: string[] = [];
     const warnings: string[] = [];
-    
+
     const lines = result.stderr.split('\n');
     for (const line of lines) {
       if (line.includes("error[") || line.includes("error:") || line.includes("Compiling")) {
@@ -267,11 +275,11 @@ export const tauriRuntimeProvider: RuntimeProvider = {
   async startPreview(options: PreviewOptions): Promise<void> {
     // Tauri apps run as native executables
     const buildPath = path.join(options.appPath, "src-tauri", "target", "debug");
-    
+
     // Find the .exe file
     const files = await fs.readdir(buildPath).catch(() => []);
     const exeFile = files.find(f => f.endsWith(".exe") && !f.includes(".pdb"));
-    
+
     if (!exeFile) {
       throw new Error("No Tauri executable found. Build the project first with 'npm run tauri build'");
     }
@@ -296,7 +304,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
   async package(options: PackageOptions): Promise<ExecutionResult> {
     // Tauri build with bundling creates installers
     const outputPath = path.join(options.appPath, "src-tauri", "target", "release", "bundle");
-    
+
     const args = ["run", "tauri", "build"];
 
     // Add bundler-specific arguments
@@ -329,7 +337,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       /vite.*ready/i,
       /compiled successfully/i,
     ];
-    
+
     return readyPatterns.some(pattern => pattern.test(message));
   },
 };

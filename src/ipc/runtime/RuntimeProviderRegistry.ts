@@ -7,7 +7,8 @@ import { nodeRuntimeProvider } from "./providers/NodeRuntimeProvider";
 import { dotNetRuntimeProvider } from "./providers/DotNetRuntimeProvider";
 import { tauriRuntimeProvider } from "./providers/TauriRuntimeProvider";
 
-class RuntimeProviderRegistry {
+// Export the class for testing purposes
+export class RuntimeProviderRegistry {
   private providers: Map<string, RuntimeProvider> = new Map();
 
   register(provider: RuntimeProvider): void {
@@ -36,7 +37,7 @@ class RuntimeProviderRegistry {
   }
 }
 
-// Singleton instance
+// Singleton instance for normal use
 export const runtimeRegistry = new RuntimeProviderRegistry();
 
 // Register default providers
