@@ -9,8 +9,37 @@ import { join } from "path";
 import { readSettings } from "../../main/settings";
 import { createTypedHandler } from "./base";
 import { systemContracts } from "../types/system";
+import { executionKernel } from '../security/execution_kernel';
 
 const logger = log.scope("node_handlers");
+
+// Helper function for secure command execution through ExecutionKernel
+async function executeSecureCommand(command: string, args: string[]): Promise<string> {
+  try {
+    // Use system-level execution with minimal privileges
+    const options = {
+      appId: 0, // System-level operation
+      cwd: process.cwd(),
+      timeout: 30000, // 30 second timeout
+      memoryLimitMB: 100, // Minimal memory limit
+      networkAccess: false // No network access for version checks
+    };
+    
+    const result = await executionKernel.execute(
+      { command, args },
+      options
+    );
+    
+    if (result.exitCode === 0) {
+      return result.stdout.trim();
+    } else {
+      throw new Error(`Command failed with exit code ${result.exitCode}: ${result.stderr}`);
+    }
+  } catch (error) {
+    logger.error(`Secure command execution failed for ${command}:`, error);
+    throw error;
+  }
+}
 
 // Test-only: Mock state for Node.js installation status
 // null = use real check, true = mock as installed, false = mock as not installed
@@ -69,15 +98,21 @@ export function registerNodeHandlers() {
       return { nodeVersion: null, pnpmVersion: null, nodeDownloadUrl };
     }
 
-    // Run checks in parallel
+    // Run checks through ExecutionKernel for security
     const [nodeVersion, pnpmVersion] = await Promise.all([
-      runShellCommand("node --version"),
+      executeSecureCommand('node', ['--version']),
       // First, check if pnpm is installed.
       // If not, try to install it using corepack.
       // If both fail, then pnpm is not available.
-      runShellCommand(
-        "pnpm --version || (corepack enable pnpm && pnpm --version) || (npm install -g pnpm@latest-10 && pnpm --version)",
-      ),
+      executeSecureCommand('pnpm', ['--version']).catch(async () => {
+        // Try to enable pnpm via corepack
+        await executeSecureCommand('corepack', ['enable', 'pnpm']);
+        return executeSecureCommand('pnpm', ['--version']);
+      }).catch(async () => {
+        // Fallback to npm install
+        await executeSecureCommand('npm', ['install', '-g', 'pnpm@latest-10']);
+        return executeSecureCommand('pnpm', ['--version']);
+      }),
     ]);
     return { nodeVersion, pnpmVersion, nodeDownloadUrl };
   });
@@ -85,10 +120,19 @@ export function registerNodeHandlers() {
   createTypedHandler(systemContracts.reloadEnvPath, async () => {
     logger.debug("Reloading env path, previously:", process.env.PATH);
     if (platform() === "win32") {
-      const newPath = execSync("cmd /c echo %PATH%", {
-        encoding: "utf8",
-      }).trim();
-      process.env.PATH = newPath;
+      try {
+        // Use secure ExecutionKernel for PATH retrieval
+        const result = await executeSecureCommand('cmd', ['/c', 'echo', '%PATH%']);
+        process.env.PATH = result.trim();
+      } catch (error) {
+        logger.error('Failed to reload PATH securely:', error);
+        // Fallback to execSync but log the security concern
+        logger.warn('Using fallback PATH reload - security bypass detected');
+        const newPath = execSync("cmd /c echo %PATH%", {
+          encoding: "utf8",
+        }).trim();
+        process.env.PATH = newPath;
+      }
     } else {
       fixPath();
     }

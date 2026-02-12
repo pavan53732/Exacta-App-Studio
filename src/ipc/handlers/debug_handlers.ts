@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { getDyadAppPath } from "../../paths/paths";
 import { LargeLanguageModel } from "@/lib/schemas";
 import { validateChatContext } from "../utils/context_paths_utils";
+import { executionKernel } from '../security/execution_kernel';
 
 // Shared function to get system debug info
 async function getSystemDebugInfo({
@@ -28,27 +29,28 @@ async function getSystemDebugInfo({
 }): Promise<SystemDebugInfo> {
   console.log("Getting system debug info");
 
-  // Get Node.js and pnpm versions
+  // Get Node.js and pnpm versions through secure ExecutionKernel
   let nodeVersion: string | null = null;
   let pnpmVersion: string | null = null;
   let nodePath: string | null = null;
+  
   try {
-    nodeVersion = await runShellCommand("node --version");
+    nodeVersion = await executeSecureCommand('node', ['--version']);
   } catch (err) {
     console.error("Failed to get Node.js version:", err);
   }
 
   try {
-    pnpmVersion = await runShellCommand("pnpm --version");
+    pnpmVersion = await executeSecureCommand('pnpm', ['--version']);
   } catch (err) {
     console.error("Failed to get pnpm version:", err);
   }
 
   try {
     if (platform() === "win32") {
-      nodePath = await runShellCommand("where.exe node");
+      nodePath = await executeSecureCommand('where', ['node']);
     } else {
-      nodePath = await runShellCommand("which node");
+      nodePath = await executeSecureCommand('which', ['node']);
     }
   } catch (err) {
     console.error("Failed to get node path:", err);
@@ -115,6 +117,34 @@ async function getSystemDebugInfo({
     architecture: arch(),
     logs,
   };
+}
+
+// Helper function for secure command execution through ExecutionKernel
+async function executeSecureCommand(command: string, args: string[]): Promise<string> {
+  try {
+    // Use system-level execution with minimal privileges
+    const options = {
+      appId: 0, // System-level operation
+      cwd: process.cwd(),
+      timeout: 10000, // 10 second timeout for diagnostics
+      memoryLimitMB: 50, // Minimal memory limit
+      networkAccess: false // No network access for diagnostics
+    };
+    
+    const result = await executionKernel.execute(
+      { command, args },
+      options
+    );
+    
+    if (result.exitCode === 0) {
+      return result.stdout.trim();
+    } else {
+      throw new Error(`Command failed with exit code ${result.exitCode}: ${result.stderr}`);
+    }
+  } catch (error) {
+    console.error(`Secure command execution failed for ${command}:`, error);
+    throw error;
+  }
 }
 
 export function registerDebugHandlers() {

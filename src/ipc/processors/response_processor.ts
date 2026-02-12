@@ -41,6 +41,8 @@ import { applySearchReplace } from "../../pro/main/ipc/processors/search_replace
 import { storeDbTimestampAtCurrentVersion } from "../utils/neon_timestamp_utils";
 
 import { FileUploadsState } from "../utils/file_uploads_state";
+import { errorHandler, EnhancedError } from "../utils/enhanced_error_handler";
+import { feedbackSystem, feedbackUtils } from "../utils/realtime_feedback";
 
 const readFile = fs.promises.readFile;
 const logger = log.scope("response_processor");

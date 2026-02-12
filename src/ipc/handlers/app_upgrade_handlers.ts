@@ -10,6 +10,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { gitAddAll, gitCommit } from "../utils/git_utils";
 import { simpleSpawn } from "../utils/simpleSpawn";
+import { executionKernel } from '../security/execution_kernel';
 
 export const logger = log.scope("app_upgrade_handlers");
 const handle = createLoggedHandler(logger);
@@ -147,36 +148,45 @@ async function applyComponentTagger(appPath: string) {
 
   await fs.promises.writeFile(viteConfigPath, content);
 
-  // Install the dependency
-  await new Promise<void>((resolve, reject) => {
-    logger.info("Installing component-tagger dependency");
-    const process = spawn(
-      "pnpm add -D @dyad-sh/react-vite-component-tagger || npm install --save-dev --legacy-peer-deps @dyad-sh/react-vite-component-tagger",
-      {
-        cwd: appPath,
-        shell: true,
-        stdio: "pipe",
-      },
-    );
-
-    process.stdout?.on("data", (data) => logger.info(data.toString()));
-    process.stderr?.on("data", (data) => logger.error(data.toString()));
-
-    process.on("close", (code) => {
-      if (code === 0) {
-        logger.info("component-tagger dependency installed successfully");
-        resolve();
-      } else {
-        logger.error(`Failed to install dependency, exit code ${code}`);
-        reject(new Error("Failed to install dependency"));
-      }
-    });
-
-    process.on("error", (err) => {
-      logger.error("Failed to spawn pnpm", err);
-      reject(err);
-    });
-  });
+  // Install the dependency through ExecutionKernel for security
+  logger.info("Installing component-tagger dependency");
+  
+  try {
+    // Try pnpm first, fall back to npm
+    const options = {
+      appId: 0, // System-level operation
+      cwd: appPath,
+      timeout: 300000, // 5 minute timeout
+      memoryLimitMB: 1000, // 1GB memory limit
+      networkAccess: true // Package installation needs network
+    };
+    
+    try {
+      // Try pnpm
+      await executionKernel.execute(
+        { 
+          command: 'pnpm', 
+          args: ['add', '-D', '@dyad-sh/react-vite-component-tagger'] 
+        },
+        options
+      );
+    } catch (pnpmError) {
+      logger.info('pnpm failed, trying npm fallback:', pnpmError);
+      // Fall back to npm
+      await executionKernel.execute(
+        { 
+          command: 'npm', 
+          args: ['install', '--save-dev', '--legacy-peer-deps', '@dyad-sh/react-vite-component-tagger'] 
+        },
+        options
+      );
+    }
+    
+    logger.info("component-tagger dependency installed successfully");
+  } catch (error) {
+    logger.error(`Failed to install dependency:`, error);
+    throw new Error(`Failed to install dependency: ${(error as Error).message}`);
+  }
 
   // Commit changes
   try {

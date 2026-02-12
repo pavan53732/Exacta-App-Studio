@@ -32,6 +32,57 @@ import fixPath from "fix-path";
 import killPort from "kill-port";
 import util from "util";
 import log from "electron-log";
+import { runtimeProviderRegistry } from "../runtime/runtime_providers";
+import { executionKernel } from '../security/execution_kernel';
+
+// Helper function for secure command execution through ExecutionKernel
+async function executeSecureCommand(appId: number, appPath: string, command: string, args: string[] = []): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  try {
+    const options = {
+      appId,
+      cwd: appPath,
+      timeout: 300000, // 5 minute timeout for app operations
+      memoryLimitMB: 2000, // 2GB memory limit
+      networkAccess: true // Apps may need network access
+    };
+    
+    const result = await executionKernel.execute(
+      { command, args },
+      options
+    );
+    
+    return {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode
+    };
+  } catch (error) {
+    log.error(`Secure command execution failed for app ${appId}:`, error);
+    throw error;
+  }
+}
+
+// Helper function to determine runtime provider based on app type
+function getRuntimeProvider(appPath: string): string {
+  try {
+    // Check for Node.js project
+    if (fs.existsSync(path.join(appPath, 'package.json'))) {
+      return 'node';
+    }
+    
+    // Check for .NET project
+    const files = fs.readdirSync(appPath);
+    if (files.some(file => file.endsWith('.csproj') || file.endsWith('.sln'))) {
+      return 'dotnet';
+    }
+    
+    // Default to node
+    return 'node';
+  } catch (error) {
+    log.warn('Failed to determine runtime provider, defaulting to node:', error);
+    return 'node';
+  }
+}
 import {
   deploySupabaseFunction,
   getSupabaseProjectName,

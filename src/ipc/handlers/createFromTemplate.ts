@@ -25,6 +25,14 @@ export async function createFromTemplate({
     return;
   }
 
+  if (templateId === "vue") {
+    await copyDirectoryRecursive(
+      path.join(__dirname, "..", "..", "..", "templates", "vue-js"),
+      fullAppPath,
+    );
+    return;
+  }
+
   const template = await getTemplateOrThrow(templateId);
   if (!template.githubUrl) {
     throw new Error(`Template ${templateId} has no GitHub URL`);

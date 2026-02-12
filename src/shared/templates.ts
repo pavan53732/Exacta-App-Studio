@@ -34,6 +34,14 @@ export const NEON_TEMPLATE_IDS = new Set<string>([PORTAL_MINI_STORE_ID]);
 export const localTemplatesData: Template[] = [
   DEFAULT_TEMPLATE,
   {
+    id: "vue",
+    title: "Vue.js Template",
+    description: "Uses Vue 3, Vite, and Vue Router.",
+    imageUrl:
+      "https://github.com/user-attachments/assets/vue-template-preview.png",
+    isOfficial: true,
+  },
+  {
     id: "next",
     title: "Next.js Template",
     description: "Uses Next.js, React.js, Shadcn, Tailwind and TypeScript.",
