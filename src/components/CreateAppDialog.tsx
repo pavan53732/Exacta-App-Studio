@@ -22,6 +22,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { neonTemplateHook } from "@/client_logic/template_hook";
 import { showError } from "@/lib/toast";
+import { RuntimeSelector, useRuntimeSelector } from "./RuntimeSelector";
 
 interface CreateAppDialogProps {
   open: boolean;
@@ -41,6 +42,8 @@ export function CreateAppDialog({
   const { createApp } = useCreateApp();
   const { data: nameCheckResult } = useCheckName(appName);
   const router = useRouter();
+  const { isOpen: isRuntimeSelectorOpen, open: openRuntimeSelector, close: closeRuntimeSelector, selection, RuntimeSelector: RuntimeSelectorComponent } = useRuntimeSelector();
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -52,9 +55,18 @@ export function CreateAppDialog({
       return;
     }
 
+    // For now, use default runtime (Node.js) if no selection is made
+    // In the future, we could integrate RuntimeSelector into this dialog
+    const runtimeProvider = selection?.runtimeId || "node";
+    const stackType = selection?.stackType || "react";
+
     setIsSubmitting(true);
     try {
-      const result = await createApp({ name: appName.trim() });
+      const result = await createApp({ 
+        name: appName.trim(),
+        runtimeProvider,
+        stackType
+      });
       if (template && NEON_TEMPLATE_IDS.has(template.id)) {
         await neonTemplateHook({
           appId: result.app.id,
@@ -69,6 +81,7 @@ export function CreateAppDialog({
       });
       setAppName("");
       onOpenChange(false);
+      closeRuntimeSelector();
     } catch (error) {
       showError(error as any);
       // Error is already handled by createApp hook or shown above
@@ -83,57 +96,61 @@ export function CreateAppDialog({
   const canSubmit = isNameValid && !nameExists && !isSubmitting;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{t("home:createNewApp")}</DialogTitle>
-          <DialogDescription>
-            {t("home:createAppUsingTemplate", { template: template?.title })}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t("home:createNewApp")}</DialogTitle>
+            <DialogDescription>
+              {t("home:createAppUsingTemplate", { template: template?.title })}
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="appName">{t("home:appName")}</Label>
-              <Input
-                id="appName"
-                value={appName}
-                onChange={(e) => setAppName(e.target.value)}
-                placeholder={t("home:enterAppName")}
-                className={nameExists ? "border-red-500" : ""}
-                disabled={isSubmitting}
-              />
-              {nameExists && (
-                <p className="text-sm text-red-500">
-                  {t("home:appNameAlreadyExists")}
-                </p>
-              )}
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="appName">{t("home:appName")}</Label>
+                <Input
+                  id="appName"
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  placeholder={t("home:enterAppName")}
+                  className={nameExists ? "border-red-500" : ""}
+                  disabled={isSubmitting}
+                />
+                {nameExists && (
+                  <p className="text-sm text-red-500">
+                    {t("home:appNameAlreadyExists")}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              {t("common:cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {isSubmitting ? t("common:creating") : t("home:createApp")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                {t("common:cancel")}
+              </Button>
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {isSubmitting ? t("common:creating") : t("home:createApp")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {RuntimeSelectorComponent}
+    </>
   );
 }
