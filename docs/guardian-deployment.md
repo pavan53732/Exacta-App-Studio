@@ -42,6 +42,7 @@ dotnet build -c Release
 ### 2. Output Locations
 
 After building:
+
 - **Service**: `native/Dyad.Guardian/bin/Release/net8.0-windows/publish/`
 - **Dashboard**: `native/Dyad.Guardian.UI/bin/Release/net8.0-windows/`
 - **Installer**: `native/Dyad.Guardian.Installer/bin/Release/DyadGuardianSetup.msi`
@@ -159,25 +160,25 @@ name: Build and Sign Guardian
 on:
   push:
     tags:
-      - 'guardian-v*'
+      - "guardian-v*"
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-      
+          dotnet-version: "8.0.x"
+
       - name: Install WiX
         run: dotnet tool install --global wix
-      
+
       - name: Build
         run: npm run guardian:installer
-      
+
       - name: Sign Binaries
         env:
           CERTIFICATE_BASE64: ${{ secrets.CODE_SIGNING_CERT }}
@@ -188,7 +189,7 @@ jobs:
           npm run guardian:sign -- `
             --CertificatePath "code-signing.pfx" `
             --CertificatePassword "$env:CERTIFICATE_PASSWORD"
-      
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -205,36 +206,36 @@ trigger:
       - guardian-v*
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: "windows-latest"
 
 steps:
   - task: UseDotNet@2
     inputs:
-      version: '8.0.x'
-  
+      version: "8.0.x"
+
   - script: dotnet tool install --global wix
-    displayName: 'Install WiX'
-  
+    displayName: "Install WiX"
+
   - script: npm run guardian:installer
-    displayName: 'Build Installer'
-  
+    displayName: "Build Installer"
+
   - task: DownloadSecureFile@1
     name: signingCert
     inputs:
-      secureFile: 'dyad-signing-cert.pfx'
-  
+      secureFile: "dyad-signing-cert.pfx"
+
   - script: |
       npm run guardian:sign -- `
         --CertificatePath "$(signingCert.secureFilePath)" `
         --CertificatePassword "$(CODE_SIGNING_PASSWORD)"
-    displayName: 'Sign Binaries'
+    displayName: "Sign Binaries"
     env:
       CODE_SIGNING_PASSWORD: $(CodeSigningPassword)
-  
+
   - task: PublishBuildArtifacts@1
     inputs:
-      pathToPublish: 'native/Dyad.Guardian.Installer/bin/Release'
-      artifactName: 'guardian-installer'
+      pathToPublish: "native/Dyad.Guardian.Installer/bin/Release"
+      artifactName: "guardian-installer"
 ```
 
 ## Certificate Management
@@ -268,6 +269,7 @@ azuresigntool sign `
 ### Build Issues
 
 **WiX not found:**
+
 ```bash
 dotnet tool install --global wix
 # Or update
@@ -275,27 +277,32 @@ wix extension add WixToolset.Util.wixext
 ```
 
 **MSBuild not found:**
+
 - Install Visual Studio Build Tools
 - Or run from "Developer Command Prompt for VS 2022"
 
 ### Signing Issues
 
 **signtool not found:**
+
 - Install Windows SDK
 - Or add Windows SDK bin folder to PATH
 
 **Certificate validation fails:**
+
 - Ensure certificate has Code Signing EKU
 - Check certificate hasn't expired
 - Verify password is correct
 
 **Timestamp server errors:**
+
 - Try alternative: `http://timestamp.sectigo.com`
 - Or: `http://tsa.startssl.com/rfc3161`
 
 ### Service Issues
 
 **Service fails to start:**
+
 ```cmd
 # Check service status
 sc query DyadGuardian
@@ -327,6 +334,7 @@ eventvwr.msc
 ### Verification
 
 Users can verify the signature:
+
 ```powershell
 # Check digital signature
 Get-AuthenticodeSignature "C:\Program Files\Dyad Guardian\Service\Dyad.Guardian.exe"
@@ -337,6 +345,7 @@ Get-AuthenticodeSignature "C:\Program Files\Dyad Guardian\Service\Dyad.Guardian.
 ## Support
 
 For issues with:
+
 - **Build**: Check Visual Studio and .NET SDK installation
 - **Signing**: Verify certificate and Windows SDK installation
 - **Service**: Check Windows Event Logs

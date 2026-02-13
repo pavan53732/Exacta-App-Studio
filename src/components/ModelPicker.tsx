@@ -1,4 +1,4 @@
-import { isDyadProEnabled, type LargeLanguageModel } from "@/lib/schemas";
+import { type LargeLanguageModel } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,30 +11,19 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useLocalModels } from "@/hooks/useLocalModels";
 import { useLocalLMSModels } from "@/hooks/useLMStudioModels";
 import { useLanguageModelsByProviders } from "@/hooks/useLanguageModelsByProviders";
 
-import { ipc, LocalModel } from "@/ipc/types";
+import { LocalModel } from "@/ipc/types";
 import { useLanguageModelProviders } from "@/hooks/useLanguageModelProviders";
 import { useSettings } from "@/hooks/useSettings";
 import { PriceBadge } from "@/components/PriceBadge";
-import { TURBO_MODELS } from "@/ipc/shared/language_model_constants";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import { Settings, ChevronDown, Sparkles, Monitor, Loader2 } from "lucide-react";
-
-// Reusable components
-interface ProviderSubMenuProps {
-  providerId: string;
-  providerName: string;
-  models: any[]; // Using any to avoid type complexity for now
-  selectedModel: LargeLanguageModel;
-  onModelSelect: (model: LargeLanguageModel) => void;
-  providers?: any[];
-}
+import { ChevronDown, Sparkles, Monitor, Loader2 } from "lucide-react";
 
 const ModelMenuItem: React.FC<{
   name: string;
@@ -70,9 +59,6 @@ export function ModelPicker() {
   const { settings, updateSettings } = useSettings();
   const queryClient = useQueryClient();
 
-  // BYPASSED: Always false to unlock all features
-  const isTrial = false;
-
   const onModelSelect = (model: LargeLanguageModel) => {
     updateSettings({ selectedModel: model });
     queryClient.invalidateQueries({ queryKey: queryKeys.tokenCount.all });
@@ -92,14 +78,12 @@ export function ModelPicker() {
   const {
     models: ollamaModels,
     loading: ollamaLoading,
-    error: ollamaError,
     loadModels: loadOllamaModels,
   } = useLocalModels();
 
   const {
     models: lmStudioModels,
     loading: lmStudioLoading,
-    error: lmStudioError,
     loadModels: loadLMStudioModels,
   } = useLocalLMSModels();
 
@@ -116,9 +100,8 @@ export function ModelPicker() {
   const getModelDisplayName = () => {
     if (selectedModel.provider === "ollama") {
       return (
-        ollamaModels.find(
-          (m: LocalModel) => m.modelName === selectedModel.name,
-        )?.displayName || selectedModel.name
+        ollamaModels.find((m: LocalModel) => m.modelName === selectedModel.name)
+          ?.displayName || selectedModel.name
       );
     }
     if (selectedModel.provider === "lmstudio") {
@@ -133,7 +116,7 @@ export function ModelPicker() {
       const found = modelsByProviders[selectedModel.provider].find(
         (m: any) =>
           (m.type === "custom" && m.id === selectedModel.customModelId) ||
-          m.apiName === selectedModel.name
+          m.apiName === selectedModel.name,
       );
       if (found) return found.displayName;
     }
@@ -143,14 +126,19 @@ export function ModelPicker() {
 
   const modelDisplayName = getModelDisplayName();
 
-  const providerEntries = !loading && modelsByProviders
-    ? Object.entries(modelsByProviders).filter(([id]) => id !== "auto")
-    : [];
+  const providerEntries =
+    !loading && modelsByProviders
+      ? Object.entries(modelsByProviders).filter(([id]) => id !== "auto")
+      : [];
 
   // Split into primary and secondary
   const primaryProviderIds = ["openai", "anthropic", "google", "meta"];
-  const primaryProviders = providerEntries.filter(([id]) => primaryProviderIds.includes(id));
-  const secondaryProviders = providerEntries.filter(([id]) => !primaryProviderIds.includes(id));
+  const primaryProviders = providerEntries.filter(([id]) =>
+    primaryProviderIds.includes(id),
+  );
+  const secondaryProviders = providerEntries.filter(
+    ([id]) => !primaryProviderIds.includes(id),
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -160,7 +148,8 @@ export function ModelPicker() {
           className="flex items-center gap-2 h-8 px-3 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-normal shadow-sm hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center gap-2 max-w-[150px]">
-            {selectedModel.provider === "ollama" || selectedModel.provider === "lmstudio" ? (
+            {selectedModel.provider === "ollama" ||
+            selectedModel.provider === "lmstudio" ? (
               <Monitor className="h-3.5 w-3.5 text-zinc-500" />
             ) : (
               <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -209,7 +198,8 @@ export function ModelPicker() {
                           onModelSelect({
                             name: model.apiName,
                             provider: providerId,
-                            customModelId: model.type === "custom" ? model.id : undefined,
+                            customModelId:
+                              model.type === "custom" ? model.id : undefined,
                           });
                           setOpen(false);
                         }}
@@ -226,11 +216,15 @@ export function ModelPicker() {
             {secondaryProviders.length > 0 && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="px-2 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer">
-                  <span className="font-medium text-zinc-500">Other Providers</span>
+                  <span className="font-medium text-zinc-500">
+                    Other Providers
+                  </span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="w-64 border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
                   {secondaryProviders.map(([providerId, models]) => {
-                    const provider = providers?.find((p) => p.id === providerId);
+                    const provider = providers?.find(
+                      (p) => p.id === providerId,
+                    );
                     return (
                       <DropdownMenuSub key={providerId}>
                         <DropdownMenuSubTrigger className="px-2 py-2 text-sm">
@@ -249,7 +243,10 @@ export function ModelPicker() {
                                 onModelSelect({
                                   name: model.apiName,
                                   provider: providerId,
-                                  customModelId: model.type === "custom" ? model.id : undefined,
+                                  customModelId:
+                                    model.type === "custom"
+                                      ? model.id
+                                      : undefined,
                                 });
                                 setOpen(false);
                               }}
@@ -277,7 +274,9 @@ export function ModelPicker() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="px-2 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer">
             <div className="flex flex-col items-start gap-0.5">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">Ollama</span>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                Ollama
+              </span>
               <span className="text-[10px] text-zinc-400">
                 {ollamaLoading ? "Loading..." : `${ollamaModels.length} models`}
               </span>
@@ -315,9 +314,13 @@ export function ModelPicker() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="px-2 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer">
             <div className="flex flex-col items-start gap-0.5">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">LM Studio</span>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                LM Studio
+              </span>
               <span className="text-[10px] text-zinc-400">
-                {lmStudioLoading ? "Loading..." : `${lmStudioModels.length} models`}
+                {lmStudioLoading
+                  ? "Loading..."
+                  : `${lmStudioModels.length} models`}
               </span>
             </div>
           </DropdownMenuSubTrigger>

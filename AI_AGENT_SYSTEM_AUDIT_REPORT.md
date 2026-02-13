@@ -29,6 +29,7 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 ### Available Tools (30+ tools identified)
 
 #### File System Operations
+
 - `read_file` - Read file contents with line range support
 - `write_file` - Create or overwrite files
 - `edit_file` - Edit existing files with surgical precision
@@ -38,27 +39,32 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 - `list_files` - List directory contents with filtering
 
 #### Code Analysis & Search
+
 - `grep` - Search for text patterns across codebase
 - `code_search` - Semantic code search capabilities
 - `run_type_checks` - Execute TypeScript compilation checks
 
 #### Dependency & Integration Management
+
 - `add_dependency` - Add npm package dependencies
 - `add_integration` - Add third-party service integrations
 - `execute_sql` - Execute SQL commands on databases
 
 #### Web & External Tools
+
 - `web_search` - Search the web for information
 - `web_crawl` - Crawl web pages and extract content
 - `engine_fetch` - Fetch content from external APIs
 
 #### Development Workflow
+
 - `update_todos` - Manage task tracking and progress
 - `set_chat_summary` - Set conversation summaries
 - `read_logs` - Read application logs
 - `planning_questionnaire` - Interactive planning tools
 
 #### Planning Mode Tools
+
 - `write_plan` - Generate development plans
 - `exit_plan` - Exit planning mode
 - `planning_questionnaire` - Structured planning workflows
@@ -66,18 +72,21 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 ### Security & Consent Mechanisms
 
 #### Tool Consent System
+
 - Granular consent controls per tool
 - Three consent levels: `always`, `ask`, `never`
 - Runtime consent prompts with user approval flows
 - Persistent consent storage in user settings
 
 #### Path Safety Controls
+
 - `safeJoin` utility prevents directory traversal attacks
 - Cross-platform path normalization
 - Validation against absolute paths and UNC paths
 - Base directory containment enforcement
 
 #### Guardian Security Service
+
 - Windows-specific process isolation via Job Objects
 - Capability-based access control tokens
 - Windows Filtering Platform (WFP) firewall integration
@@ -110,12 +119,14 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 ### Context Management
 
 #### Conversation Compaction
+
 - Automatic context window management
 - LLM-powered conversation summarization
 - Backup storage of original messages
 - Threshold-based triggering (80% of context window)
 
 #### Memory Management
+
 - Per-file edit tracking for telemetry
 - Todo list persistence during conversations
 - Chat summary generation and storage
@@ -124,12 +135,14 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 ## Windows-Specific Capabilities
 
 ### Native Windows Integration
+
 - **Guardian Service**: External Windows service for enhanced security
 - **WFP Firewall Rules**: Network traffic control and monitoring
 - **Job Objects**: Process isolation and resource limiting
 - **Named Pipes**: Secure IPC communication mechanism
 
 ### Security Features
+
 - Process sandboxing through Windows Job Objects
 - Network access control via WFP rules
 - Capability-based token authentication
@@ -138,16 +151,19 @@ This audit examines the AI agent system and tool definitions in the Exacta App S
 ## Prompt Engineering & System Design
 
 ### Multi-Modal Prompts
+
 - Different system prompts for each agent mode
 - Role-based instructions with clear constraints
 - Tool calling best practices and workflow guidance
 - Development methodology instructions
 
 ### XML-Based Communication
+
 - Custom `<dyad-*>` XML tags for structured communication
 - Real-time streaming of tool execution previews
 - Rich output formatting with error handling
 - Integration with UI components for live updates
 
 ### Reasoning Support
+
 - Thinking block delimiters (`

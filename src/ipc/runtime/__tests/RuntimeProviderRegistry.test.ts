@@ -1,7 +1,9 @@
 // src/ipc/runtime/__tests__/RuntimeProviderRegistry.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
-import { runtimeRegistry, RuntimeProviderRegistry } from "../RuntimeProviderRegistry";
-import { nodeRuntimeProvider } from "../providers/NodeRuntimeProvider";
+import {
+  runtimeRegistry,
+  RuntimeProviderRegistry,
+} from "../RuntimeProviderRegistry";
 import type { RuntimeProvider } from "../RuntimeProvider";
 
 // Mock provider for testing
@@ -75,7 +77,7 @@ describe("RuntimeProviderRegistry", () => {
 
     it("should throw error for unknown runtime", () => {
       expect(() => runtimeRegistry.getProvider("unknown")).toThrow(
-        "Unknown runtime: unknown"
+        "Unknown runtime: unknown",
       );
     });
   });
@@ -97,9 +99,9 @@ describe("RuntimeProviderRegistry", () => {
     });
 
     it("should throw error for unsupported stack type", () => {
-      expect(() => runtimeRegistry.getProviderForStack("unknown-stack")).toThrow(
-        "No provider found for stack type: unknown-stack"
-      );
+      expect(() =>
+        runtimeRegistry.getProviderForStack("unknown-stack"),
+      ).toThrow("No provider found for stack type: unknown-stack");
     });
   });
 
@@ -185,7 +187,9 @@ describe("NodeRuntimeProvider (via Registry)", () => {
 
   describe("isReady", () => {
     it("should detect localhost URL in message", () => {
-      expect(provider.isReady("Server running at http://localhost:3000")).toBe(true);
+      expect(provider.isReady("Server running at http://localhost:3000")).toBe(
+        true,
+      );
       expect(provider.isReady("Ready on https://localhost:8080")).toBe(true);
     });
 

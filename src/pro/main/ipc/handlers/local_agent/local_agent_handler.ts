@@ -18,7 +18,7 @@ import { db } from "@/db";
 import { chats, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-import { isDyadProEnabled, isBasicAgentMode } from "@/lib/schemas";
+import { isDyadProEnabled } from "@/lib/schemas";
 import { readSettings } from "@/main/settings";
 import { getDyadAppPath } from "@/paths/paths";
 import { getModelClient } from "@/ipc/utils/get_model_client";
@@ -148,14 +148,7 @@ export async function handleLocalAgentStream(
   // Basic Agent mode allows non-Pro users with quota (quota check is done in chat_stream_handlers)
   // Read-only mode (ask mode) is allowed for all users without Pro
   // BYPASSED: Always allow local agent mode regardless of Pro status
-  if (!readOnly && false) { // Always false to bypass Pro check
-    safeSend(event.sender, "chat:response:error", {
-      chatId: req.chatId,
-      error:
-        "Dyad engine setup required. Please configure the engine in Settings.",
-    });
-    return false;
-  }
+  // Note: Pro check has been intentionally disabled
 
   // Get the chat and app — may be re-queried after compaction
   let chat = await db.query.chats.findFirst({

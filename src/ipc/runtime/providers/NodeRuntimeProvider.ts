@@ -10,17 +10,23 @@ import {
   type RunOptions,
   type RunResult,
   type PreviewOptions,
-  type PackageOptions,
   type RiskProfile,
 } from "../RuntimeProvider";
-import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
+import {
+  executionKernel,
+  type ExecutionResult,
+} from "../../security/execution_kernel";
 import { getAppPort } from "../../../../shared/ports";
 import path from "node:path";
 import fs from "fs-extra";
 import { copyDirectoryRecursive } from "../../utils/file_utils";
 
 // Type for event handlers
- type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
+type ExecutionEventHandler = (event: {
+  type: "stdout" | "stderr";
+  message: string;
+  timestamp: number;
+}) => void;
 
 export const nodeRuntimeProvider: RuntimeProvider = {
   runtimeId: "node",
@@ -29,12 +35,15 @@ export const nodeRuntimeProvider: RuntimeProvider = {
   previewStrategy: "iframe",
   diskQuotaBytes: 2 * 1024 * 1024 * 1024, // 2GB
 
-  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+  async checkPrerequisites(): Promise<{
+    installed: boolean;
+    missing: string[];
+  }> {
     try {
       await executionKernel.execute(
         { command: "node", args: ["--version"] },
         { appId: 0, cwd: process.cwd() },
-        "node"
+        "node",
       );
       return { installed: true, missing: [] };
     } catch {
@@ -68,9 +77,14 @@ export const nodeRuntimeProvider: RuntimeProvider = {
     }
   },
 
-  async resolveDependencies(options: { appPath: string; appId: number }): Promise<ExecutionResult> {
+  async resolveDependencies(options: {
+    appPath: string;
+    appId: number;
+  }): Promise<ExecutionResult> {
     // Detect Package Manager
-    const isPnpm = await fs.pathExists(path.join(options.appPath, "pnpm-lock.yaml"));
+    const isPnpm = await fs.pathExists(
+      path.join(options.appPath, "pnpm-lock.yaml"),
+    );
     const pm = isPnpm ? "pnpm" : "npm";
     const args = isPnpm ? ["install"] : ["install", "--legacy-peer-deps"];
 
@@ -85,11 +99,14 @@ export const nodeRuntimeProvider: RuntimeProvider = {
         diskQuotaMB: 2048,
         timeout: 300000,
       },
-      "node"
+      "node",
     );
   },
 
-  async build(options: BuildOptions, onEvent?: ExecutionEventHandler): Promise<BuildResult> {
+  async build(
+    options: BuildOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<BuildResult> {
     const result = await executionKernel.execute(
       { command: "npm", args: ["run", "build"] },
       {
@@ -98,7 +115,7 @@ export const nodeRuntimeProvider: RuntimeProvider = {
         networkAccess: false,
         timeout: 300000,
       },
-      "node"
+      "node",
     );
 
     return {
@@ -107,13 +124,18 @@ export const nodeRuntimeProvider: RuntimeProvider = {
     };
   },
 
-  async run(options: RunOptions, onEvent?: ExecutionEventHandler): Promise<RunResult> {
+  async run(
+    options: RunOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<RunResult> {
     const port = getAppPort(options.appId);
 
     // NO SHELL: Direct execution only.
     // We expect dependencies to be resolved already.
 
-    const isPnpm = await fs.pathExists(path.join(options.appPath, "pnpm-lock.yaml"));
+    const isPnpm = await fs.pathExists(
+      path.join(options.appPath, "pnpm-lock.yaml"),
+    );
     const pm = isPnpm ? "pnpm" : "npm";
 
     // Command: [p]npm run dev -- --port X
@@ -130,12 +152,15 @@ export const nodeRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 2048,
         mode: "session", // Non-blocking, returns Job ID
       },
-      "node"
+      "node",
     );
 
     return {
       ready: result.exitCode === 0,
-      jobId: result.exitCode === 0 ? `job_${options.appId}_${Date.now()}` : undefined,
+      jobId:
+        result.exitCode === 0
+          ? `job_${options.appId}_${Date.now()}`
+          : undefined,
     };
   },
 
@@ -147,14 +172,15 @@ export const nodeRuntimeProvider: RuntimeProvider = {
     }
 
     // Fallback: Stop via process_manager
-    const { stopAppByInfo, runningApps } = await import("../../utils/process_manager");
+    const { stopAppByInfo, runningApps } =
+      await import("../../utils/process_manager");
     const appInfo = runningApps.get(appId);
     if (appInfo) {
       await stopAppByInfo(appId, appInfo);
     }
   },
 
-  async startPreview(options: PreviewOptions): Promise<void> {
+  async startPreview(_options: PreviewOptions): Promise<void> {
     // Node apps use iframe - no external window needed
     // Preview is handled by the iframe loading localhost
   },

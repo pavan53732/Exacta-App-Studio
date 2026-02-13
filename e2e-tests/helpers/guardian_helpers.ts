@@ -1,4 +1,8 @@
-import { Page, ElectronApplication, _electron as electron } from "@playwright/test";
+import {
+  Page,
+  ElectronApplication,
+  _electron as electron,
+} from "@playwright/test";
 import * as path from "path";
 
 /**
@@ -85,7 +89,6 @@ export interface DeleteWfpRuleResponse {
  */
 export async function launchApp(): Promise<ElectronApplication> {
   // Determine the correct path based on the environment
-  const electronPath = require.resolve("electron");
   const appPath = path.resolve(__dirname, "../../");
 
   const electronApp = await electron.launch({
@@ -106,8 +109,10 @@ export async function launchApp(): Promise<ElectronApplication> {
  */
 export async function navigateToGuardian(page: Page): Promise<void> {
   // Click on the Guardian link in sidebar
-  const guardianLink = page.locator('[data-testid="sidebar-guardian"], a:has-text("Guardian"), [title="Guardian"]');
-  
+  const guardianLink = page.locator(
+    '[data-testid="sidebar-guardian"], a:has-text("Guardian"), [title="Guardian"]',
+  );
+
   if (await guardianLink.isVisible().catch(() => false)) {
     await guardianLink.click();
   } else {
@@ -116,9 +121,12 @@ export async function navigateToGuardian(page: Page): Promise<void> {
   }
 
   // Wait for the page to load
-  await page.waitForSelector('[data-testid="guardian-page"], text=Guardian Security Center', {
-    timeout: 10000,
-  });
+  await page.waitForSelector(
+    '[data-testid="guardian-page"], text=Guardian Security Center',
+    {
+      timeout: 10000,
+    },
+  );
 }
 
 /**
@@ -126,30 +134,34 @@ export async function navigateToGuardian(page: Page): Promise<void> {
  */
 export async function waitForGuardianConnected(
   page: Page,
-  timeout: number = 30000
+  timeout: number = 30000,
 ): Promise<void> {
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeout) {
-    const statusBadge = page.locator('[data-testid="guardian-status-badge"], .badge:has-text("CONNECTED")');
-    
+    const statusBadge = page.locator(
+      '[data-testid="guardian-status-badge"], .badge:has-text("CONNECTED")',
+    );
+
     if (await statusBadge.isVisible().catch(() => false)) {
       const text = await statusBadge.textContent().catch(() => "");
       if (text?.includes("CONNECTED")) {
         return;
       }
     }
-    
+
     // Wait and retry
     await page.waitForTimeout(1000);
-    
+
     // Try to refresh
-    const refreshBtn = page.locator('[data-testid="guardian-refresh-btn"], button:has(.refresh)');
+    const refreshBtn = page.locator(
+      '[data-testid="guardian-refresh-btn"], button:has(.refresh)',
+    );
     if (await refreshBtn.isVisible().catch(() => false)) {
       await refreshBtn.click();
     }
   }
-  
+
   throw new Error(`Guardian service did not connect within ${timeout}ms`);
 }
 
@@ -158,18 +170,22 @@ export async function waitForGuardianConnected(
  */
 export async function createJob(
   page: Page,
-  request: CreateJobRequest
+  request: CreateJobRequest,
 ): Promise<CreateJobResponse> {
   // Navigate to Jobs tab
   await page.click('[data-testid="tab-jobs"], button:has-text("Job Objects")');
 
   // Fill in job name
-  const jobNameInput = page.locator('[data-testid="job-name-input"], input[placeholder*="job name"]').first();
+  const jobNameInput = page
+    .locator('[data-testid="job-name-input"], input[placeholder*="job name"]')
+    .first();
   await jobNameInput.fill(request.jobName);
 
   // Fill in memory limit if provided
   if (request.memoryLimitBytes) {
-    const memInput = page.locator('input[placeholder*="memory"], input[name*="memory"]').first();
+    const memInput = page
+      .locator('input[placeholder*="memory"], input[name*="memory"]')
+      .first();
     if (await memInput.isVisible().catch(() => false)) {
       await memInput.fill(request.memoryLimitBytes.toString());
     }
@@ -177,14 +193,20 @@ export async function createJob(
 
   // Fill in CPU rate if provided
   if (request.cpuRatePercent) {
-    const cpuInput = page.locator('input[placeholder*="CPU"], input[name*="cpu"]').first();
+    const cpuInput = page
+      .locator('input[placeholder*="CPU"], input[name*="cpu"]')
+      .first();
     if (await cpuInput.isVisible().catch(() => false)) {
       await cpuInput.fill(request.cpuRatePercent.toString());
     }
   }
 
   // Click create button
-  const createBtn = page.locator('[data-testid="create-job-btn"], button:has-text("Initialize Job"), button:has-text("Create")').first();
+  const createBtn = page
+    .locator(
+      '[data-testid="create-job-btn"], button:has-text("Initialize Job"), button:has-text("Create")',
+    )
+    .first();
   await createBtn.click();
 
   // Wait for creation to complete
@@ -205,24 +227,36 @@ export async function createJob(
  */
 export async function terminateJob(
   page: Page,
-  jobName: string
+  jobName: string,
 ): Promise<TerminateJobResponse> {
   // Navigate to Jobs tab
   await page.click('[data-testid="tab-jobs"], button:has-text("Job Objects")');
 
   // Find the job item
-  const jobItem = page.locator(`[data-testid="job-item"]:has-text("${jobName}"), div:has-text("${jobName}"):has(button)`).first();
+  const jobItem = page
+    .locator(
+      `[data-testid="job-item"]:has-text("${jobName}"), div:has-text("${jobName}"):has(button)`,
+    )
+    .first();
 
   if (!(await jobItem.isVisible().catch(() => false))) {
     return { success: false, error: "Job not found" };
   }
 
   // Find and click the delete/terminate button within the job item
-  const deleteBtn = jobItem.locator('button:has(.trash), button:has-text("Delete"), button:has-text("Terminate"), [data-testid="terminate-job-btn"]').first();
+  const deleteBtn = jobItem
+    .locator(
+      'button:has(.trash), button:has-text("Delete"), button:has-text("Terminate"), [data-testid="terminate-job-btn"]',
+    )
+    .first();
   await deleteBtn.click();
 
   // Confirm deletion if dialog appears
-  const confirmBtn = page.locator('button:has-text("Yes"), button:has-text("Confirm"), [data-testid="confirm-delete"]').first();
+  const confirmBtn = page
+    .locator(
+      'button:has-text("Yes"), button:has-text("Confirm"), [data-testid="confirm-delete"]',
+    )
+    .first();
   if (await confirmBtn.isVisible().catch(() => false)) {
     await confirmBtn.click();
   }
@@ -243,40 +277,54 @@ export async function terminateJob(
  */
 export async function requestCapability(
   page: Page,
-  request: RequestCapabilityRequest
+  request: RequestCapabilityRequest,
 ): Promise<RequestCapabilityResponse> {
   // Navigate to Tokens tab
-  await page.click('[data-testid="tab-tokens"], button:has-text("Capabilities")');
+  await page.click(
+    '[data-testid="tab-tokens"], button:has-text("Capabilities")',
+  );
 
   // Fill in resource
-  const resourceInput = page.locator('[data-testid="resource-input"], input[placeholder*="file:"], input[name*="resource"]').first();
+  const resourceInput = page
+    .locator(
+      '[data-testid="resource-input"], input[placeholder*="file:"], input[name*="resource"]',
+    )
+    .first();
   if (await resourceInput.isVisible().catch(() => false)) {
     await resourceInput.fill(request.resource);
   }
 
   // Select action
-  const actionSelect = page.locator('select[name*="action"], [data-testid="action-select"]').first();
+  const actionSelect = page
+    .locator('select[name*="action"], [data-testid="action-select"]')
+    .first();
   if (await actionSelect.isVisible().catch(() => false)) {
     await actionSelect.selectOption(request.action);
   }
 
   // Click request button
-  const requestBtn = page.locator('[data-testid="request-token-btn"], button:has-text("Request"), button:has-text("Token"]').first();
+  const requestBtn = page
+    .locator(
+      '[data-testid="request-token-btn"], button:has-text("Request"), button:has-text("Token"]',
+    )
+    .first();
   await requestBtn.click();
 
   // Wait for response
   await page.waitForTimeout(1500);
 
   // Look for token in the list
-  const tokenItems = page.locator('[data-testid="capability-item"], .token-item');
+  const tokenItems = page.locator(
+    '[data-testid="capability-item"], .token-item',
+  );
   const count = await tokenItems.count();
 
   if (count > 0) {
     // Get the first token's ID
     const firstToken = tokenItems.first();
-    const tokenText = await firstToken.textContent() || "";
+    const tokenText = (await firstToken.textContent()) || "";
     const match = tokenText.match(/([a-f0-9]{8,})/i);
-    
+
     return {
       success: true,
       tokenId: match ? match[1] : undefined,
@@ -294,27 +342,39 @@ export async function requestCapability(
  */
 export async function revokeCapability(
   page: Page,
-  tokenId: string
+  tokenId: string,
 ): Promise<RevokeCapabilityResponse> {
   // Navigate to Tokens tab
-  await page.click('[data-testid="tab-tokens"], button:has-text("Capabilities")');
+  await page.click(
+    '[data-testid="tab-tokens"], button:has-text("Capabilities")',
+  );
 
   // Find the token item (match by partial ID)
-  const tokenItem = page.locator(`[data-testid="capability-item"]:has-text("${tokenId.substring(0, 8)}")`).first();
+  const tokenItem = page
+    .locator(
+      `[data-testid="capability-item"]:has-text("${tokenId.substring(0, 8)}")`,
+    )
+    .first();
 
   if (!(await tokenItem.isVisible().catch(() => false))) {
     return { success: false, error: "Token not found" };
   }
 
   // Find and click the revoke button
-  const revokeBtn = tokenItem.locator('button:has(.trash), button:has-text("Revoke"), [data-testid="revoke-token-btn"]').first();
+  const revokeBtn = tokenItem
+    .locator(
+      'button:has(.trash), button:has-text("Revoke"), [data-testid="revoke-token-btn"]',
+    )
+    .first();
   await revokeBtn.click();
 
   // Wait for revocation
   await page.waitForTimeout(1000);
 
   // Check for REVOKED badge
-  const revokedBadge = tokenItem.locator('text=REVOKED, .badge:has-text("REVOKED")').first();
+  const revokedBadge = tokenItem
+    .locator('text=REVOKED, .badge:has-text("REVOKED")')
+    .first();
   const isRevoked = await revokedBadge.isVisible().catch(() => false);
 
   return {
@@ -327,15 +387,17 @@ export async function revokeCapability(
  */
 export async function createFirewallRule(
   page: Page,
-  request: CreateWfpRuleRequest
+  request: CreateWfpRuleRequest,
 ): Promise<CreateWfpRuleResponse> {
   // Navigate to Firewall tab
   await page.click('[data-testid="tab-firewall"], button:has-text("Firewall")');
 
   // Note: The firewall UI might be in stub mode
   // Check if create rule form is available
-  const createForm = page.locator('[data-testid="create-rule-form"], form:has(input[name="ruleName"])');
-  
+  const createForm = page.locator(
+    '[data-testid="create-rule-form"], form:has(input[name="ruleName"])',
+  );
+
   if (!(await createForm.isVisible().catch(() => false))) {
     // In stub mode, we simulate success
     console.log("WFP in stub mode - simulating rule creation");
@@ -346,7 +408,9 @@ export async function createFirewallRule(
   }
 
   // Fill in rule name
-  const nameInput = page.locator('input[name="ruleName"], [data-testid="rule-name-input"]').first();
+  const nameInput = page
+    .locator('input[name="ruleName"], [data-testid="rule-name-input"]')
+    .first();
   await nameInput.fill(request.name);
 
   // Select direction
@@ -376,7 +440,9 @@ export async function createFirewallRule(
   }
 
   // Click create button
-  const createBtn = page.locator('button:has-text("Create Rule"), [data-testid="create-rule-btn"]').first();
+  const createBtn = page
+    .locator('button:has-text("Create Rule"), [data-testid="create-rule-btn"]')
+    .first();
   await createBtn.click();
 
   // Wait for creation
@@ -393,24 +459,34 @@ export async function createFirewallRule(
  */
 export async function deleteFirewallRule(
   page: Page,
-  ruleId: string
+  ruleId: string,
 ): Promise<DeleteWfpRuleResponse> {
   // Navigate to Firewall tab
   await page.click('[data-testid="tab-firewall"], button:has-text("Firewall")');
 
   // Find the rule item
-  const ruleItem = page.locator(`[data-testid="firewall-rule-item"]:has-text("${ruleId.substring(0, 8)}")`).first();
+  const ruleItem = page
+    .locator(
+      `[data-testid="firewall-rule-item"]:has-text("${ruleId.substring(0, 8)}")`,
+    )
+    .first();
 
   if (!(await ruleItem.isVisible().catch(() => false))) {
     return { success: false, error: "Rule not found" };
   }
 
   // Click delete button
-  const deleteBtn = ruleItem.locator('button:has(.trash), button:has-text("Delete"), [data-testid="delete-rule-btn"]').first();
+  const deleteBtn = ruleItem
+    .locator(
+      'button:has(.trash), button:has-text("Delete"), [data-testid="delete-rule-btn"]',
+    )
+    .first();
   await deleteBtn.click();
 
   // Confirm if dialog appears
-  const confirmBtn = page.locator('button:has-text("Yes"), [data-testid="confirm-delete"]').first();
+  const confirmBtn = page
+    .locator('button:has-text("Yes"), [data-testid="confirm-delete"]')
+    .first();
   if (await confirmBtn.isVisible().catch(() => false)) {
     await confirmBtn.click();
   }
@@ -429,14 +505,18 @@ export async function deleteFirewallRule(
 /**
  * Get Guardian service status
  */
-export async function getGuardianStatus(page: Page): Promise<{ connected: boolean; timestamp?: number }> {
-  const statusBadge = page.locator('[data-testid="guardian-status-badge"]').first();
-  
+export async function getGuardianStatus(
+  page: Page,
+): Promise<{ connected: boolean; timestamp?: number }> {
+  const statusBadge = page
+    .locator('[data-testid="guardian-status-badge"]')
+    .first();
+
   if (!(await statusBadge.isVisible().catch(() => false))) {
     return { connected: false };
   }
 
-  const text = await statusBadge.textContent() || "";
+  const text = (await statusBadge.textContent()) || "";
   const connected = text.includes("CONNECTED");
 
   return {
@@ -451,7 +531,7 @@ export async function getGuardianStatus(page: Page): Promise<{ connected: boolea
 export async function waitForJob(
   page: Page,
   jobName: string,
-  timeout: number = 10000
+  timeout: number = 10000,
 ): Promise<boolean> {
   const startTime = Date.now();
 
@@ -472,7 +552,7 @@ export async function waitForJob(
 export async function waitForJobRemoval(
   page: Page,
   jobName: string,
-  timeout: number = 10000
+  timeout: number = 10000,
 ): Promise<boolean> {
   const startTime = Date.now();
 

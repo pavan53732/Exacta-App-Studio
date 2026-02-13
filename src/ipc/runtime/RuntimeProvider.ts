@@ -2,7 +2,10 @@
 // Abstract interface for all runtime implementations
 // UI and IPC call these methods — NOT runtime strings directly
 
-import type { ExecutionResult, ExecutionEventHandler } from "../security/execution_kernel";
+import type {
+  ExecutionResult,
+  ExecutionEventHandler,
+} from "../security/execution_kernel";
 
 export interface ScaffoldOptions {
   projectName: string;
@@ -14,6 +17,7 @@ export interface ScaffoldResult {
   success: boolean;
   entryPoint?: string;
   error?: string;
+  warning?: string;
 }
 
 export interface BuildOptions {

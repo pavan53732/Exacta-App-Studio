@@ -9,7 +9,7 @@ import logo from "../../assets/logo.svg";
 import { providerSettingsRoute } from "@/routes/settings/providers/$provider";
 import { cn } from "@/lib/utils";
 import { useDeepLink } from "@/contexts/DeepLinkContext";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ipc } from "@/ipc/types";
 import { useSystemPlatform } from "@/hooks/useSystemPlatform";
@@ -37,7 +37,7 @@ export const TitleBar = () => {
   const [selectedAppId] = useAtom(selectedAppIdAtom);
   const { apps } = useLoadApps();
   const { navigate } = useRouter();
-  const { settings, refreshSettings } = useSettings();
+  const { settings: _settings } = useSettings();
 
   const platform = useSystemPlatform();
   const showWindowControls = platform !== null && platform !== "darwin";
@@ -90,7 +90,6 @@ export const TitleBar = () => {
 
         {showWindowControls && <WindowsControls />}
       </div>
-
     </>
   );
 };
@@ -240,7 +239,7 @@ function TitleBarActions() {
 }
 
 export function DyadProButton({
-  isDyadProEnabled,
+  isDyadProEnabled: _isDyadProEnabled,
 }: {
   isDyadProEnabled: boolean;
 }) {
@@ -262,9 +261,7 @@ export function DyadProButton({
       size="sm"
     >
       Pro
-      {userBudget && (
-        <AICreditStatus userBudget={userBudget} />
-      )}
+      {userBudget && <AICreditStatus userBudget={userBudget} />}
     </Button>
   );
 }

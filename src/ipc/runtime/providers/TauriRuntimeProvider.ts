@@ -14,22 +14,36 @@ import {
   type PackageOptions,
   type RiskProfile,
 } from "../RuntimeProvider";
-import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
-import { getAppPort } from "../../../../shared/ports";
+import {
+  executionKernel,
+  type ExecutionResult,
+} from "../../security/execution_kernel";
 import path from "node:path";
 import fs from "fs-extra";
 
 // Type for event handlers
-type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
+type ExecutionEventHandler = (event: {
+  type: "stdout" | "stderr";
+  message: string;
+  timestamp: number;
+}) => void;
 
 export const tauriRuntimeProvider: RuntimeProvider = {
   runtimeId: "tauri",
   runtimeName: "Tauri",
-  supportedStackTypes: ["tauri-react", "tauri-vue", "tauri-svelte", "tauri-solid"],
+  supportedStackTypes: [
+    "tauri-react",
+    "tauri-vue",
+    "tauri-svelte",
+    "tauri-solid",
+  ],
   previewStrategy: "external-window", // Tauri apps run as native desktop apps
   diskQuotaBytes: 3 * 1024 * 1024 * 1024, // 3GB for Tauri (Rust + Node builds)
 
-  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+  async checkPrerequisites(): Promise<{
+    installed: boolean;
+    missing: string[];
+  }> {
     const missing: string[] = [];
 
     // Check for Node.js
@@ -37,7 +51,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "node", args: ["--version"] },
         { appId: 0, cwd: process.cwd() },
-        "tauri"
+        "tauri",
       );
     } catch {
       missing.push("Node.js");
@@ -48,7 +62,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "rustc", args: ["--version"] },
         { appId: 0, cwd: process.cwd() },
-        "tauri"
+        "tauri",
       );
     } catch {
       missing.push("Rust");
@@ -59,7 +73,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "cargo", args: ["--version"] },
         { appId: 0, cwd: process.cwd() },
-        "tauri"
+        "tauri",
       );
     } catch {
       missing.push("Cargo");
@@ -77,6 +91,16 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       if (tauriSub === "init") return "high"; // Modifies project structure
     }
 
+    // npm run tauri init (via npm run script)
+    if (
+      command === "npm" &&
+      sub === "run" &&
+      args[1] === "tauri" &&
+      args[2] === "init"
+    ) {
+      return "high"; // Modifies project structure
+    }
+
     // npm create commands (e.g., create-tauri-app, create-vite)
     if (command === "npm" && sub === "create") return "high"; // Network + disk write
 
@@ -88,10 +112,12 @@ export const tauriRuntimeProvider: RuntimeProvider = {
 
     // Medium risk: Build (compiles Rust code + web assets)
     const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
-    if (fullCmd.includes("tauri build") ||
+    if (
+      fullCmd.includes("tauri build") ||
       fullCmd.includes("cargo build") ||
       fullCmd.includes("npm run build") ||
-      fullCmd.includes("vite build")) {
+      fullCmd.includes("vite build")
+    ) {
       return "medium";
     }
 
@@ -109,15 +135,27 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       // - Rust backend in src-tauri/
 
       // First, scaffold the frontend
-      const frontendTemplate = framework === "react" ? "react-ts" :
-        framework === "vue" ? "vue-ts" :
-          framework === "svelte" ? "svelte-ts" : "react-ts";
+      const frontendTemplate =
+        framework === "react"
+          ? "react-ts"
+          : framework === "vue"
+            ? "vue-ts"
+            : framework === "svelte"
+              ? "svelte-ts"
+              : "react-ts";
 
       // Use npm create vite for frontend
       const frontendResult = await executionKernel.execute(
         {
           command: "npm",
-          args: ["create", "vite@latest", ".", "--", "--template", frontendTemplate]
+          args: [
+            "create",
+            "vite@latest",
+            ".",
+            "--",
+            "--template",
+            frontendTemplate,
+          ],
         },
         {
           appId: 0,
@@ -125,13 +163,13 @@ export const tauriRuntimeProvider: RuntimeProvider = {
           networkAccess: true,
           timeout: 120000,
         },
-        "tauri"
+        "tauri",
       );
 
       if (frontendResult.exitCode !== 0) {
         return {
           success: false,
-          error: `Frontend scaffolding failed: ${frontendResult.stderr}`
+          error: `Frontend scaffolding failed: ${frontendResult.stderr}`,
         };
       }
 
@@ -139,7 +177,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       const tauriResult = await executionKernel.execute(
         {
           command: "npm",
-          args: ["run", "tauri", "init", "--", "--ci"]
+          args: ["run", "tauri", "init", "--", "--ci"],
         },
         {
           appId: 0,
@@ -147,7 +185,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
           networkAccess: true,
           timeout: 120000,
         },
-        "tauri"
+        "tauri",
       );
 
       if (tauriResult.exitCode !== 0) {
@@ -155,27 +193,25 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         return {
           success: true,
           entryPoint: "src-tauri/src/main.rs",
-          warning: "Tauri init may need manual setup. Run: npm install @tauri-apps/cli --save-dev && npx tauri init"
+          warning:
+            "Tauri init may need manual setup. Run: npm install @tauri-apps/cli --save-dev && npx tauri init",
         };
       }
 
       return {
         success: true,
-        entryPoint: "src-tauri/src/main.rs"
+        entryPoint: "src-tauri/src/main.rs",
       };
     } catch (error) {
       return { success: false, error: String(error) };
     }
   },
 
-  async resolveDependencies(options: { appPath: string; appId: number }): Promise<ExecutionResult> {
+  async resolveDependencies(options: {
+    appPath: string;
+    appId: number;
+  }): Promise<ExecutionResult> {
     // Tauri needs both Node.js and Rust dependencies
-    const commands = [
-      // Frontend dependencies
-      { command: "npm", args: ["install"] },
-      // Rust dependencies (cargo will handle this automatically on first build)
-    ];
-
     // Execute npm install for frontend
     const nodeResult = await executionKernel.execute(
       { command: "npm", args: ["install"] },
@@ -186,13 +222,16 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 2048,
         timeout: 300000,
       },
-      "tauri"
+      "tauri",
     );
 
     return nodeResult;
   },
 
-  async build(options: BuildOptions, onEvent?: ExecutionEventHandler): Promise<BuildResult> {
+  async build(
+    options: BuildOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<BuildResult> {
     const config = options.configuration || "Debug";
     const isDebug = config === "Debug";
 
@@ -200,7 +239,9 @@ export const tauriRuntimeProvider: RuntimeProvider = {
     const result = await executionKernel.execute(
       {
         command: "npm",
-        args: ["run", "tauri", "build", "--", isDebug ? "--debug" : ""].filter(Boolean)
+        args: ["run", "tauri", "build", "--", isDebug ? "--debug" : ""].filter(
+          Boolean,
+        ),
       },
       {
         appId: options.appId,
@@ -209,16 +250,20 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 4096, // Rust compilation needs lots of memory
         timeout: 900000, // 15 minutes for Tauri builds
       },
-      "tauri"
+      "tauri",
     );
 
     // Parse Tauri build output for errors
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const lines = result.stderr.split('\n');
+    const lines = result.stderr.split("\n");
     for (const line of lines) {
-      if (line.includes("error[") || line.includes("error:") || line.includes("Compiling")) {
+      if (
+        line.includes("error[") ||
+        line.includes("error:") ||
+        line.includes("Compiling")
+      ) {
         errors.push(line.trim());
       } else if (line.includes("warning:")) {
         warnings.push(line.trim());
@@ -229,11 +274,19 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       success: result.exitCode === 0,
       errors: errors.length > 0 ? errors : undefined,
       warnings: warnings.length > 0 ? warnings : undefined,
-      outputPath: path.join(options.appPath, "src-tauri", "target", isDebug ? "debug" : "release"),
+      outputPath: path.join(
+        options.appPath,
+        "src-tauri",
+        "target",
+        isDebug ? "debug" : "release",
+      ),
     };
   },
 
-  async run(options: RunOptions, onEvent?: ExecutionEventHandler): Promise<RunResult> {
+  async run(
+    options: RunOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<RunResult> {
     // Tauri dev mode - compiles Rust and starts dev server
     const result = await executionKernel.execute(
       { command: "npm", args: ["run", "tauri", "dev"] },
@@ -244,12 +297,15 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 4096,
         mode: "session", // Non-blocking, returns Job ID
       },
-      "tauri"
+      "tauri",
     );
 
     return {
       ready: result.exitCode === 0,
-      jobId: result.exitCode === 0 ? `job_${options.appId}_${Date.now()}_tauri` : undefined,
+      jobId:
+        result.exitCode === 0
+          ? `job_${options.appId}_${Date.now()}_tauri`
+          : undefined,
     };
   },
 
@@ -265,7 +321,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "taskkill", args: ["/F", "/IM", "cargo.exe"] },
         { appId, cwd: process.cwd(), timeout: 10000 },
-        "tauri"
+        "tauri",
       );
     } catch {
       // Process may already be terminated
@@ -274,14 +330,23 @@ export const tauriRuntimeProvider: RuntimeProvider = {
 
   async startPreview(options: PreviewOptions): Promise<void> {
     // Tauri apps run as native executables
-    const buildPath = path.join(options.appPath, "src-tauri", "target", "debug");
+    const buildPath = path.join(
+      options.appPath,
+      "src-tauri",
+      "target",
+      "debug",
+    );
 
     // Find the .exe file
     const files = await fs.readdir(buildPath).catch(() => []);
-    const exeFile = files.find(f => f.endsWith(".exe") && !f.includes(".pdb"));
+    const exeFile = files.find(
+      (f) => f.endsWith(".exe") && !f.includes(".pdb"),
+    );
 
     if (!exeFile) {
-      throw new Error("No Tauri executable found. Build the project first with 'npm run tauri build'");
+      throw new Error(
+        "No Tauri executable found. Build the project first with 'npm run tauri build'",
+      );
     }
 
     // Launch the executable
@@ -292,7 +357,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         cwd: buildPath,
         mode: "session",
       },
-      "tauri"
+      "tauri",
     );
   },
 
@@ -303,8 +368,6 @@ export const tauriRuntimeProvider: RuntimeProvider = {
 
   async package(options: PackageOptions): Promise<ExecutionResult> {
     // Tauri build with bundling creates installers
-    const outputPath = path.join(options.appPath, "src-tauri", "target", "release", "bundle");
-
     const args = ["run", "tauri", "build"];
 
     // Add bundler-specific arguments
@@ -324,7 +387,7 @@ export const tauriRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 8192, // Packaging needs lots of memory
         timeout: 1200000, // 20 minutes for full Tauri build
       },
-      "tauri"
+      "tauri",
     );
   },
 
@@ -338,6 +401,6 @@ export const tauriRuntimeProvider: RuntimeProvider = {
       /compiled successfully/i,
     ];
 
-    return readyPatterns.some(pattern => pattern.test(message));
+    return readyPatterns.some((pattern) => pattern.test(message));
   },
 };

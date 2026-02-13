@@ -82,7 +82,9 @@ export function registerNuGetHandlers() {
           } else {
             const errorMsg = `✗ ${packageName}: ${result.stderr || "Unknown error"}`;
             errors.push(errorMsg);
-            logger.error(`Failed to add NuGet package ${packageName}: ${result.stderr}`);
+            logger.error(
+              `Failed to add NuGet package ${packageName}: ${result.stderr}`,
+            );
           }
         } catch (error: any) {
           const errorMsg = `✗ ${packageName}: ${error.message}`;

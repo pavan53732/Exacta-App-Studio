@@ -45,8 +45,6 @@ import { applySearchReplace } from "../../pro/main/ipc/processors/search_replace
 import { storeDbTimestampAtCurrentVersion } from "../utils/neon_timestamp_utils";
 
 import { FileUploadsState } from "../utils/file_uploads_state";
-import { errorHandler, EnhancedError } from "../utils/enhanced_error_handler";
-import { feedbackSystem, feedbackUtils } from "../utils/realtime_feedback";
 
 const readFile = fs.promises.readFile;
 const logger = log.scope("response_processor");
@@ -144,7 +142,7 @@ export async function processFullResponseActions(
       logger.error("Error creating Neon branch at current version:", error);
       throw new Error(
         "Could not create Neon branch; database versioning functionality is not working: " +
-        error,
+          error,
       );
     }
   }
@@ -595,9 +593,7 @@ export async function processFullResponseActions(
           `added ${dyadAddNugetPackages.join(", ")} NuGet package(s)`,
         );
       if (dyadDotnetCommands.length > 0)
-        changes.push(
-          `executed ${dyadDotnetCommands.length} dotnet command(s)`,
-        );
+        changes.push(`executed ${dyadDotnetCommands.length} dotnet command(s)`);
       if (dyadExecuteSqlQueries.length > 0)
         changes.push(`executed ${dyadExecuteSqlQueries.length} SQL queries`);
 
@@ -664,17 +660,17 @@ export async function processFullResponseActions(
   } finally {
     const appendedContent = `
     ${warnings
-        .map(
-          (warning) =>
-            `<dyad-output type="warning" message="${warning.message}">${warning.error}</dyad-output>`,
-        )
-        .join("\n")}
+      .map(
+        (warning) =>
+          `<dyad-output type="warning" message="${warning.message}">${warning.error}</dyad-output>`,
+      )
+      .join("\n")}
     ${errors
-        .map(
-          (error) =>
-            `<dyad-output type="error" message="${error.message}">${error.error}</dyad-output>`,
-        )
-        .join("\n")}
+      .map(
+        (error) =>
+          `<dyad-output type="error" message="${error.message}">${error.error}</dyad-output>`,
+      )
+      .join("\n")}
     `;
     if (appendedContent.length > 0) {
       await db

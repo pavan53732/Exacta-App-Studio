@@ -6,13 +6,10 @@ import googleLogo from "../../assets/ai-logos/google-logo.svg";
 // @ts-ignore
 import anthropicLogo from "../../assets/ai-logos/anthropic-logo.svg";
 import { ipc } from "@/ipc/types";
-import { useState } from "react";
 import { ArrowUpRight, KeyRound, Wallet } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { hasDyadProKey } from "@/lib/schemas";
-import { useSettings } from "@/hooks/useSettings";
 
 export function ProBanner() {
   // BYPASSED: Always return null to hide Pro promotional banner

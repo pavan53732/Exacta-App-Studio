@@ -5,23 +5,23 @@
 ### 1. Basic Provider Usage
 
 ```typescript
-import { runtimeRegistry } from './src/ipc/runtime/RuntimeProviderRegistry';
+import { runtimeRegistry } from "./src/ipc/runtime/RuntimeProviderRegistry";
 
 // Get appropriate provider for your stack
-const provider = runtimeRegistry.getProviderForStack('wpf');
+const provider = runtimeRegistry.getProviderForStack("wpf");
 // or directly: runtimeRegistry.getProvider('dotnet');
 
 // Check if environment is ready
 const prereqs = await provider.checkPrerequisites();
 if (!prereqs.installed) {
-  throw new Error(`Missing prerequisites: ${prereqs.missing.join(', ')}`);
+  throw new Error(`Missing prerequisites: ${prereqs.missing.join(", ")}`);
 }
 
 // Create new project
 const result = await provider.scaffold({
-  templateId: 'wpf',
-  projectName: 'MyNewApp',
-  fullAppPath: '/projects/MyNewApp'
+  templateId: "wpf",
+  projectName: "MyNewApp",
+  fullAppPath: "/projects/MyNewApp",
 });
 
 if (!result.success) {
@@ -34,56 +34,59 @@ console.log(`Project created with entry point: ${result.entryPoint}`);
 ### 2. Complete Development Workflow
 
 ```typescript
-async function developApp(stackType: string, projectName: string, appPath: string) {
+async function developApp(
+  stackType: string,
+  projectName: string,
+  appPath: string,
+) {
   const provider = runtimeRegistry.getProviderForStack(stackType);
   const appId = Date.now(); // or use your app ID system
-  
+
   try {
     // 1. Setup
-    console.log('Checking prerequisites...');
+    console.log("Checking prerequisites...");
     const prereqs = await provider.checkPrerequisites();
     if (!prereqs.installed) {
-      throw new Error(`Install missing: ${prereqs.missing.join(', ')}`);
+      throw new Error(`Install missing: ${prereqs.missing.join(", ")}`);
     }
-    
+
     // 2. Create project
-    console.log('Creating project...');
+    console.log("Creating project...");
     const scaffold = await provider.scaffold({
       templateId: stackType,
       projectName,
-      fullAppPath: appPath
+      fullAppPath: appPath,
     });
-    
+
     if (!scaffold.success) throw new Error(scaffold.error);
-    
+
     // 3. Install dependencies
-    console.log('Installing dependencies...');
+    console.log("Installing dependencies...");
     await provider.resolveDependencies({ appPath, appId });
-    
+
     // 4. Build
-    console.log('Building application...');
+    console.log("Building application...");
     const build = await provider.build({ appId, appPath });
     if (!build.success) {
-      console.error('Build failed:', build.errors);
+      console.error("Build failed:", build.errors);
       return;
     }
-    
+
     // 5. Run
-    console.log('Starting application...');
+    console.log("Starting application...");
     const run = await provider.run({ appId, appPath });
-    
+
     if (run.ready) {
       console.log(`Application running with Job ID: ${run.jobId}`);
-      
+
       // 6. Preview (optional)
       await provider.startPreview({ appId, appPath });
-      
+
       // Keep running or return control...
       return run.jobId;
     }
-    
   } catch (error) {
-    console.error('Development workflow failed:', error);
+    console.error("Development workflow failed:", error);
     await provider.stop(appId);
     throw error;
   }
@@ -93,7 +96,10 @@ async function developApp(stackType: string, projectName: string, appPath: strin
 ### 3. Error Handling Pattern
 
 ```typescript
-async function robustOperation(provider: RuntimeProvider, operation: () => Promise<any>) {
+async function robustOperation(
+  provider: RuntimeProvider,
+  operation: () => Promise<any>,
+) {
   try {
     const result = await operation();
     return { success: true, data: result };
@@ -102,20 +108,20 @@ async function robustOperation(provider: RuntimeProvider, operation: () => Promi
     console.error(`Operation failed:`, {
       provider: provider.runtimeId,
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }
 
 // Usage
-const buildResult = await robustOperation(provider, () => 
-  provider.build({ appId: 123, appPath: '/my/app' })
+const buildResult = await robustOperation(provider, () =>
+  provider.build({ appId: 123, appPath: "/my/app" }),
 );
 
 if (!buildResult.success) {
@@ -131,18 +137,18 @@ if (!buildResult.success) {
 ```typescript
 const eventHandler: ExecutionEventHandler = (event) => {
   switch (event.type) {
-    case 'stdout':
+    case "stdout":
       updateBuildLog(event.message);
       break;
-    case 'stderr':
+    case "stderr":
       updateErrorLog(event.message);
       break;
   }
 };
 
 const buildResult = await provider.build(
-  { appId: 123, appPath: '/my/app' }, 
-  eventHandler
+  { appId: 123, appPath: "/my/app" },
+  eventHandler,
 );
 ```
 
@@ -152,25 +158,25 @@ const buildResult = await provider.build(
 interface AppConfig {
   stackType: string;
   runtimeProvider: string;
-  buildConfiguration?: 'Debug' | 'Release';
-  outputFormat?: 'exe' | 'single-file';
+  buildConfiguration?: "Debug" | "Release";
+  outputFormat?: "exe" | "single-file";
 }
 
 function createProviderWithOptions(config: AppConfig) {
   const provider = runtimeRegistry.getProvider(config.runtimeProvider);
-  
+
   // Apply configuration-specific settings
   const buildOptions: BuildOptions = {
     appId: 123,
-    appPath: '/my/app',
-    configuration: config.buildConfiguration || 'Debug'
+    appPath: "/my/app",
+    configuration: config.buildConfiguration || "Debug",
   };
-  
-  if (provider.runtimeId === 'dotnet' && config.outputFormat) {
+
+  if (provider.runtimeId === "dotnet" && config.outputFormat) {
     // Add .NET-specific packaging options
     return { ...buildOptions, outputFormat: config.outputFormat };
   }
-  
+
   return buildOptions;
 }
 ```
@@ -179,23 +185,28 @@ function createProviderWithOptions(config: AppConfig) {
 
 ```typescript
 class RuntimeTelemetry {
-  static logOperation(provider: RuntimeProvider, operation: string, duration: number, success: boolean) {
+  static logOperation(
+    provider: RuntimeProvider,
+    operation: string,
+    duration: number,
+    success: boolean,
+  ) {
     const metrics = {
       provider: provider.runtimeId,
       operation,
       durationMs: duration,
       success,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
+
     // Send to analytics service
-    analytics.track('runtime_operation', metrics);
+    analytics.track("runtime_operation", metrics);
   }
-  
+
   static async timedOperation<T>(
-    provider: RuntimeProvider, 
-    operation: string, 
-    fn: () => Promise<T>
+    provider: RuntimeProvider,
+    operation: string,
+    fn: () => Promise<T>,
   ): Promise<T> {
     const start = Date.now();
     try {
@@ -212,24 +223,26 @@ class RuntimeTelemetry {
 // Usage
 const buildResult = await RuntimeTelemetry.timedOperation(
   provider,
-  'build',
-  () => provider.build({ appId: 123, appPath: '/my/app' })
+  "build",
+  () => provider.build({ appId: 123, appPath: "/my/app" }),
 );
 ```
 
 ## Migration from Legacy Code
 
 ### Before (Direct Process Calls)
+
 ```typescript
 // OLD WAY - Direct process spawning (INSECURE)
-const { spawn } = require('child_process');
-const proc = spawn('dotnet', ['build'], { cwd: appPath });
+const { spawn } = require("child_process");
+const proc = spawn("dotnet", ["build"], { cwd: appPath });
 ```
 
 ### After (RuntimeProvider Pattern)
+
 ```typescript
 // NEW WAY - Secure through RuntimeProvider
-const provider = runtimeRegistry.getProvider('dotnet');
+const provider = runtimeRegistry.getProvider("dotnet");
 const result = await provider.build({ appId: 123, appPath });
 // Automatically handles security, error parsing, and job tracking
 ```
@@ -237,23 +250,24 @@ const result = await provider.build({ appId: 123, appPath });
 ## Testing Your Integration
 
 ### Unit Test Example
-```typescript
-import { vi, describe, it, expect } from 'vitest';
-import { runtimeRegistry } from '../RuntimeProviderRegistry';
 
-describe('Runtime Integration', () => {
-  it('should support WPF development', async () => {
-    const provider = runtimeRegistry.getProviderForStack('wpf');
-    
-    expect(provider.runtimeId).toBe('dotnet');
-    expect(provider.supportedStackTypes).toContain('wpf');
-    
+```typescript
+import { vi, describe, it, expect } from "vitest";
+import { runtimeRegistry } from "../RuntimeProviderRegistry";
+
+describe("Runtime Integration", () => {
+  it("should support WPF development", async () => {
+    const provider = runtimeRegistry.getProviderForStack("wpf");
+
+    expect(provider.runtimeId).toBe("dotnet");
+    expect(provider.supportedStackTypes).toContain("wpf");
+
     // Mock the actual execution for testing
-    vi.spyOn(provider, 'checkPrerequisites').mockResolvedValue({
+    vi.spyOn(provider, "checkPrerequisites").mockResolvedValue({
       installed: true,
-      missing: []
+      missing: [],
     });
-    
+
     const prereqs = await provider.checkPrerequisites();
     expect(prereqs.installed).toBe(true);
   });

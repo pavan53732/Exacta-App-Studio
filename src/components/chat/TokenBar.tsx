@@ -16,7 +16,6 @@ import {
 import { chatInputValueAtom } from "@/atoms/chatAtoms";
 import { useAtom } from "jotai";
 import { useSettings } from "@/hooks/useSettings";
-import { ipc } from "@/ipc/types";
 
 interface TokenBarProps {
   chatId?: number;
@@ -24,7 +23,7 @@ interface TokenBarProps {
 
 export function TokenBar({ chatId }: TokenBarProps) {
   const [inputValue] = useAtom(chatInputValueAtom);
-  const { settings } = useSettings();
+  const { settings: _settings } = useSettings();
   const { result, error } = useCountTokens(chatId ?? null, inputValue);
 
   if (!chatId || !result) {

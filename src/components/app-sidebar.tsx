@@ -1,4 +1,12 @@
-import { Home, Inbox, Settings, HelpCircle, Store, BookOpen, Shield } from "lucide-react";
+import {
+  Home,
+  Inbox,
+  Settings,
+  HelpCircle,
+  Store,
+  BookOpen,
+  Shield,
+} from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useSidebar } from "@/components/ui/sidebar"; // import useSidebar hook
 import { useEffect, useState, useRef } from "react";
@@ -202,8 +210,9 @@ function AppIcons({
                   as={Link}
                   to={item.to}
                   size="sm"
-                  className={`font-medium w-14 flex flex-col items-center gap-1 h-14 mb-2 rounded-2xl ${isActive ? "bg-sidebar-accent" : ""
-                    }`}
+                  className={`font-medium w-14 flex flex-col items-center gap-1 h-14 mb-2 rounded-2xl ${
+                    isActive ? "bg-sidebar-accent" : ""
+                  }`}
                   data-testid={`sidebar-${item.title.toLowerCase()}`}
                   onMouseEnter={() => {
                     if (item.title === "Apps") {

@@ -14,14 +14,19 @@ import {
   type PackageOptions,
   type RiskProfile,
 } from "../RuntimeProvider";
-import { executionKernel, type ExecutionResult } from "../../security/execution_kernel";
-import { getAppPort } from "../../../../shared/ports";
+import {
+  executionKernel,
+  type ExecutionResult,
+} from "../../security/execution_kernel";
 import path from "node:path";
 import fs from "fs-extra";
-import { copyDirectoryRecursive } from "../../utils/file_utils";
 
 // Type for event handlers
-type ExecutionEventHandler = (event: { type: "stdout" | "stderr"; message: string; timestamp: number }) => void;
+type ExecutionEventHandler = (event: {
+  type: "stdout" | "stderr";
+  message: string;
+  timestamp: number;
+}) => void;
 
 // .NET project templates
 const DOTNET_TEMPLATES: Record<string, string> = {
@@ -32,6 +37,23 @@ const DOTNET_TEMPLATES: Record<string, string> = {
   maui: "maui",
 };
 
+// Helper function to determine entry point
+function getEntryPointForTemplate(
+  templateId: string,
+  projectName: string,
+): string {
+  const extensionMap: Record<string, string> = {
+    wpf: ".csproj",
+    winui3: ".csproj",
+    winforms: ".csproj",
+    console: ".csproj",
+    maui: ".csproj",
+  };
+
+  const ext = extensionMap[templateId] || ".csproj";
+  return `${projectName}${ext}`;
+}
+
 export const dotNetRuntimeProvider: RuntimeProvider = {
   runtimeId: "dotnet",
   runtimeName: ".NET",
@@ -39,14 +61,17 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
   previewStrategy: "external-window", // .NET desktop apps run in external windows
   diskQuotaBytes: 5 * 1024 * 1024 * 1024, // 5GB for .NET (larger builds)
 
-  async checkPrerequisites(): Promise<{ installed: boolean; missing: string[] }> {
+  async checkPrerequisites(): Promise<{
+    installed: boolean;
+    missing: string[];
+  }> {
     const missing: string[] = [];
 
     try {
       await executionKernel.execute(
         { command: "dotnet", args: ["--version"] },
         { appId: 0, cwd: process.cwd() },
-        "dotnet"
+        "dotnet",
       );
     } catch {
       missing.push(".NET SDK");
@@ -57,7 +82,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "where", args: ["msbuild"] },
         { appId: 0, cwd: process.cwd() },
-        "dotnet"
+        "dotnet",
       );
     } catch {
       missing.push("MSBuild (Windows SDK)");
@@ -70,16 +95,20 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
 
     // High risk: Network operations, package restore with external sources
-    if (fullCmd.includes("restore") ||
+    if (
+      fullCmd.includes("restore") ||
       fullCmd.includes("add package") ||
-      fullCmd.includes("nuget")) {
+      fullCmd.includes("nuget")
+    ) {
       return "high";
     }
 
     // Medium risk: Build/publish (high CPU/Mem, disk writes)
-    if (fullCmd.includes("build") ||
+    if (
+      fullCmd.includes("build") ||
       fullCmd.includes("publish") ||
-      fullCmd.includes("pack")) {
+      fullCmd.includes("pack")
+    ) {
       return "medium";
     }
 
@@ -100,7 +129,15 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       const result = await executionKernel.execute(
         {
           command: "dotnet",
-          args: ["new", templateName, "-n", options.projectName, "-o", ".", "--force"]
+          args: [
+            "new",
+            templateName,
+            "-n",
+            options.projectName,
+            "-o",
+            ".",
+            "--force",
+          ],
         },
         {
           appId: 0,
@@ -108,18 +145,21 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
           networkAccess: true, // Template acquisition may need network
           timeout: 120000,
         },
-        "dotnet"
+        "dotnet",
       );
 
       if (result.exitCode !== 0) {
         return {
           success: false,
-          error: `Template creation failed: ${result.stderr}`
+          error: `Template creation failed: ${result.stderr}`,
         };
       }
 
       // Determine entry point based on template
-      const entryPoint = this._getEntryPointForTemplate(stackType, options.projectName);
+      const entryPoint = getEntryPointForTemplate(
+        stackType,
+        options.projectName,
+      );
 
       return { success: true, entryPoint };
     } catch (error) {
@@ -127,7 +167,10 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     }
   },
 
-  async resolveDependencies(options: { appPath: string; appId: number }): Promise<ExecutionResult> {
+  async resolveDependencies(options: {
+    appPath: string;
+    appId: number;
+  }): Promise<ExecutionResult> {
     // Restore NuGet packages
     return executionKernel.execute(
       { command: "dotnet", args: ["restore"] },
@@ -138,17 +181,20 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 4096, // .NET restore needs more memory
         timeout: 300000,
       },
-      "dotnet"
+      "dotnet",
     );
   },
 
-  async build(options: BuildOptions, onEvent?: ExecutionEventHandler): Promise<BuildResult> {
+  async build(
+    options: BuildOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<BuildResult> {
     const config = options.configuration || "Debug";
 
     const result = await executionKernel.execute(
       {
         command: "dotnet",
-        args: ["build", "--configuration", config, "--verbosity", "normal"]
+        args: ["build", "--configuration", config, "--verbosity", "normal"],
       },
       {
         appId: options.appId,
@@ -157,14 +203,14 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 4096,
         timeout: 600000, // 10 minutes for large builds
       },
-      "dotnet"
+      "dotnet",
     );
 
     // Parse build output for errors and warnings
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    const lines = result.stderr.split('\n');
+    const lines = result.stderr.split("\n");
     for (const line of lines) {
       if (line.includes("error CS") || line.includes("error MSB")) {
         errors.push(line.trim());
@@ -181,7 +227,10 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     };
   },
 
-  async run(options: RunOptions, onEvent?: ExecutionEventHandler): Promise<RunResult> {
+  async run(
+    options: RunOptions,
+    _onEvent?: ExecutionEventHandler,
+  ): Promise<RunResult> {
     // .NET apps don't use ports like Node.js, they run as native processes
     // We'll still generate a job ID for tracking
 
@@ -194,12 +243,15 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 4096,
         mode: "session", // Non-blocking, returns Job ID
       },
-      "dotnet"
+      "dotnet",
     );
 
     return {
       ready: result.exitCode === 0,
-      jobId: result.exitCode === 0 ? `job_${options.appId}_${Date.now()}_dotnet` : undefined,
+      jobId:
+        result.exitCode === 0
+          ? `job_${options.appId}_${Date.now()}_dotnet`
+          : undefined,
     };
   },
 
@@ -214,7 +266,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       await executionKernel.execute(
         { command: "taskkill", args: ["/F", "/IM", "dotnet.exe"] },
         { appId, cwd: process.cwd(), timeout: 10000 },
-        "dotnet"
+        "dotnet",
       );
     } catch {
       // Process may already be terminated
@@ -229,7 +281,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
     // Find the .exe file
     const files = await fs.readdir(buildPath);
-    const exeFile = files.find(f => f.endsWith(".exe"));
+    const exeFile = files.find((f) => f.endsWith(".exe"));
 
     if (!exeFile) {
       throw new Error("No executable found. Build the project first.");
@@ -243,7 +295,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
         cwd: buildPath,
         mode: "session",
       },
-      "dotnet"
+      "dotnet",
     );
   },
 
@@ -258,10 +310,14 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
     const args = [
       "publish",
-      "--configuration", "Release",
-      "--output", outputPath,
-      "--self-contained", "true",
-      "--runtime", "win-x64",
+      "--configuration",
+      "Release",
+      "--output",
+      outputPath,
+      "--self-contained",
+      "true",
+      "--runtime",
+      "win-x64",
     ];
 
     // Add single-file publishing if requested
@@ -278,7 +334,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
         memoryLimitMB: 8192, // Packaging needs lots of memory
         timeout: 900000, // 15 minutes
       },
-      "dotnet"
+      "dotnet",
     );
   },
 
@@ -292,20 +348,6 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       /Build succeeded/i,
     ];
 
-    return readyPatterns.some(pattern => pattern.test(message));
-  },
-
-  // Helper method to determine entry point
-  _getEntryPointForTemplate(templateId: string, projectName: string): string {
-    const extensionMap: Record<string, string> = {
-      wpf: ".csproj",
-      winui3: ".csproj",
-      winforms: ".csproj",
-      console: ".csproj",
-      maui: ".csproj",
-    };
-
-    const ext = extensionMap[templateId] || ".csproj";
-    return `${projectName}${ext}`;
+    return readyPatterns.some((pattern) => pattern.test(message));
   },
 };

@@ -4,10 +4,9 @@ import { db } from "../../db";
 import { apps } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { getDyadAppPath } from "../../paths/paths";
-import { spawn } from "child_process";
 import { gitCommit, gitAdd } from "../utils/git_utils";
 import { storeDbTimestampAtCurrentVersion } from "../utils/neon_timestamp_utils";
-import { executionKernel } from '../security/execution_kernel';
+import { executionKernel } from "../security/execution_kernel";
 
 const logger = log.scope("portal_handlers");
 const handle = createLoggedHandler(logger);
@@ -40,29 +39,39 @@ export function registerPortalHandlers() {
           cwd: appPath,
           timeout: 300000, // 5 minute timeout
           memoryLimitMB: 1000, // 1GB memory limit
-          networkAccess: false // Database migrations shouldn't need network
+          networkAccess: false, // Database migrations shouldn't need network
         };
 
         // Execute npm run migrate:create with proper arguments
         const result = await executionKernel.execute(
           {
-            command: 'npm',
-            args: ['run', 'migrate:create', '--', '--skip-empty']
+            command: "npm",
+            args: ["run", "migrate:create", "--", "--skip-empty"],
           },
-          options
+          options,
         );
 
-        migrationOutput = result.stdout + (result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : "");
+        migrationOutput =
+          result.stdout +
+          (result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : "");
 
         if (result.exitCode === 0) {
           if (result.stdout.includes("Migration created at")) {
-            logger.info(`migrate:create completed successfully for app ${appId}`);
+            logger.info(
+              `migrate:create completed successfully for app ${appId}`,
+            );
           } else {
-            logger.error(`migrate:create completed successfully for app ${appId} but no migration was created`);
-            throw new Error("No migration was created because no changes were found.");
+            logger.error(
+              `migrate:create completed successfully for app ${appId} but no migration was created`,
+            );
+            throw new Error(
+              "No migration was created because no changes were found.",
+            );
           }
         } else {
-          logger.error(`migrate:create failed for app ${appId} with exit code ${result.exitCode}`);
+          logger.error(
+            `migrate:create failed for app ${appId} with exit code ${result.exitCode}`,
+          );
           const errorMessage = `Migration creation failed (exit code ${result.exitCode})\n\n${migrationOutput}`;
           throw new Error(errorMessage);
         }
@@ -70,7 +79,6 @@ export function registerPortalHandlers() {
         // Handle the stdin interaction that was in the original code
         // This would need to be handled differently in the ExecutionKernel approach
         // For now, we'll assume the --skip-empty flag handles the interaction
-
       } catch (error) {
         logger.error(`Failed to run migrate:create for app ${appId}:`, error);
         throw error;
@@ -88,7 +96,7 @@ export function registerPortalHandlers() {
           );
           throw new Error(
             "Could not store Neon timestamp at current version; database versioning functionality is not working: " +
-            error,
+              error,
           );
         }
       }

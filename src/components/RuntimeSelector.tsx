@@ -11,18 +11,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
-import type { RuntimeProvider } from "@/ipc/runtime/RuntimeProvider";
-import { 
-  Code2, 
-  AppWindow, 
-  Monitor, 
-  Terminal, 
+import {
+  Code2,
+  AppWindow,
+  Monitor,
+  Terminal,
   Layers,
   Check,
-  Cpu
+  Cpu,
 } from "lucide-react";
 
 interface RuntimeSelectorProps {
@@ -119,7 +123,11 @@ const RUNTIME_OPTIONS: RuntimeOption[] = [
   },
 ];
 
-export function RuntimeSelector({ isOpen, onClose, onSelect }: RuntimeSelectorProps) {
+export function RuntimeSelector({
+  isOpen,
+  onClose,
+  onSelect,
+}: RuntimeSelectorProps) {
   const [selectedRuntime, setSelectedRuntime] = useState<string | null>(null);
   const [selectedStack, setSelectedStack] = useState<string | null>(null);
 
@@ -139,7 +147,9 @@ export function RuntimeSelector({ isOpen, onClose, onSelect }: RuntimeSelectorPr
     }
   };
 
-  const selectedRuntimeData = RUNTIME_OPTIONS.find((r) => r.id === selectedRuntime);
+  const selectedRuntimeData = RUNTIME_OPTIONS.find(
+    (r) => r.id === selectedRuntime,
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -200,7 +210,9 @@ export function RuntimeSelector({ isOpen, onClose, onSelect }: RuntimeSelectorPr
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="text-muted-foreground">{stack.icon}</div>
+                        <div className="text-muted-foreground">
+                          {stack.icon}
+                        </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{stack.name}</span>
@@ -227,7 +239,11 @@ export function RuntimeSelector({ isOpen, onClose, onSelect }: RuntimeSelectorPr
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{selectedRuntimeData?.name}</Badge>
                 <Badge variant="outline">
-                  {selectedRuntimeData?.stackTypes.find((s) => s.id === selectedStack)?.name}
+                  {
+                    selectedRuntimeData?.stackTypes.find(
+                      (s) => s.id === selectedStack,
+                    )?.name
+                  }
                 </Badge>
               </div>
             </div>
@@ -253,7 +269,10 @@ export function RuntimeSelector({ isOpen, onClose, onSelect }: RuntimeSelectorPr
 // Hook for using runtime selector
 export function useRuntimeSelector() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selection, setSelection] = useState<{ runtimeId: string; stackType: string } | null>(null);
+  const [selection, setSelection] = useState<{
+    runtimeId: string;
+    stackType: string;
+  } | null>(null);
 
   const open = () => setIsOpen(true);
   const close = () => setIsOpen(false);

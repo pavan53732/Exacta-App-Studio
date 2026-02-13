@@ -42,6 +42,8 @@ export const AppSchema = AppBaseSchema.extend({
   supabaseProjectName: z.string().nullable(),
   vercelTeamSlug: z.string().nullable(),
   resolvedPath: z.string().optional(),
+  runtimeProvider: z.enum(["node", "dotnet", "tauri"]).nullable().optional(),
+  stackType: z.enum(["web", "desktop", "hybrid"]).nullable().optional(),
 });
 
 export type App = z.infer<typeof AppSchema>;
@@ -52,7 +54,7 @@ export type App = z.infer<typeof AppSchema>;
 export const CreateAppParamsSchema = z.object({
   name: z.string().min(1),
   runtimeProvider: z.enum(["node", "dotnet", "tauri"]).optional(),
-  stackType: z.string().optional(),
+  stackType: z.enum(["web", "desktop", "hybrid"]).optional(),
 });
 
 /**

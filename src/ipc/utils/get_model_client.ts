@@ -87,7 +87,6 @@ export async function getModelClient(
     // IMPORTANT: some providers like OpenAI have an empty string gateway prefix,
     // so we do a nullish and not a truthy check here.
     if (providerConfig.gatewayPrefix != null || dyadEngineUrl) {
-      const enableSmartFilesContext = true; // Forced Smart Context
       const provider = createDyadEngine({
         apiKey: dyadApiKey,
         baseURL: dyadEngineUrl ?? "https://engine.dyad.sh/v1",

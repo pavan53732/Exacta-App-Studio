@@ -60,5 +60,6 @@ export function safeJoin(basePath: string, ...paths: string[]): string {
     );
   }
 
-  return joinedPath;
+  // Normalize the final result to forward slashes for cross-platform consistency
+  return normalizePath(joinedPath);
 }

@@ -1,10 +1,10 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 import log from "electron-log";
 
 const logger = log.scope("realtime-feedback");
 
 export interface ProgressUpdate {
-  type: 'progress' | 'success' | 'warning' | 'error' | 'info';
+  type: "progress" | "success" | "warning" | "error" | "info";
   message: string;
   progress?: number; // 0-100
   timestamp: number;
@@ -36,89 +36,112 @@ export class RealtimeFeedbackSystem extends EventEmitter {
     return RealtimeFeedbackSystem.instance;
   }
 
-  startOperation(id: string, description: string, estimatedDuration?: number): OperationContext {
+  startOperation(
+    id: string,
+    description: string,
+    estimatedDuration?: number,
+  ): OperationContext {
     const context: OperationContext = {
       id,
       description,
       startTime: Date.now(),
-      estimatedDuration
+      estimatedDuration,
     };
 
     this.activeOperations.set(id, context);
     this.emitUpdate({
-      type: 'info',
+      type: "info",
       message: `🚀 Starting: ${description}`,
       operationId: id,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     logger.info(`Operation started: ${id} - ${description}`);
     return context;
   }
 
-  updateProgress(operationId: string, progress: number, message?: string): void {
+  updateProgress(
+    operationId: string,
+    progress: number,
+    message?: string,
+  ): void {
     const operation = this.activeOperations.get(operationId);
     if (!operation) {
-      logger.warn(`Attempted to update progress for non-existent operation: ${operationId}`);
+      logger.warn(
+        `Attempted to update progress for non-existent operation: ${operationId}`,
+      );
       return;
     }
 
     const update: ProgressUpdate = {
-      type: 'progress',
+      type: "progress",
       message: message || `${operation.description} (${Math.round(progress)}%)`,
       progress,
       operationId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.emitUpdate(update);
-    logger.debug(`Progress update for ${operationId}: ${progress}% - ${message}`);
+    logger.debug(
+      `Progress update for ${operationId}: ${progress}% - ${message}`,
+    );
   }
 
-  completeOperation(operationId: string, success: boolean, message?: string): void {
+  completeOperation(
+    operationId: string,
+    success: boolean,
+    message?: string,
+  ): void {
     const operation = this.activeOperations.get(operationId);
     if (!operation) {
-      logger.warn(`Attempted to complete non-existent operation: ${operationId}`);
+      logger.warn(
+        `Attempted to complete non-existent operation: ${operationId}`,
+      );
       return;
     }
 
     const duration = Date.now() - operation.startTime;
-    const finalMessage = message || 
-      (success ? `✅ Completed: ${operation.description}` : `❌ Failed: ${operation.description}`);
+    const finalMessage =
+      message ||
+      (success
+        ? `✅ Completed: ${operation.description}`
+        : `❌ Failed: ${operation.description}`);
 
     this.emitUpdate({
-      type: success ? 'success' : 'error',
+      type: success ? "success" : "error",
       message: finalMessage,
       operationId,
       timestamp: Date.now(),
-      details: { duration }
+      details: { duration },
     });
 
     this.activeOperations.delete(operationId);
-    logger.info(`Operation ${success ? 'completed' : 'failed'}: ${operationId} in ${duration}ms`);
+    logger.info(
+      `Operation ${success ? "completed" : "failed"}: ${operationId} in ${duration}ms`,
+    );
   }
 
   emitWarning(operationId: string, message: string, details?: any): void {
     this.emitUpdate({
-      type: 'warning',
+      type: "warning",
       message: `⚠️ ${message}`,
       operationId,
       timestamp: Date.now(),
-      details
+      details,
     });
-    
+
     logger.warn(`Warning in operation ${operationId}: ${message}`, details);
   }
 
   emitInfo(operationId: string, message: string, details?: any): void {
     this.emitUpdate({
-      type: 'info',
+      type: "info",
       message,
       operationId,
       timestamp: Date.now(),
-      details
+      details,
     });
-    
+
     logger.info(`Info for operation ${operationId}: ${message}`, details);
   }
 
@@ -130,7 +153,7 @@ export class RealtimeFeedbackSystem extends EventEmitter {
     }
 
     // Emit event for listeners (UI components, logs, etc.)
-    this.emit('update', update);
+    this.emit("update", update);
     this.emit(`update:${update.operationId}`, update);
   }
 
@@ -158,10 +181,10 @@ export class RealtimeFeedbackSystem extends EventEmitter {
     id: string,
     description: string,
     operation: () => Promise<T>,
-    estimatedDuration?: number
+    estimatedDuration?: number,
   ): Promise<T> {
     this.startOperation(id, description, estimatedDuration);
-    
+
     try {
       const result = await operation();
       this.completeOperation(id, true);
@@ -174,8 +197,12 @@ export class RealtimeFeedbackSystem extends EventEmitter {
 
   // Batch operation tracking
   async trackBatchOperations<T>(
-    operations: Array<{ id: string; description: string; operation: () => Promise<T> }>,
-    batchSize: number = 3
+    operations: Array<{
+      id: string;
+      description: string;
+      operation: () => Promise<T>;
+    }>,
+    batchSize: number = 3,
   ): Promise<T[]> {
     const results: T[] = [];
     const errors: Error[] = [];
@@ -185,7 +212,11 @@ export class RealtimeFeedbackSystem extends EventEmitter {
       const batch = operations.slice(i, i + batchSize);
       const batchPromises = batch.map(async (op) => {
         try {
-          return await this.trackAsyncOperation(op.id, op.description, op.operation);
+          return await this.trackAsyncOperation(
+            op.id,
+            op.description,
+            op.operation,
+          );
         } catch (error) {
           errors.push(error as Error);
           return undefined;
@@ -193,11 +224,14 @@ export class RealtimeFeedbackSystem extends EventEmitter {
       });
 
       const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults.filter(r => r !== undefined) as T[]);
+      results.push(...(batchResults.filter((r) => r !== undefined) as T[]));
     }
 
     if (errors.length > 0) {
-      logger.warn(`Batch operation completed with ${errors.length} errors`, errors);
+      logger.warn(
+        `Batch operation completed with ${errors.length} errors`,
+        errors,
+      );
     }
 
     return results;
@@ -209,7 +243,7 @@ export const feedbackSystem = RealtimeFeedbackSystem.getInstance();
 
 // Utility functions for common feedback scenarios
 export const feedbackUtils = {
-  createOperationId(prefix: string = 'op'): string {
+  createOperationId(prefix: string = "op"): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   },
 
@@ -219,8 +253,11 @@ export const feedbackUtils = {
     return `${(ms / 60000).toFixed(1)}m`;
   },
 
-  estimateFileOperationDuration(fileCount: number, avgFileSizeKB: number = 10): number {
+  estimateFileOperationDuration(
+    fileCount: number,
+    avgFileSizeKB: number = 10,
+  ): number {
     // Rough estimation: 10ms per KB + 100ms overhead per file
-    return (fileCount * avgFileSizeKB * 10) + (fileCount * 100);
-  }
+    return fileCount * avgFileSizeKB * 10 + fileCount * 100;
+  },
 };

@@ -6,22 +6,8 @@ import { freeAgentQuotaContracts } from "../types/free_agent_quota";
 import log from "electron-log";
 import { ipcMain } from "electron";
 import { IS_TEST_BUILD } from "../utils/test_utils";
-import fetch from "node-fetch";
 
 const logger = log.scope("free_agent_quota_handlers");
-
-/** Timeout for server time fetch in milliseconds */
-const SERVER_TIME_TIMEOUT_MS = 5000;
-
-/**
- * Fetches the current time from a trusted server to prevent clock manipulation.
- * Uses the HTTP Date header from api.dyad.sh.
- * Falls back to local time if the server is unreachable (but logs a warning).
- */
-async function getServerTime(): Promise<number> {
-  // BYPASSED: Always return local time to avoid external API dependencies
-  return Date.now();
-}
 
 /** Maximum number of free agent messages per 24-hour window */
 export const FREE_AGENT_QUOTA_LIMIT = 5;

@@ -390,7 +390,6 @@ export function SetupBanner() {
           </AccordionItem>
         </Accordion>
       </div>
-
     </>
   );
 }

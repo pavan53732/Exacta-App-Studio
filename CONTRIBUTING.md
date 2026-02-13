@@ -27,6 +27,7 @@ npm install
 Dyad includes a native .NET 8 Windows service for security features. To build it:
 
 **Prerequisites:**
+
 - .NET 8 SDK: https://dotnet.microsoft.com/download/dotnet/8.0
 - Visual Studio 2022 or Build Tools (for WPF Dashboard)
 

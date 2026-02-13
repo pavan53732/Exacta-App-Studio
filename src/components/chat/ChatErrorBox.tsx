@@ -1,5 +1,4 @@
 import { ipc } from "@/ipc/types";
-import { AI_STREAMING_ERROR_MESSAGE_PREFIX } from "@/shared/texts";
 import {
   X,
   ExternalLink as ExternalLinkIcon,
@@ -17,7 +16,6 @@ import {
 export function ChatErrorBox({
   onDismiss,
   error,
-  isDyadProEnabled,
   onStartNewChat,
 }: {
   onDismiss: () => void;
@@ -63,7 +61,8 @@ export function ChatErrorBox({
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
-          Looks like your API key is invalid or expired. Please check your settings.
+          Looks like your API key is invalid or expired. Please check your
+          settings.
         </span>
       </ChatInfoContainer>
     );
@@ -72,7 +71,8 @@ export function ChatErrorBox({
     return (
       <ChatInfoContainer onDismiss={onDismiss}>
         <span>
-          AI credit limit reached. Please check your provider settings or wait for the next cycle.
+          AI credit limit reached. Please check your provider settings or wait
+          for the next cycle.
         </span>
       </ChatInfoContainer>
     );
@@ -91,7 +91,8 @@ export function ChatErrorBox({
   if (error.includes("FREE_AGENT_QUOTA_EXCEEDED")) {
     return (
       <ChatErrorContainer onDismiss={onDismiss}>
-        Agent message limit reached for today. Please wait for the next cycle or switch to Build mode.
+        Agent message limit reached for today. Please wait for the next cycle or
+        switch to Build mode.
       </ChatErrorContainer>
     );
   }

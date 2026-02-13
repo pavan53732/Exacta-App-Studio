@@ -63,7 +63,10 @@ const ConsoleHeader = ({
 };
 
 // Helper function to determine preview strategy based on app's runtime provider
-function getPreviewStrategy(runtimeProvider?: string | null, stackType?: string | null): PreviewStrategy {
+function getPreviewStrategy(
+  runtimeProvider?: string | null,
+  _stackType?: string | null,
+): PreviewStrategy {
   if (!runtimeProvider) {
     return "iframe"; // Default to iframe for legacy apps
   }
@@ -104,7 +107,7 @@ function PreviewContent({
 export function PreviewPanel() {
   const [previewMode] = useAtom(previewModeAtom);
   const selectedAppId = useAtomValue(selectedAppIdAtom);
-  const currentApp = useAtomValue(currentAppAtom);
+  const _currentApp = useAtomValue(currentAppAtom);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const { runApp, stopApp, loading, app } = useRunApp();
   const { loadEdgeLogs } = useSupabase();
@@ -195,7 +198,11 @@ export function PreviewPanel() {
           <Panel id="content" minSize={30}>
             <div className="h-full overflow-y-auto">
               {previewMode === "preview" ? (
-                <PreviewContent strategy={previewStrategy} loading={loading} key={key} />
+                <PreviewContent
+                  strategy={previewStrategy}
+                  loading={loading}
+                  key={key}
+                />
               ) : previewMode === "code" ? (
                 <CodeView loading={loading} app={app} />
               ) : previewMode === "configure" ? (

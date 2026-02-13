@@ -60,22 +60,17 @@ export const apps = sqliteTable("apps", {
     .default(sql`0`),
   // Theme ID for design system theming (null means "no theme")
   themeId: text("theme_id"),
-  // NEW: Stack type and runtime provider for Windows app builder
-  stackType: text("stack_type").default("react"),
-  runtimeProvider: text("runtime_provider").default("node"),
+  // Stack type and runtime provider for Windows app builder
+  // runtimeProvider: 'node', 'dotnet', 'tauri'
+  // stackType: 'web', 'desktop', 'hybrid'
+  runtimeProvider: text("runtime_provider"),
+  stackType: text("stack_type"),
 });
 
 // Type exports for stack and runtime
-export type StackType = 
-  | "react" 
-  | "nextjs" 
-  | "express-react" 
-  | "wpf" 
-  | "winui3" 
-  | "winforms" 
-  | "console" 
-  | "maui" 
-  | "tauri";
+// runtimeProvider: runtime environment for the app
+// stackType: categorization of the app's architecture
+export type StackType = "web" | "desktop" | "hybrid";
 export type RuntimeProviderType = "node" | "dotnet" | "tauri";
 
 export const chats = sqliteTable("chats", {

@@ -130,9 +130,7 @@ export async function stopAppByInfo(
         `Stopped app ${appId} via RuntimeProvider "${appInfo.provider}" with jobId ${appInfo.jobId}`,
       );
     } catch (error) {
-      console.warn(
-        `Failed to stop app ${appId} via RuntimeProvider:`, error,
-      );
+      console.warn(`Failed to stop app ${appId} via RuntimeProvider:`, error);
     }
     runningApps.delete(appId);
     return;

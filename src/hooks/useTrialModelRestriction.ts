@@ -1,12 +1,9 @@
 import { useEffect } from "react";
 import { useUserBudgetInfo } from "./useUserBudgetInfo";
 import { useSettings } from "./useSettings";
-import { isDyadProEnabled } from "../lib/schemas";
-
-const AUTO_MODEL = { name: "auto", provider: "auto" };
 
 export function useTrialModelRestriction() {
-  const { userBudget, isLoadingUserBudget } = useUserBudgetInfo();
+  const { isLoadingUserBudget } = useUserBudgetInfo();
   const { settings, updateSettings } = useSettings();
 
   const isTrial = false; // BYPASSED: Always return false to disable trial restrictions

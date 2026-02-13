@@ -51,7 +51,16 @@ function startGuardianService(): void {
 
   const guardianPath = app.isPackaged
     ? path.join(process.resourcesPath, "guardian", "Dyad.Guardian.exe")
-    : path.join(app.getAppPath(), "native", "Dyad.Guardian", "bin", "Debug", "net8.0-windows", "win-x64", "Dyad.Guardian.exe");
+    : path.join(
+        app.getAppPath(),
+        "native",
+        "Dyad.Guardian",
+        "bin",
+        "Debug",
+        "net8.0-windows",
+        "win-x64",
+        "Dyad.Guardian.exe",
+      );
 
   if (!fs.existsSync(guardianPath)) {
     logger.warn("Guardian executable not found at:", guardianPath);
@@ -87,7 +96,7 @@ function startGuardianService(): void {
 /**
  * Stop the Guardian service process
  */
-function stopGuardianService(): void {
+function _stopGuardianService(): void {
   if (guardianProcess) {
     logger.log("Stopping Guardian service");
     guardianProcess.kill();

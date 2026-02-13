@@ -353,12 +353,12 @@ export const UserSettingsSchema = z
  */
 export type UserSettings = z.infer<typeof UserSettingsSchema>;
 
-export function isDyadProEnabled(settings: UserSettings): boolean {
+export function isDyadProEnabled(_settings: UserSettings): boolean {
   // BYPASSED: Always return true to unlock all Pro features
   return true;
 }
 
-export function hasDyadProKey(settings: UserSettings): boolean {
+export function hasDyadProKey(_settings: UserSettings): boolean {
   // BYPASSED: Always return true to indicate valid Pro key exists
   return true;
 }
@@ -410,7 +410,7 @@ export function getEffectiveDefaultChatMode(
  * - User is NOT a Pro subscriber
  * - User is using local-agent chat mode
  */
-export function isBasicAgentMode(settings: UserSettings): boolean {
+export function isBasicAgentMode(_settings: UserSettings): boolean {
   // BYPASSED: Always return false to avoid restricted basic agent mode
   return false;
 }
@@ -421,12 +421,12 @@ export function isSupabaseConnected(settings: UserSettings | null): boolean {
   }
   return Boolean(
     settings.supabase?.accessToken ||
-      (settings.supabase?.organizations &&
-        Object.keys(settings.supabase.organizations).length > 0),
+    (settings.supabase?.organizations &&
+      Object.keys(settings.supabase.organizations).length > 0),
   );
 }
 
-export function isTurboEditsV2Enabled(settings: UserSettings): boolean {
+export function isTurboEditsV2Enabled(_settings: UserSettings): boolean {
   // BYPASSED: Always return true to unlock Turbo Edits V2
   return true;
 }

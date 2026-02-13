@@ -3,7 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { nodeRuntimeProvider } from "../providers/NodeRuntimeProvider";
 import { runtimeRegistry } from "../RuntimeProviderRegistry";
 import { executionKernel } from "../../security/execution_kernel";
-import type { ScaffoldOptions, RunOptions, BuildOptions } from "../RuntimeProvider";
+import type {
+  ScaffoldOptions,
+  RunOptions,
+  BuildOptions,
+} from "../RuntimeProvider";
 import fs from "fs-extra";
 import path from "node:path";
 import os from "node:os";
@@ -62,12 +66,14 @@ describe("NodeRuntimeProvider Integration", () => {
       expect(executionKernel.execute).toHaveBeenCalledWith(
         { command: "node", args: ["--version"] },
         expect.objectContaining({ appId: 0, cwd: process.cwd() }),
-        "node"
+        "node",
       );
     });
 
     it("should return installed=false when node is not available", async () => {
-      vi.mocked(executionKernel.execute).mockRejectedValueOnce(new Error("Command not found"));
+      vi.mocked(executionKernel.execute).mockRejectedValueOnce(
+        new Error("Command not found"),
+      );
 
       const result = await nodeRuntimeProvider.checkPrerequisites();
 
@@ -95,7 +101,10 @@ describe("NodeRuntimeProvider Integration", () => {
       // Create mock scaffold source
       const mockScaffoldPath = path.join(testAppPath, "scaffold");
       await fs.ensureDir(mockScaffoldPath);
-      await fs.writeFile(path.join(mockScaffoldPath, "package.json"), '{"name": "test"}');
+      await fs.writeFile(
+        path.join(mockScaffoldPath, "package.json"),
+        '{"name": "test"}',
+      );
 
       // This would need actual Electron app mock
       // For now, we test the error case
@@ -137,7 +146,7 @@ describe("NodeRuntimeProvider Integration", () => {
           cwd: testAppPath,
           networkAccess: true,
         }),
-        "node"
+        "node",
       );
     });
 
@@ -163,7 +172,7 @@ describe("NodeRuntimeProvider Integration", () => {
           appId: 123,
           cwd: testAppPath,
         }),
-        "node"
+        "node",
       );
     });
   });
@@ -196,7 +205,7 @@ describe("NodeRuntimeProvider Integration", () => {
           cwd: testAppPath,
           networkAccess: false,
         }),
-        "node"
+        "node",
       );
     });
 
@@ -250,19 +259,18 @@ describe("NodeRuntimeProvider Integration", () => {
           cwd: testAppPath,
           mode: "session",
         }),
-        "node"
+        "node",
       );
     });
 
     it("should handle custom install/start commands", async () => {
-      vi.mocked(executionKernel.execute)
-        .mockResolvedValueOnce({
-          stdout: "Installed",
-          stderr: "",
-          exitCode: 0,
-          duration: 5000,
-          riskLevel: "high",
-        });
+      vi.mocked(executionKernel.execute).mockResolvedValueOnce({
+        stdout: "Installed",
+        stderr: "",
+        exitCode: 0,
+        duration: 5000,
+        riskLevel: "high",
+      });
 
       const options: RunOptions = {
         appId: 123,

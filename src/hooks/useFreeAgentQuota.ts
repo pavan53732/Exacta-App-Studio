@@ -1,11 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ipc, type FreeAgentQuotaStatus } from "@/ipc/types";
+import { useQuery } from "@tanstack/react-query";
+import { type FreeAgentQuotaStatus } from "@/ipc/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useSettings } from "./useSettings";
-import { isDyadProEnabled } from "@/lib/schemas";
-import { freeAgentQuotaContracts } from "@/ipc/types/free_agent_quota";
 
-const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 // In test mode, use very short staleTime for faster E2E tests
 const STALE_TIME_MS = 30_000;
 const TEST_STALE_TIME_MS = 500;
@@ -19,8 +16,6 @@ const TEST_STALE_TIME_MS = 500;
  */
 export function useFreeAgentQuota() {
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
-  const isPro = true; // BYPASSED: Always return true to unlock all features
   const isTestMode = settings?.isTestMode ?? false;
 
   // BYPASSED: Use a mocked query result that never exceeds quota

@@ -67,6 +67,7 @@ Actions: read, write, execute, connect, admin
 ```
 
 **Features:**
+
 - Time-limited tokens (default 1 hour, max 24 hours)
 - Wildcard resource matching (`file:/home/user/*`)
 - Hierarchical action permissions (admin > write > read)
@@ -158,39 +159,39 @@ import { IpcClient } from "@/ipc/ipc_client";
 // Create a job with resource limits
 const createSandboxedProcess = async (command: string) => {
   const ipc = IpcClient.getInstance();
-  
+
   // 1. Create job object
   await ipc.createJob({
     jobName: "sandbox-1",
-    memoryLimitBytes: 512 * 1024 * 1024,  // 512MB
-    cpuRatePercent: 50,                   // 50% CPU
+    memoryLimitBytes: 512 * 1024 * 1024, // 512MB
+    cpuRatePercent: 50, // 50% CPU
     activeProcessLimit: 5,
     killProcessesOnJobClose: true,
   });
-  
+
   // 2. Spawn process
   const proc = spawn(command, [], { detached: true });
-  
+
   // 3. Assign to job
   await ipc.assignProcessToJob({
     jobName: "sandbox-1",
     processId: proc.pid!,
   });
-  
+
   return proc;
 };
 
 // Request capability token
 const requestFileAccess = async (path: string) => {
   const ipc = IpcClient.getInstance();
-  
+
   const token = await ipc.requestCapability({
     subject: "user-session-1",
     resource: `file:${path}`,
     action: "read",
     expiresInSeconds: 3600,
   });
-  
+
   return token;
 };
 ```
@@ -209,12 +210,12 @@ export function useGuardian() {
       queryClient.invalidateQueries({ queryKey: ["guardian", "jobs"] });
     },
   });
-  
+
   const listJobs = useQuery({
     queryKey: ["guardian", "jobs"],
     queryFn: guardianClient.listJobs,
   });
-  
+
   return { createJob, listJobs };
 }
 ```
@@ -311,6 +312,7 @@ native/Dyad.Guardian.UI/
 ```
 
 **Features:**
+
 - Real-time data binding with ObservableCollection
 - DispatcherTimer for auto-refresh
 - Full CRUD operations for all security features
@@ -321,6 +323,7 @@ native/Dyad.Guardian.UI/
 ### MSI Installer (WiX)
 
 Complete Windows Installer package:
+
 - Installs Service to `C:\Program Files\Dyad Guardian\Service\`
 - Installs Dashboard to `C:\Program Files\Dyad Guardian\Dashboard\`
 - Registers as Windows Service with auto-start
@@ -339,6 +342,7 @@ See [guardian-deployment.md](guardian-deployment.md) for full deployment guide.
 ## Implementation Status
 
 ✅ **Completed:**
+
 - Process Isolation (Job Objects) with full Win32 API integration
 - Capability-Based Security with JWT tokens
 - Network Filtering (WFP) with native P/Invoke calls
@@ -348,6 +352,7 @@ See [guardian-deployment.md](guardian-deployment.md) for full deployment guide.
 - E2E testing suite
 
 📝 **Documentation:**
+
 - [Architecture Overview](#architecture-overview)
 - [Deployment Guide](guardian-deployment.md)
 - API Reference (see below)
@@ -384,30 +389,30 @@ dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
 ### Job Object Actions
 
-| Action | Description |
-|--------|-------------|
-| `job:create` | Create a new job object with limits |
-| `job:assign` | Assign process to job |
-| `job:terminate` | Kill all processes in job |
-| `job:stats` | Get job statistics |
-| `job:list` | List all active jobs |
+| Action          | Description                         |
+| --------------- | ----------------------------------- |
+| `job:create`    | Create a new job object with limits |
+| `job:assign`    | Assign process to job               |
+| `job:terminate` | Kill all processes in job           |
+| `job:stats`     | Get job statistics                  |
+| `job:list`      | List all active jobs                |
 
 ### Capability Actions
 
-| Action | Description |
-|--------|-------------|
-| `capability:request` | Issue new capability token |
-| `capability:validate` | Validate token |
-| `capability:revoke` | Revoke token |
-| `capability:list` | List active tokens |
+| Action                | Description                |
+| --------------------- | -------------------------- |
+| `capability:request`  | Issue new capability token |
+| `capability:validate` | Validate token             |
+| `capability:revoke`   | Revoke token               |
+| `capability:list`     | List active tokens         |
 
 ### WFP Actions
 
-| Action | Description |
-|--------|-------------|
+| Action            | Description          |
+| ----------------- | -------------------- |
 | `wfp:create-rule` | Create firewall rule |
 | `wfp:delete-rule` | Delete firewall rule |
-| `wfp:list-rules` | List active rules |
+| `wfp:list-rules`  | List active rules    |
 
 ## License
 

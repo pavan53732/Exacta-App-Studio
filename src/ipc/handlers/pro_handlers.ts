@@ -1,9 +1,6 @@
-import fetch from "node-fetch"; // Electron main process might need node-fetch
 import log from "electron-log";
 import { createLoggedHandler } from "./safe_handle";
-import { readSettings } from "../../main/settings"; // Assuming settings are read this way
-import { UserBudgetInfo, UserBudgetInfoSchema } from "@/ipc/types";
-import { IS_TEST_BUILD } from "../utils/test_utils";
+import { UserBudgetInfo } from "@/ipc/types";
 import { z } from "zod";
 
 export const UserInfoResponseSchema = z.object({

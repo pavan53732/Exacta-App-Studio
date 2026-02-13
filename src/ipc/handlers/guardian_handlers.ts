@@ -1,6 +1,5 @@
 import { ipcMain } from "electron";
 import net from "net";
-import { z } from "zod";
 import log from "electron-log";
 import { guardianContracts } from "../types/guardian";
 import type { GuardianRequest, GuardianResponse } from "../types/guardian_ipc";
@@ -12,8 +11,19 @@ const PIPE_PATH = "\\\\.\\pipe\\DyadGuardian";
 
 // Connection state
 let _ipcClient: net.Socket | null = null;
-let _messageQueue: Array<{ request: GuardianRequest; resolve: (value: GuardianResponse) => void; reject: (reason: Error) => void }> = [];
-let _pendingRequests = new Map<string, { resolve: (value: GuardianResponse) => void; reject: (reason: Error) => void; timeout: NodeJS.Timeout }>();
+let _messageQueue: Array<{
+  request: GuardianRequest;
+  resolve: (value: GuardianResponse) => void;
+  reject: (reason: Error) => void;
+}> = [];
+let _pendingRequests = new Map<
+  string,
+  {
+    resolve: (value: GuardianResponse) => void;
+    reject: (reason: Error) => void;
+    timeout: NodeJS.Timeout;
+  }
+>();
 let _responseBuffer = "";
 let _isConnecting = false;
 let _connectionPromise: Promise<void> | null = null;
@@ -24,14 +34,22 @@ let _connectionPromise: Promise<void> | null = null;
 async function getIpcClient(): Promise<net.Socket> {
   const clientReadyState = _ipcClient?.readyState as string | undefined;
 
-  if (clientReadyState === "open" || clientReadyState === "readOnly" || clientReadyState === "writeOnly") {
+  if (
+    clientReadyState === "open" ||
+    clientReadyState === "readOnly" ||
+    clientReadyState === "writeOnly"
+  ) {
     return _ipcClient;
   }
 
   if (_connectionPromise) {
     await _connectionPromise;
     const afterConnectReadyState = _ipcClient?.readyState as string | undefined;
-    if (afterConnectReadyState === "open" || afterConnectReadyState === "readOnly" || afterConnectReadyState === "writeOnly") {
+    if (
+      afterConnectReadyState === "open" ||
+      afterConnectReadyState === "readOnly" ||
+      afterConnectReadyState === "writeOnly"
+    ) {
       return _ipcClient;
     }
   }
@@ -45,7 +63,12 @@ async function getIpcClient(): Promise<net.Socket> {
   _connectionPromise = null;
 
   const finalReadyState = _ipcClient?.readyState as string | undefined;
-  if (!_ipcClient || (finalReadyState !== "open" && finalReadyState !== "readOnly" && finalReadyState !== "writeOnly")) {
+  if (
+    !_ipcClient ||
+    (finalReadyState !== "open" &&
+      finalReadyState !== "readOnly" &&
+      finalReadyState !== "writeOnly")
+  ) {
     throw new Error("Failed to connect to Guardian service");
   }
 
@@ -87,7 +110,9 @@ async function connectToGuardian(): Promise<void> {
       if (_isConnecting) {
         client.destroy();
         _isConnecting = false;
-        reject(new Error("Connection timeout - Guardian service may not be running"));
+        reject(
+          new Error("Connection timeout - Guardian service may not be running"),
+        );
       }
     }, 5000);
   });
@@ -135,7 +160,10 @@ function handleIncomingData(data: string): void {
 /**
  * Try to parse JSON at specific position
  */
-function tryParseJsonAt(str: string, startIndex: number): { parsed: GuardianResponse | null; endIndex: number } {
+function tryParseJsonAt(
+  str: string,
+  startIndex: number,
+): { parsed: GuardianResponse | null; endIndex: number } {
   // Simple brace counting to find complete JSON object
   let depth = 0;
   let inString = false;
@@ -190,7 +218,10 @@ function tryParseJsonAt(str: string, startIndex: number): { parsed: GuardianResp
 /**
  * Send request to Guardian service and wait for response
  */
-async function sendToGuardian(action: string, payload?: Record<string, unknown>): Promise<GuardianResponse> {
+async function sendToGuardian(
+  action: string,
+  payload?: Record<string, unknown>,
+): Promise<GuardianResponse> {
   const client = await getIpcClient();
 
   const request: GuardianRequest = {
@@ -233,7 +264,10 @@ export function registerGuardianHandlers(): void {
   ipcMain.handle(guardianContracts.createJob.channel, async (_, data) => {
     try {
       const validated = guardianContracts.createJob.input.parse(data);
-      const response = await sendToGuardian("job:create", validated as Record<string, unknown>);
+      const response = await sendToGuardian(
+        "job:create",
+        validated as Record<string, unknown>,
+      );
       return response.Data;
     } catch (error) {
       logger.error("Error in createJob:", error);
@@ -241,21 +275,31 @@ export function registerGuardianHandlers(): void {
     }
   });
 
-  ipcMain.handle(guardianContracts.assignProcessToJob.channel, async (_, data) => {
-    try {
-      const validated = guardianContracts.assignProcessToJob.input.parse(data);
-      const response = await sendToGuardian("job:assign", validated as Record<string, unknown>);
-      return response.Data;
-    } catch (error) {
-      logger.error("Error in assignProcessToJob:", error);
-      throw error;
-    }
-  });
+  ipcMain.handle(
+    guardianContracts.assignProcessToJob.channel,
+    async (_, data) => {
+      try {
+        const validated =
+          guardianContracts.assignProcessToJob.input.parse(data);
+        const response = await sendToGuardian(
+          "job:assign",
+          validated as Record<string, unknown>,
+        );
+        return response.Data;
+      } catch (error) {
+        logger.error("Error in assignProcessToJob:", error);
+        throw error;
+      }
+    },
+  );
 
   ipcMain.handle(guardianContracts.terminateJob.channel, async (_, data) => {
     try {
       const validated = guardianContracts.terminateJob.input.parse(data);
-      const response = await sendToGuardian("job:terminate", validated as Record<string, unknown>);
+      const response = await sendToGuardian(
+        "job:terminate",
+        validated as Record<string, unknown>,
+      );
       return response.Data;
     } catch (error) {
       logger.error("Error in terminateJob:", error);
@@ -266,7 +310,10 @@ export function registerGuardianHandlers(): void {
   ipcMain.handle(guardianContracts.getJobStats.channel, async (_, data) => {
     try {
       const validated = guardianContracts.getJobStats.input.parse(data);
-      const response = await sendToGuardian("job:stats", validated as Record<string, unknown>);
+      const response = await sendToGuardian(
+        "job:stats",
+        validated as Record<string, unknown>,
+      );
       return response.Data;
     } catch (error) {
       logger.error("Error in getJobStats:", error);
@@ -285,38 +332,57 @@ export function registerGuardianHandlers(): void {
   });
 
   // Capability Token handlers
-  ipcMain.handle(guardianContracts.requestCapability.channel, async (_, data) => {
-    try {
-      const validated = guardianContracts.requestCapability.input.parse(data);
-      const response = await sendToGuardian("capability:request", validated as Record<string, unknown>);
-      return response.Data;
-    } catch (error) {
-      logger.error("Error in requestCapability:", error);
-      throw error;
-    }
-  });
+  ipcMain.handle(
+    guardianContracts.requestCapability.channel,
+    async (_, data) => {
+      try {
+        const validated = guardianContracts.requestCapability.input.parse(data);
+        const response = await sendToGuardian(
+          "capability:request",
+          validated as Record<string, unknown>,
+        );
+        return response.Data;
+      } catch (error) {
+        logger.error("Error in requestCapability:", error);
+        throw error;
+      }
+    },
+  );
 
-  ipcMain.handle(guardianContracts.validateCapability.channel, async (_, data) => {
-    try {
-      const validated = guardianContracts.validateCapability.input.parse(data);
-      const response = await sendToGuardian("capability:validate", validated as Record<string, unknown>);
-      return response.Data;
-    } catch (error) {
-      logger.error("Error in validateCapability:", error);
-      throw error;
-    }
-  });
+  ipcMain.handle(
+    guardianContracts.validateCapability.channel,
+    async (_, data) => {
+      try {
+        const validated =
+          guardianContracts.validateCapability.input.parse(data);
+        const response = await sendToGuardian(
+          "capability:validate",
+          validated as Record<string, unknown>,
+        );
+        return response.Data;
+      } catch (error) {
+        logger.error("Error in validateCapability:", error);
+        throw error;
+      }
+    },
+  );
 
-  ipcMain.handle(guardianContracts.revokeCapability.channel, async (_, data) => {
-    try {
-      const validated = guardianContracts.revokeCapability.input.parse(data);
-      const response = await sendToGuardian("capability:revoke", validated as Record<string, unknown>);
-      return response.Data;
-    } catch (error) {
-      logger.error("Error in revokeCapability:", error);
-      throw error;
-    }
-  });
+  ipcMain.handle(
+    guardianContracts.revokeCapability.channel,
+    async (_, data) => {
+      try {
+        const validated = guardianContracts.revokeCapability.input.parse(data);
+        const response = await sendToGuardian(
+          "capability:revoke",
+          validated as Record<string, unknown>,
+        );
+        return response.Data;
+      } catch (error) {
+        logger.error("Error in revokeCapability:", error);
+        throw error;
+      }
+    },
+  );
 
   ipcMain.handle(guardianContracts.listCapabilities.channel, async () => {
     try {
@@ -332,7 +398,10 @@ export function registerGuardianHandlers(): void {
   ipcMain.handle(guardianContracts.createWfpRule.channel, async (_, data) => {
     try {
       const validated = guardianContracts.createWfpRule.input.parse(data);
-      const response = await sendToGuardian("wfp:create-rule", validated as Record<string, unknown>);
+      const response = await sendToGuardian(
+        "wfp:create-rule",
+        validated as Record<string, unknown>,
+      );
       return response.Data;
     } catch (error) {
       logger.error("Error in createWfpRule:", error);
@@ -343,7 +412,10 @@ export function registerGuardianHandlers(): void {
   ipcMain.handle(guardianContracts.deleteWfpRule.channel, async (_, data) => {
     try {
       const validated = guardianContracts.deleteWfpRule.input.parse(data);
-      const response = await sendToGuardian("wfp:delete-rule", validated as Record<string, unknown>);
+      const response = await sendToGuardian(
+        "wfp:delete-rule",
+        validated as Record<string, unknown>,
+      );
       return response.Data;
     } catch (error) {
       logger.error("Error in deleteWfpRule:", error);
@@ -366,7 +438,7 @@ export function registerGuardianHandlers(): void {
     try {
       const response = await sendToGuardian("ping");
       return response.Data;
-    } catch (error) {
+    } catch {
       return { status: "disconnected", timestamp: Date.now() };
     }
   });
@@ -381,7 +453,7 @@ export function disconnectFromGuardian(): void {
   logger.log("Disconnecting from Guardian service");
 
   // Reject all pending requests
-  for (const [id, pending] of _pendingRequests) {
+  for (const [_id, pending] of _pendingRequests) {
     clearTimeout(pending.timeout);
     pending.reject(new Error("Guardian connection closed"));
   }

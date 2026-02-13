@@ -43,22 +43,13 @@ const runCargoCommandSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Additional arguments for the command"),
-  release: z
-    .boolean()
-    .optional()
-    .describe("Build in release mode (optimized)"),
+  release: z.boolean().optional().describe("Build in release mode (optimized)"),
   target: z
     .string()
     .optional()
     .describe("Target triple (e.g., 'x86_64-pc-windows-msvc')"),
-  features: z
-    .array(z.string())
-    .optional()
-    .describe("Features to enable"),
-  allFeatures: z
-    .boolean()
-    .optional()
-    .describe("Enable all features"),
+  features: z.array(z.string()).optional().describe("Features to enable"),
+  allFeatures: z.boolean().optional().describe("Enable all features"),
   noDefaultFeatures: z
     .boolean()
     .optional()
@@ -198,7 +189,12 @@ function buildCargoArgs(input: CargoCommandArgs): string[] {
 function formatResult(
   command: string,
   subcommand: string | undefined,
-  result: { stdout: string; stderr: string; exitCode: number; duration: number },
+  result: {
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    duration: number;
+  },
 ): string {
   const lines: string[] = [];
 
@@ -337,10 +333,13 @@ resource limits and network policies.`,
         return `Command failed with exit code ${result.exitCode}:\n\n${result.stderr || result.stdout}`;
       }
 
-      logger.info(`cargo command completed successfully in ${result.duration}ms`);
+      logger.info(
+        `cargo command completed successfully in ${result.duration}ms`,
+      );
       return formattedResult;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       logger.error(`cargo command failed:`, errorMessage);
 

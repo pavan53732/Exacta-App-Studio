@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { tauriRuntimeProvider } from "../providers/TauriRuntimeProvider";
 import { runtimeRegistry } from "../RuntimeProviderRegistry";
 import { executionKernel } from "../../security/execution_kernel";
-import type { ScaffoldOptions, RunOptions, BuildOptions } from "../RuntimeProvider";
+import type { RunOptions, BuildOptions } from "../RuntimeProvider";
 
 // Mock dependencies
 vi.mock("../../security/execution_kernel", () => ({
@@ -41,7 +41,9 @@ describe("TauriRuntimeProvider", () => {
     it("should support expected stack types", () => {
       expect(tauriRuntimeProvider.supportedStackTypes).toContain("tauri-react");
       expect(tauriRuntimeProvider.supportedStackTypes).toContain("tauri-vue");
-      expect(tauriRuntimeProvider.supportedStackTypes).toContain("tauri-svelte");
+      expect(tauriRuntimeProvider.supportedStackTypes).toContain(
+        "tauri-svelte",
+      );
       expect(tauriRuntimeProvider.supportedStackTypes).toContain("tauri-solid");
     });
 
@@ -88,8 +90,20 @@ describe("TauriRuntimeProvider", () => {
     it("should detect missing Node.js", async () => {
       vi.mocked(executionKernel.execute)
         .mockRejectedValueOnce(new Error("Command not found"))
-        .mockResolvedValueOnce({ stdout: "rustc 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
-        .mockResolvedValueOnce({ stdout: "cargo 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" });
+        .mockResolvedValueOnce({
+          stdout: "rustc 1.70.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        })
+        .mockResolvedValueOnce({
+          stdout: "cargo 1.70.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        });
 
       const result = await tauriRuntimeProvider.checkPrerequisites();
 
@@ -99,9 +113,21 @@ describe("TauriRuntimeProvider", () => {
 
     it("should detect missing Rust", async () => {
       vi.mocked(executionKernel.execute)
-        .mockResolvedValueOnce({ stdout: "v18.0.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
+        .mockResolvedValueOnce({
+          stdout: "v18.0.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        })
         .mockRejectedValueOnce(new Error("Command not found"))
-        .mockResolvedValueOnce({ stdout: "cargo 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" });
+        .mockResolvedValueOnce({
+          stdout: "cargo 1.70.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        });
 
       const result = await tauriRuntimeProvider.checkPrerequisites();
 
@@ -111,8 +137,20 @@ describe("TauriRuntimeProvider", () => {
 
     it("should detect missing Cargo", async () => {
       vi.mocked(executionKernel.execute)
-        .mockResolvedValueOnce({ stdout: "v18.0.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
-        .mockResolvedValueOnce({ stdout: "rustc 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
+        .mockResolvedValueOnce({
+          stdout: "v18.0.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        })
+        .mockResolvedValueOnce({
+          stdout: "rustc 1.70.0",
+          stderr: "",
+          exitCode: 0,
+          duration: 100,
+          riskLevel: "low",
+        })
         .mockRejectedValueOnce(new Error("Command not found"));
 
       const result = await tauriRuntimeProvider.checkPrerequisites();
@@ -160,7 +198,7 @@ describe("TauriRuntimeProvider", () => {
           networkAccess: true,
           memoryLimitMB: 2048,
         }),
-        "tauri"
+        "tauri",
       );
     });
   });
@@ -187,7 +225,13 @@ describe("TauriRuntimeProvider", () => {
       expect(executionKernel.execute).toHaveBeenCalledWith(
         expect.objectContaining({
           command: "npm",
-          args: expect.arrayContaining(["run", "tauri", "build", "--", "--debug"]),
+          args: expect.arrayContaining([
+            "run",
+            "tauri",
+            "build",
+            "--",
+            "--debug",
+          ]),
         }),
         expect.objectContaining({
           appId: 123,
@@ -195,7 +239,7 @@ describe("TauriRuntimeProvider", () => {
           networkAccess: false,
           memoryLimitMB: 4096,
         }),
-        "tauri"
+        "tauri",
       );
     });
 
@@ -221,7 +265,7 @@ describe("TauriRuntimeProvider", () => {
           args: expect.not.arrayContaining(["--debug"]),
         }),
         expect.anything(),
-        "tauri"
+        "tauri",
       );
     });
 
@@ -274,7 +318,7 @@ error: could not compile "app" due to previous error`,
           cwd: "/test/app",
           mode: "session",
         }),
-        "tauri"
+        "tauri",
       );
     });
   });
@@ -283,7 +327,9 @@ error: could not compile "app" due to previous error`,
     it("should terminate job when jobId provided", async () => {
       await tauriRuntimeProvider.stop(123, "job_test_789_tauri");
 
-      expect(executionKernel.terminateJob).toHaveBeenCalledWith("job_test_789_tauri");
+      expect(executionKernel.terminateJob).toHaveBeenCalledWith(
+        "job_test_789_tauri",
+      );
     });
 
     it("should use taskkill fallback for cargo processes", async () => {
@@ -300,7 +346,7 @@ error: could not compile "app" due to previous error`,
       expect(executionKernel.execute).toHaveBeenCalledWith(
         { command: "taskkill", args: ["/F", "/IM", "cargo.exe"] },
         expect.objectContaining({ appId: 123 }),
-        "tauri"
+        "tauri",
       );
     });
   });
@@ -327,13 +373,11 @@ describe("TauriRuntimeProvider via Registry", () => {
     expect(provider.runtimeName).toBe("Tauri");
   });
 
-  it.each([
-    ["tauri-react"],
-    ["tauri-vue"],
-    ["tauri-svelte"],
-    ["tauri-solid"],
-  ])("should resolve tauri provider for stack type: %s", (stackType) => {
-    const provider = runtimeRegistry.getProviderForStack(stackType);
-    expect(provider.runtimeId).toBe("tauri");
-  });
+  it.each([["tauri-react"], ["tauri-vue"], ["tauri-svelte"], ["tauri-solid"]])(
+    "should resolve tauri provider for stack type: %s",
+    (stackType) => {
+      const provider = runtimeRegistry.getProviderForStack(stackType);
+      expect(provider.runtimeId).toBe("tauri");
+    },
+  );
 });

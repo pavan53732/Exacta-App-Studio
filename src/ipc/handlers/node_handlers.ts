@@ -2,19 +2,21 @@ import { dialog, ipcMain } from "electron";
 import { execSync } from "child_process";
 import { platform, arch } from "os";
 import fixPath from "fix-path";
-import { runShellCommand } from "../utils/runShellCommand";
 import log from "electron-log";
 import { existsSync } from "fs";
 import { join } from "path";
 import { readSettings } from "../../main/settings";
 import { createTypedHandler } from "./base";
 import { systemContracts } from "../types/system";
-import { executionKernel } from '../security/execution_kernel';
+import { executionKernel } from "../security/execution_kernel";
 
 const logger = log.scope("node_handlers");
 
 // Helper function for secure command execution through ExecutionKernel
-async function executeSecureCommand(command: string, args: string[]): Promise<string> {
+export async function executeSecureCommand(
+  command: string,
+  args: string[],
+): Promise<string> {
   try {
     // Use system-level execution with minimal privileges
     const options = {
@@ -22,18 +24,17 @@ async function executeSecureCommand(command: string, args: string[]): Promise<st
       cwd: process.cwd(),
       timeout: 30000, // 30 second timeout
       memoryLimitMB: 100, // Minimal memory limit
-      networkAccess: false // No network access for version checks
+      networkAccess: false, // No network access for version checks
     };
-    
-    const result = await executionKernel.execute(
-      { command, args },
-      options
-    );
-    
+
+    const result = await executionKernel.execute({ command, args }, options);
+
     if (result.exitCode === 0) {
       return result.stdout.trim();
     } else {
-      throw new Error(`Command failed with exit code ${result.exitCode}: ${result.stderr}`);
+      throw new Error(
+        `Command failed with exit code ${result.exitCode}: ${result.stderr}`,
+      );
     }
   } catch (error) {
     logger.error(`Secure command execution failed for ${command}:`, error);
@@ -100,19 +101,25 @@ export function registerNodeHandlers() {
 
     // Run checks through ExecutionKernel for security
     const [nodeVersion, pnpmVersion] = await Promise.all([
-      executeSecureCommand('node', ['--version']),
+      executeSecureCommand("node", ["--version"]),
       // First, check if pnpm is installed.
       // If not, try to install it using corepack.
       // If both fail, then pnpm is not available.
-      executeSecureCommand('pnpm', ['--version']).catch(async () => {
-        // Try to enable pnpm via corepack
-        await executeSecureCommand('corepack', ['enable', 'pnpm']);
-        return executeSecureCommand('pnpm', ['--version']);
-      }).catch(async () => {
-        // Fallback to npm install
-        await executeSecureCommand('npm', ['install', '-g', 'pnpm@latest-10']);
-        return executeSecureCommand('pnpm', ['--version']);
-      }),
+      executeSecureCommand("pnpm", ["--version"])
+        .catch(async () => {
+          // Try to enable pnpm via corepack
+          await executeSecureCommand("corepack", ["enable", "pnpm"]);
+          return executeSecureCommand("pnpm", ["--version"]);
+        })
+        .catch(async () => {
+          // Fallback to npm install
+          await executeSecureCommand("npm", [
+            "install",
+            "-g",
+            "pnpm@latest-10",
+          ]);
+          return executeSecureCommand("pnpm", ["--version"]);
+        }),
     ]);
     return { nodeVersion, pnpmVersion, nodeDownloadUrl };
   });
@@ -122,12 +129,16 @@ export function registerNodeHandlers() {
     if (platform() === "win32") {
       try {
         // Use secure ExecutionKernel for PATH retrieval
-        const result = await executeSecureCommand('cmd', ['/c', 'echo', '%PATH%']);
+        const result = await executeSecureCommand("cmd", [
+          "/c",
+          "echo",
+          "%PATH%",
+        ]);
         process.env.PATH = result.trim();
       } catch (error) {
-        logger.error('Failed to reload PATH securely:', error);
+        logger.error("Failed to reload PATH securely:", error);
         // Fallback to execSync but log the security concern
-        logger.warn('Using fallback PATH reload - security bypass detected');
+        logger.warn("Using fallback PATH reload - security bypass detected");
         const newPath = execSync("cmd /c echo %PATH%", {
           encoding: "utf8",
         }).trim();

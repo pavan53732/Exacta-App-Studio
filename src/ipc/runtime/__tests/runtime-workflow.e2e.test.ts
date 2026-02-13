@@ -8,7 +8,11 @@ import { nodeRuntimeProvider } from "../providers/NodeRuntimeProvider";
 import { dotNetRuntimeProvider } from "../providers/DotNetRuntimeProvider";
 import { tauriRuntimeProvider } from "../providers/TauriRuntimeProvider";
 import { executionKernel } from "../../security/execution_kernel";
-import type { ScaffoldOptions, BuildOptions, RunOptions } from "../RuntimeProvider";
+import type {
+  ScaffoldOptions,
+  BuildOptions,
+  RunOptions,
+} from "../RuntimeProvider";
 
 // Mock execution kernel for controlled testing
 vi.mock("../../security/execution_kernel", () => ({
@@ -159,7 +163,9 @@ describe("RuntimeProvider E2E Workflow", () => {
 
         // 6. Stop
         await provider.stop(testAppId, runResult.jobId);
-        expect(executionKernel.terminateJob).toHaveBeenCalledWith(runResult.jobId);
+        expect(executionKernel.terminateJob).toHaveBeenCalledWith(
+          runResult.jobId,
+        );
       });
     });
 
@@ -169,8 +175,20 @@ describe("RuntimeProvider E2E Workflow", () => {
       it("should complete full .NET app lifecycle", async () => {
         // 1. Check prerequisites
         vi.mocked(executionKernel.execute)
-          .mockResolvedValueOnce({ stdout: "6.0.400", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
-          .mockResolvedValueOnce({ stdout: "MSBuild", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" });
+          .mockResolvedValueOnce({
+            stdout: "6.0.400",
+            stderr: "",
+            exitCode: 0,
+            duration: 100,
+            riskLevel: "low",
+          })
+          .mockResolvedValueOnce({
+            stdout: "MSBuild",
+            stderr: "",
+            exitCode: 0,
+            duration: 100,
+            riskLevel: "low",
+          });
 
         const prereqs = await provider.checkPrerequisites();
         expect(prereqs.installed).toBe(true);
@@ -246,7 +264,9 @@ describe("RuntimeProvider E2E Workflow", () => {
 
         // 6. Stop
         await provider.stop(testAppId, runResult.jobId);
-        expect(executionKernel.terminateJob).toHaveBeenCalledWith(runResult.jobId);
+        expect(executionKernel.terminateJob).toHaveBeenCalledWith(
+          runResult.jobId,
+        );
       });
     });
 
@@ -256,9 +276,27 @@ describe("RuntimeProvider E2E Workflow", () => {
       it("should complete full Tauri app lifecycle", async () => {
         // 1. Check prerequisites
         vi.mocked(executionKernel.execute)
-          .mockResolvedValueOnce({ stdout: "v18.0.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
-          .mockResolvedValueOnce({ stdout: "rustc 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" })
-          .mockResolvedValueOnce({ stdout: "cargo 1.70.0", stderr: "", exitCode: 0, duration: 100, riskLevel: "low" });
+          .mockResolvedValueOnce({
+            stdout: "v18.0.0",
+            stderr: "",
+            exitCode: 0,
+            duration: 100,
+            riskLevel: "low",
+          })
+          .mockResolvedValueOnce({
+            stdout: "rustc 1.70.0",
+            stderr: "",
+            exitCode: 0,
+            duration: 100,
+            riskLevel: "low",
+          })
+          .mockResolvedValueOnce({
+            stdout: "cargo 1.70.0",
+            stderr: "",
+            exitCode: 0,
+            duration: 100,
+            riskLevel: "low",
+          });
 
         const prereqs = await provider.checkPrerequisites();
         expect(prereqs.installed).toBe(true);
@@ -334,7 +372,9 @@ describe("RuntimeProvider E2E Workflow", () => {
 
         // 6. Stop
         await provider.stop(testAppId, runResult.jobId);
-        expect(executionKernel.terminateJob).toHaveBeenCalledWith(runResult.jobId);
+        expect(executionKernel.terminateJob).toHaveBeenCalledWith(
+          runResult.jobId,
+        );
       });
     });
   });
@@ -348,7 +388,9 @@ describe("RuntimeProvider E2E Workflow", () => {
         expect(provider.runtimeName).toBeDefined();
         expect(provider.supportedStackTypes).toBeInstanceOf(Array);
         expect(provider.supportedStackTypes.length).toBeGreaterThan(0);
-        expect(provider.previewStrategy).toMatch(/iframe|external-window|console-output|hybrid/);
+        expect(provider.previewStrategy).toMatch(
+          /iframe|external-window|console-output|hybrid/,
+        );
         expect(typeof provider.checkPrerequisites).toBe("function");
         expect(typeof provider.getRiskProfile).toBe("function");
         expect(typeof provider.scaffold).toBe("function");

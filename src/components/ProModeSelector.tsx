@@ -19,8 +19,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { useSettings } from "@/hooks/useSettings";
-import { ipc } from "@/ipc/types";
-import { hasDyadProKey, type UserSettings } from "@/lib/schemas";
+import { type UserSettings } from "@/lib/schemas";
 
 export function ProModeSelector() {
   const { settings, updateSettings } = useSettings();

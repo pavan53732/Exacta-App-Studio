@@ -33,54 +33,31 @@ import killPort from "kill-port";
 import util from "util";
 import log from "electron-log";
 import { runtimeRegistry } from "../runtime/RuntimeProviderRegistry";
-import { executionKernel } from '../security/execution_kernel';
-
-// Helper function for secure command execution through ExecutionKernel
-async function executeSecureCommand(appId: number, appPath: string, command: string, args: string[] = []): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  try {
-    const options = {
-      appId,
-      cwd: appPath,
-      timeout: 300000, // 5 minute timeout for app operations
-      memoryLimitMB: 2000, // 2GB memory limit
-      networkAccess: true // Apps may need network access
-    };
-
-    const result = await executionKernel.execute(
-      { command, args },
-      options
-    );
-
-    return {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode
-    };
-  } catch (error) {
-    log.error(`Secure command execution failed for app ${appId}:`, error);
-    throw error;
-  }
-}
 
 // Helper function to determine runtime provider based on app type
 function getRuntimeProviderId(appPath: string): string {
   try {
     // Check for Node.js project
-    if (fs.existsSync(path.join(appPath, 'package.json'))) {
-      return 'node';
+    if (fs.existsSync(path.join(appPath, "package.json"))) {
+      return "node";
     }
 
     // Check for .NET project
     const files = fs.readdirSync(appPath);
-    if (files.some(file => file.endsWith('.csproj') || file.endsWith('.sln'))) {
-      return 'dotnet';
+    if (
+      files.some((file) => file.endsWith(".csproj") || file.endsWith(".sln"))
+    ) {
+      return "dotnet";
     }
 
     // Default to node
-    return 'node';
+    return "node";
   } catch (error) {
-    log.warn('Failed to determine runtime provider, defaulting to node:', error);
-    return 'node';
+    log.warn(
+      "Failed to determine runtime provider, defaulting to node:",
+      error,
+    );
+    return "node";
   }
 }
 import {
@@ -281,7 +258,11 @@ async function executeAppWithProvider({
   let proxyStarted = false;
 
   // Create event handler that forwards to UI and handles special cases
-  const onEvent = (eventData: { type: "stdout" | "stderr"; message: string; timestamp: number }) => {
+  const onEvent = (eventData: {
+    type: "stdout" | "stderr";
+    message: string;
+    timestamp: number;
+  }) => {
     const { type, message } = eventData;
 
     // Add to central log store
@@ -372,88 +353,6 @@ async function executeAppWithProvider({
     logger.error(`Error starting app ${appId} with provider:`, error);
     throw error;
   }
-}
-
-async function executeAppLocalNode({
-  appPath,
-  appId,
-  event,
-  isNeon,
-  installCommand,
-  startCommand,
-}: {
-  appPath: string;
-  appId: number;
-  event: Electron.IpcMainInvokeEvent;
-  isNeon: boolean;
-  installCommand?: string | null;
-  startCommand?: string | null;
-}): Promise<void> {
-  const command = getCommand({ appId, installCommand, startCommand });
-  const spawnedProcess = spawn(command, [], {
-    cwd: appPath,
-    shell: true,
-    stdio: "pipe", // Ensure stdio is piped so we can capture output/errors and detect close
-    detached: false, // Ensure child process is attached to the main process lifecycle unless explicitly backgrounded
-  });
-
-  // Check if process spawned correctly
-  if (!spawnedProcess.pid) {
-    // Attempt to capture any immediate errors if possible
-    let errorOutput = "";
-    let spawnErr: any | null = null;
-    spawnedProcess.stderr?.on(
-      "data",
-      (data) => (errorOutput += data.toString()),
-    );
-    await new Promise<void>((resolve) => {
-      spawnedProcess.once("error", (err) => {
-        spawnErr = err;
-        resolve();
-      });
-    }); // Wait for error event
-
-    const details = [
-      spawnErr?.message ? `message=${spawnErr.message}` : null,
-      spawnErr?.code ? `code=${spawnErr.code}` : null,
-      spawnErr?.errno ? `errno=${spawnErr.errno}` : null,
-      spawnErr?.syscall ? `syscall=${spawnErr.syscall}` : null,
-      spawnErr?.path ? `path=${spawnErr.path}` : null,
-      spawnErr?.spawnargs
-        ? `spawnargs=${JSON.stringify(spawnErr.spawnargs)}`
-        : null,
-    ]
-      .filter(Boolean)
-      .join(", ");
-
-    logger.error(
-      `Failed to spawn process for app ${appId}. Command="${command}", CWD="${appPath}", ${details}\nSTDERR:\n${errorOutput || "(empty)"
-      }`,
-    );
-
-    throw new Error(
-      `Failed to spawn process for app ${appId}.
-Error output:
-${errorOutput || "(empty)"}
-Details: ${details || "n/a"}
-`,
-    );
-  }
-
-  // Increment the counter and store the process reference with its ID
-  const currentProcessId = processCounter.increment();
-  runningApps.set(appId, {
-    process: spawnedProcess,
-    processId: currentProcessId,
-    isDocker: false,
-  });
-
-  listenToProcess({
-    process: spawnedProcess,
-    appId,
-    isNeon,
-    event,
-  });
 }
 
 function listenToProcess({
@@ -731,7 +630,8 @@ RUN npm install -g pnpm
       .join(", ");
 
     logger.error(
-      `Failed to spawn Docker container for app ${appId}. ${details}\nSTDERR:\n${errorOutput || "(empty)"
+      `Failed to spawn Docker container for app ${appId}. ${details}\nSTDERR:\n${
+        errorOutput || "(empty)"
       }`,
     );
 
@@ -944,7 +844,7 @@ export function registerAppHandlers() {
 
     // Determine runtime provider and stack type
     const runtimeProvider = params.runtimeProvider || "node";
-    const stackType = params.stackType || "react";
+    const stackType = params.stackType || "web";
 
     // Create a new app
     const [app] = await db
@@ -983,7 +883,9 @@ export function registerAppHandlers() {
         logger.error(`Error scaffolding app with ${runtimeProvider}:`, error);
         // Clean up the created app record
         await db.delete(apps).where(eq(apps.id, app.id));
-        throw new Error(`Failed to create ${runtimeProvider} app: ${error.message}`);
+        throw new Error(
+          `Failed to create ${runtimeProvider} app: ${error.message}`,
+        );
       }
     } else {
       // Use default template creation for Node.js apps
@@ -1267,9 +1169,7 @@ export function registerAppHandlers() {
       const { process: appProcess, processId } = appInfo;
 
       if (!appProcess) {
-        logger.log(
-          `App ${appId} process is null. Cleaning up map.`,
-        );
+        logger.log(`App ${appId} process is null. Cleaning up map.`);
         runningApps.delete(appId);
         return;
       }
@@ -1425,7 +1325,7 @@ export function registerAppHandlers() {
         logger.error("Error storing Neon timestamp at current version:", error);
         throw new Error(
           "Could not store Neon timestamp at current version; database versioning functionality is not working: " +
-          error,
+            error,
         );
       }
     }

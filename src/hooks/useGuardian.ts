@@ -5,7 +5,6 @@ import type {
   CreateJobRequest,
   AssignProcessRequest,
   TerminateJobRequest,
-  GetJobStatsRequest,
   RequestCapabilityRequest,
   ValidateCapabilityRequest,
   RevokeCapabilityRequest,
@@ -19,7 +18,8 @@ import type {
 export const guardianKeys = {
   all: ["guardian"] as const,
   jobs: () => [...guardianKeys.all, "jobs"] as const,
-  jobStats: (jobName: string) => [...guardianKeys.jobs(), "stats", jobName] as const,
+  jobStats: (jobName: string) =>
+    [...guardianKeys.jobs(), "stats", jobName] as const,
   capabilities: () => [...guardianKeys.all, "capabilities"] as const,
   wfpRules: () => [...guardianKeys.all, "wfp-rules"] as const,
   status: () => [...guardianKeys.all, "status"] as const,
@@ -50,7 +50,8 @@ export function useGuardianJobs() {
   });
 
   const createJob = useMutation({
-    mutationFn: (request: CreateJobRequest) => guardianClient.createJob(request),
+    mutationFn: (request: CreateJobRequest) =>
+      guardianClient.createJob(request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: guardianKeys.jobs() });
     },
@@ -83,7 +84,7 @@ export function useGuardianJobs() {
         refetchInterval: 1000,
       });
     },
-    [queryClient]
+    [queryClient],
   );
 
   return {
@@ -194,7 +195,7 @@ export function useFileAccessCapability() {
         expiresInSeconds: expiresInSeconds ?? 3600,
       });
     },
-    [requestCapability]
+    [requestCapability],
   );
 
   const requestFileWrite = useCallback(
@@ -206,7 +207,7 @@ export function useFileAccessCapability() {
         expiresInSeconds: expiresInSeconds ?? 3600,
       });
     },
-    [requestCapability]
+    [requestCapability],
   );
 
   return {

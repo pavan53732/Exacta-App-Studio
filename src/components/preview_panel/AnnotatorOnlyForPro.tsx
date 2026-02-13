@@ -35,8 +35,8 @@ export const AnnotatorOnlyForPro = ({ onGoBack }: AnnotatorOnlyForProProps) => {
           Enhanced Mode Feature
         </h2>
         <p className="text-muted-foreground mb-10 text-center max-w-md text-base leading-relaxed">
-          Advanced element detection and attribute editing is available
-          with Enhanced Mode.
+          Advanced element detection and attribute editing is available with
+          Enhanced Mode.
         </p>
         <div className="flex gap-4">
           <Button variant="outline" onClick={onGoBack}>

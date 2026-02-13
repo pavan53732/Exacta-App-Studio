@@ -7,7 +7,7 @@ Dyad currently supports web app building (Node.js/React). To support Windows nat
 The challenge isn't UI technology selection (WPF vs MAUI vs Tauri) - it's **execution architecture**:
 
 - Toolchain containment
-- Process isolation  
+- Process isolation
 - Shell execution safety
 - Multi-runtime orchestration
 - Packaging guarantees
@@ -18,7 +18,9 @@ The challenge isn't UI technology selection (WPF vs MAUI vs Tauri) - it's **exec
 ## Current State
 
 ### Guardian Service (Windows-Specific)
+
 The Guardian Service we built provides:
+
 - ✅ Sandboxed Process Spawning (Windows Job Objects)
 - ✅ Capability-Based Security (JWT tokens)
 - ✅ Resource Governance (CPU/Memory limits)
@@ -62,9 +64,9 @@ The Guardian Service we built provides:
 ```typescript
 interface RuntimeProvider {
   // Identification
-  readonly runtimeId: string;  // 'node', 'dotnet', 'rust'
+  readonly runtimeId: string; // 'node', 'dotnet', 'rust'
   readonly supportedPlatforms: Platform[];
-  
+
   // Lifecycle
   scaffold(options: ScaffoldOptions): Promise<ScaffoldResult>;
   resolveDependencies(options: ResolveOptions): Promise<ResolveResult>;
@@ -72,23 +74,23 @@ interface RuntimeProvider {
   preview(options: PreviewOptions): Promise<PreviewResult>;
   package(options: PackageOptions): Promise<PackageResult>;
   validate(options: ValidateOptions): Promise<ValidateResult>;
-  
+
   // Cleanup
   destroy(): Promise<void>;
 }
 
 interface ExecutionContext {
   // Security
-  capabilities: Capability[];  // What this build can access
-  projectRoot: string;         // Jail root
-  allowedPaths: string[];      // Read/write whitelist
+  capabilities: Capability[]; // What this build can access
+  projectRoot: string; // Jail root
+  allowedPaths: string[]; // Read/write whitelist
   networkPolicy: NetworkPolicy; // Block/Allow/Restricted
-  
+
   // Resources
   maxMemoryBytes: number;
   maxCpuPercent: number;
   timeoutSeconds: number;
-  
+
   // Observability
   onProgress: (event: BuildEvent) => void;
   onLog: (log: LogEntry) => void;
@@ -98,12 +100,13 @@ interface ExecutionContext {
 ## Execution Kernel Components
 
 ### 1. Sandboxed Process Spawner
+
 ```typescript
 interface ProcessSpawner {
   spawn(
     command: string,
     args: string[],
-    context: ExecutionContext
+    context: ExecutionContext,
   ): Promise<SandboxedProcess>;
 }
 
@@ -112,12 +115,13 @@ interface ProcessSpawner {
 ```
 
 ### 2. Capability-Gated Shell Execution
+
 ```typescript
 interface ShellExecutor {
   // All shell commands go through this gate
   execute(
     command: string,
-    requiredCapabilities: Capability[]
+    requiredCapabilities: Capability[],
   ): Promise<ExecutionResult>;
 }
 
@@ -125,11 +129,12 @@ interface ShellExecutor {
 ```
 
 ### 3. Policy Engine
+
 ```typescript
 interface PolicyEngine {
   // Deterministic enforcement
   evaluate(action: Action, context: ExecutionContext): PolicyDecision;
-  
+
   // Example policies:
   // - "Never allow rm -rf /"
   // - "Never allow network access without CAP_NET"
@@ -138,13 +143,14 @@ interface PolicyEngine {
 ```
 
 ### 4. State Manager (Two-Phase Commit)
+
 ```typescript
 interface StateManager {
   // Atomic workspace operations
   beginTransaction(): Transaction;
   commit(tx: Transaction): Promise<void>;
   rollback(tx: Transaction): Promise<void>;
-  
+
   // Crash recovery
   recover(): Promise<WorkspaceState>;
 }
@@ -153,27 +159,32 @@ interface StateManager {
 ## Implementation Roadmap
 
 ### Phase 1: Extract RuntimeProvider Interface
+
 - Define abstract interface
 - Refactor existing Node.js support into NodeProvider
 - Make Guardian Service pluggable (WindowsSandboxProvider)
 
 ### Phase 2: Harden Execution Kernel
+
 - Implement cross-platform process sandboxing
 - Build capability system (extend existing JWT tokens)
 - Create policy engine
 - Add state management with atomic commits
 
 ### Phase 3: First Stable Runtime
+
 - Choose: NodeProvider (already have it)
 - Integrate with hardened kernel
 - Full test coverage for containment
 
 ### Phase 4: Add Second Runtime
+
 - DotNetProvider OR RustProvider
 - Reuse execution kernel
 - Validate multi-runtime orchestration
 
 ### Phase 5: Scale
+
 - Add remaining runtimes
 - Optimize resource sharing
 - Distributed build support (future)
@@ -181,6 +192,7 @@ interface StateManager {
 ## Key Design Decisions
 
 ### 1. Platform Abstraction
+
 ```
 ExecutionKernel (cross-platform)
     ↓
@@ -192,7 +204,9 @@ Linux: cgroups, namespaces, seccomp
 ```
 
 ### 2. Capability System
+
 Extend existing Guardian capability tokens:
+
 ```json
 {
   "subject": "build-process-123",
@@ -206,6 +220,7 @@ Extend existing Guardian capability tokens:
 ```
 
 ### 3. Policy as Code
+
 ```yaml
 # policy.yaml
 shell_execution:
@@ -213,11 +228,11 @@ shell_execution:
     - "rm -rf /"
     - "curl.*| sh"
     - "wget.*| bash"
-  
+
 file_access:
   jail_root: "${PROJECT_ROOT}"
   allow_outside: false
-  
+
 network:
   default: blocked
   allowed_hosts:
@@ -228,11 +243,13 @@ network:
 ## Migration from Current State
 
 ### Current: Guardian Service (Windows-only)
+
 ```
 Electron → Guardian (named pipe) → Windows APIs
 ```
 
 ### Target: RuntimeProvider Architecture
+
 ```
 Electron → RuntimeProvider → ExecutionKernel → PlatformProvider
                 ↓
@@ -240,6 +257,7 @@ Electron → RuntimeProvider → ExecutionKernel → PlatformProvider
 ```
 
 ### Migration Steps
+
 1. **Keep Guardian** as WindowsPlatformProvider
 2. **Create abstraction layer** around it
 3. **Refactor Node.js support** to use same abstraction

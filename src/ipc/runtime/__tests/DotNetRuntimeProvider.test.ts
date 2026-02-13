@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { dotNetRuntimeProvider } from "../providers/DotNetRuntimeProvider";
 import { runtimeRegistry } from "../RuntimeProviderRegistry";
 import { executionKernel } from "../../security/execution_kernel";
-import type { ScaffoldOptions, RunOptions, BuildOptions } from "../RuntimeProvider";
+import type { RunOptions, BuildOptions } from "../RuntimeProvider";
 
 // Mock dependencies
 vi.mock("../../security/execution_kernel", () => ({
@@ -154,7 +154,7 @@ describe("DotNetRuntimeProvider", () => {
           networkAccess: true,
           memoryLimitMB: 4096,
         }),
-        "dotnet"
+        "dotnet",
       );
     });
   });
@@ -178,14 +178,17 @@ describe("DotNetRuntimeProvider", () => {
 
       expect(result.success).toBe(true);
       expect(executionKernel.execute).toHaveBeenCalledWith(
-        { command: "dotnet", args: ["build", "--configuration", "Debug", "--verbosity", "normal"] },
+        {
+          command: "dotnet",
+          args: ["build", "--configuration", "Debug", "--verbosity", "normal"],
+        },
         expect.objectContaining({
           appId: 123,
           cwd: "/test/app",
           networkAccess: false,
           memoryLimitMB: 4096,
         }),
-        "dotnet"
+        "dotnet",
       );
     });
 
@@ -211,7 +214,7 @@ describe("DotNetRuntimeProvider", () => {
           args: expect.arrayContaining(["--configuration", "Release"]),
         }),
         expect.anything(),
-        "dotnet"
+        "dotnet",
       );
     });
 
@@ -268,7 +271,7 @@ error MSB1009: Project file does not exist`,
           cwd: "/test/app",
           mode: "session",
         }),
-        "dotnet"
+        "dotnet",
       );
     });
   });
@@ -277,7 +280,9 @@ error MSB1009: Project file does not exist`,
     it("should terminate job when jobId provided", async () => {
       await dotNetRuntimeProvider.stop(123, "job_test_456_dotnet");
 
-      expect(executionKernel.terminateJob).toHaveBeenCalledWith("job_test_456_dotnet");
+      expect(executionKernel.terminateJob).toHaveBeenCalledWith(
+        "job_test_456_dotnet",
+      );
     });
 
     it("should use taskkill fallback when no jobId", async () => {
@@ -294,7 +299,7 @@ error MSB1009: Project file does not exist`,
       expect(executionKernel.execute).toHaveBeenCalledWith(
         { command: "taskkill", args: ["/F", "/IM", "dotnet.exe"] },
         expect.objectContaining({ appId: 123 }),
-        "dotnet"
+        "dotnet",
       );
     });
   });
@@ -337,17 +342,21 @@ error MSB1009: Project file does not exist`,
           command: "dotnet",
           args: expect.arrayContaining([
             "publish",
-            "--configuration", "Release",
-            "--output", expect.stringContaining("publish"),
-            "--self-contained", "true",
-            "--runtime", "win-x64",
+            "--configuration",
+            "Release",
+            "--output",
+            expect.stringContaining("publish"),
+            "--self-contained",
+            "true",
+            "--runtime",
+            "win-x64",
           ]),
         }),
         expect.objectContaining({
           memoryLimitMB: 8192,
           timeout: 900000,
         }),
-        "dotnet"
+        "dotnet",
       );
     });
 
@@ -372,7 +381,7 @@ error MSB1009: Project file does not exist`,
           args: expect.arrayContaining(["-p:PublishSingleFile=true"]),
         }),
         expect.anything(),
-        "dotnet"
+        "dotnet",
       );
     });
   });
@@ -385,14 +394,11 @@ describe("DotNetRuntimeProvider via Registry", () => {
     expect(provider.runtimeName).toBe(".NET");
   });
 
-  it.each([
-    ["wpf"],
-    ["winui3"],
-    ["winforms"],
-    ["console"],
-    ["maui"],
-  ])("should resolve dotnet provider for stack type: %s", (stackType) => {
-    const provider = runtimeRegistry.getProviderForStack(stackType);
-    expect(provider.runtimeId).toBe("dotnet");
-  });
+  it.each([["wpf"], ["winui3"], ["winforms"], ["console"], ["maui"]])(
+    "should resolve dotnet provider for stack type: %s",
+    (stackType) => {
+      const provider = runtimeRegistry.getProviderForStack(stackType);
+      expect(provider.runtimeId).toBe("dotnet");
+    },
+  );
 });

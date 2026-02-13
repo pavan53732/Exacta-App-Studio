@@ -22,7 +22,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { neonTemplateHook } from "@/client_logic/template_hook";
 import { showError } from "@/lib/toast";
-import { RuntimeSelector, useRuntimeSelector } from "./RuntimeSelector";
+import { useRuntimeSelector } from "./RuntimeSelector";
 
 interface CreateAppDialogProps {
   open: boolean;
@@ -42,8 +42,12 @@ export function CreateAppDialog({
   const { createApp } = useCreateApp();
   const { data: nameCheckResult } = useCheckName(appName);
   const router = useRouter();
-  const { isOpen: isRuntimeSelectorOpen, open: openRuntimeSelector, close: closeRuntimeSelector, selection, RuntimeSelector: RuntimeSelectorComponent } = useRuntimeSelector();
-  
+  const {
+    close: closeRuntimeSelector,
+    selection,
+    RuntimeSelector: RuntimeSelectorComponent,
+  } = useRuntimeSelector();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -62,10 +66,10 @@ export function CreateAppDialog({
 
     setIsSubmitting(true);
     try {
-      const result = await createApp({ 
+      const result = await createApp({
         name: appName.trim(),
         runtimeProvider,
-        stackType
+        stackType,
       });
       if (template && NEON_TEMPLATE_IDS.has(template.id)) {
         await neonTemplateHook({

@@ -88,9 +88,7 @@ const ALWAYS_OMITTED_FILES = [".env", ".env.local"];
 // Because these files are typically low-signal and adding them
 // to the context can cause users to much more quickly hit their
 // free rate limits.
-const OMITTED_FILES = [
-  ...ALWAYS_OMITTED_FILES,
-];
+const OMITTED_FILES = [...ALWAYS_OMITTED_FILES];
 
 // Maximum file size to include (in bytes) - Increased to 10MB to avoid silent omission
 const MAX_FILE_SIZE = 10 * 1024 * 1024;

@@ -156,8 +156,10 @@ async function runRipgrep({
             continue;
           }
 
-          // Normalize path (remove leading ./)
-          const normalizedPath = matchPath.replace(/^\.\//, "");
+          // Normalize path (remove leading ./ or .\ and convert backslashes to forward slashes)
+          const normalizedPath = matchPath
+            .replace(/^\.[\/\\]/, "")
+            .replace(/\\/g, "/");
 
           results.push({
             path: normalizedPath,
