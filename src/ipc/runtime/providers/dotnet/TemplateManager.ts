@@ -129,6 +129,7 @@ export class TemplateManager {
     this.registerWinUI3Template();
     this.registerWinFormsTemplate();
     this.registerConsoleTemplate();
+    this.registerMauiTemplate();
   }
 
   /**
@@ -465,6 +466,157 @@ Console.WriteLine("Welcome to {{ProjectName}}!");`,
     };
 
     this.templates.set("console", consoleTemplate);
+  }
+
+  /**
+   * Register MAUI template (Multi-platform App UI)
+   * Note: MAUI requires additional SDK setup and is Windows-only in this implementation
+   */
+  private registerMauiTemplate(): void {
+    const mauiTemplate: Template = {
+      framework: "MAUI",
+      targetFramework: "net8.0-windows",
+      outputType: "WinExe",
+      packageReferences: [
+        { name: "Microsoft.Maui", version: "8.0.0" },
+        { name: "Microsoft.Maui.Controls", version: "8.0.0" },
+        { name: "Microsoft.Maui.Essentials", version: "8.0.0" },
+      ],
+      files: [
+        {
+          path: "{{ProjectName}}.csproj",
+          type: "project",
+          content: `<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>{{TargetFramework}}</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Maui.Essentials" Version="8.0.0" />
+  </ItemGroup>
+</Project>`,
+        },
+        {
+          path: "App.xaml",
+          type: "xaml",
+          content: `<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="{{Namespace}}.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/DefaultTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>`,
+        },
+        {
+          path: "App.xaml.cs",
+          type: "csharp",
+          content: `using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+
+namespace {{Namespace}};
+
+public partial class App : Application
+{
+    public App()
+    {
+        InitializeComponent();
+        MainPage = new MainPage();
+    }
+}`,
+        },
+        {
+          path: "MainPage.xaml",
+          type: "xaml",
+          content: `<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="{{Namespace}}.MainPage"
+             BackgroundColor="White">
+    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center">
+        <Label Text="Welcome to {{ProjectName}}!"
+               FontSize="24"
+               HorizontalOptions="Center" />
+        <Button Text="Click Me"
+                Clicked="OnButtonClicked"
+                HorizontalOptions="Center"
+                Margin="0,20,0,0" />
+    </VerticalStackLayout>
+</ContentPage>`,
+        },
+        {
+          path: "MainPage.xaml.cs",
+          type: "csharp",
+          content: `using Microsoft.Maui.Controls;
+
+namespace {{Namespace}};
+
+public partial class MainPage : ContentPage
+{
+    public MainPage()
+    {
+        InitializeComponent();
+    }
+
+    private void OnButtonClicked(object sender, EventArgs e)
+    {
+        (sender as Button).Text = "Clicked!";
+    }
+}`,
+        },
+        {
+          path: "Platforms/Windows/App.xaml",
+          type: "xaml",
+          content: `<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="{{Namespace}}.Platforms.Windows.App">
+</Application>`,
+        },
+        {
+          path: "Platforms/Windows/App.xaml.cs",
+          type: "csharp",
+          content: `using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+
+namespace {{Namespace}}.Platforms.Windows;
+
+public class App : Application
+{
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        base.OnLaunched(args);
+        Microsoft.Maui.Controls.PlatformConfiguration.WindowsSpecific.Application
+            .SetWindowTitleBar(this, null);
+    }
+}`,
+        },
+        {
+          path: "Resources/Styles/DefaultTheme.xaml",
+          type: "xaml",
+          content: `<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="Black" />
+    </Style>
+</ResourceDictionary>`,
+        },
+      ],
+    };
+
+    this.templates.set("maui", mauiTemplate);
   }
 }
 
