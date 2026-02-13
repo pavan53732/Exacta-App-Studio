@@ -2,7 +2,7 @@
 // Type definitions and IPC contracts for .NET Hot Reload
 
 import { z } from "zod";
-import { defineContract, createClient, defineEvent } from "../contracts/core";
+import { defineContract, createClient, defineEvent, createEventClient } from "../contracts/core";
 
 // =============================================================================
 // Hot Reload Schemas
@@ -29,7 +29,7 @@ export const StartHotReloadParamsSchema = z.object({
   configuration: z.enum(["Debug", "Release"]).optional().default("Debug"),
   framework: z.string().optional(),
   noRestore: z.boolean().optional().default(false),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
 });
 
 /**
@@ -166,6 +166,17 @@ export const hotReloadEvents = {
  * await hotReloadClient.stopHotReload({ appId: 1 });
  */
 export const hotReloadClient = createClient(hotReloadContracts);
+
+/**
+ * Type-safe event client for hot reload events.
+ * Auto-generated from event contracts.
+ *
+ * @example
+ * const unsubscribe = hotReloadEventClient.onHotReloadEvent((payload) => {
+ *   console.log(`Hot reload status: ${payload.status}`);
+ * });
+ */
+export const hotReloadEventClient = createEventClient(hotReloadEvents);
 
 // =============================================================================
 // Type Exports

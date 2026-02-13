@@ -51,6 +51,7 @@ export { securityContracts } from "./security";
 export { miscContracts, miscEvents } from "./misc";
 export { freeAgentQuotaContracts } from "./free_agent_quota";
 export { guardianContracts } from "./guardian";
+export { hotReloadContracts, hotReloadEvents } from "./hot_reload";
 
 // =============================================================================
 // Client Exports
@@ -80,6 +81,7 @@ export { visualEditingClient } from "./visual-editing";
 export { securityClient } from "./security";
 export { miscClient, miscEventClient } from "./misc";
 export { freeAgentQuotaClient } from "./free_agent_quota";
+export { hotReloadClient, hotReloadEventClient } from "./hot_reload";
 
 // =============================================================================
 // Type Exports
@@ -286,6 +288,21 @@ export type { ChatLogsData, DeepLinkData, AppOutput, EnvVar } from "./misc";
 // Free agent quota types
 export type { FreeAgentQuotaStatus } from "./free_agent_quota";
 
+// Hot reload types
+export type {
+  HotReloadStatus,
+  StartHotReloadParams,
+  StopHotReloadParams,
+  GetHotReloadStatusParams,
+  HotReloadSessionInfo,
+  HotReloadEventPayload,
+  StartHotReloadResult,
+  StopHotReloadResult,
+  GetHotReloadStatusResult,
+  CheckHotReloadSupportParams,
+  CheckHotReloadSupportResult,
+} from "./hot_reload";
+
 // =============================================================================
 // Schema Exports (for validation in handlers/components)
 // =============================================================================
@@ -342,6 +359,7 @@ import { visualEditingClient } from "./visual-editing";
 import { securityClient } from "./security";
 import { miscClient, miscEventClient } from "./misc";
 import { freeAgentQuotaClient } from "./free_agent_quota";
+import { hotReloadClient, hotReloadEventClient } from "./hot_reload";
 
 /**
  * Unified IPC client with all domains organized by namespace.
@@ -397,6 +415,7 @@ export const ipc = {
   security: securityClient,
   misc: miscClient,
   freeAgentQuota: freeAgentQuotaClient,
+  hotReload: hotReloadClient,
 
   // Event clients for main->renderer pub/sub
   events: {
@@ -405,5 +424,6 @@ export const ipc = {
     mcp: mcpEventClient,
     system: systemEventClient,
     misc: miscEventClient,
+    hotReload: hotReloadEventClient,
   },
 } as const;
