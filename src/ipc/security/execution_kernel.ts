@@ -41,11 +41,11 @@ class JobRegistry {
 
   getJob(jobId: string):
     | {
-        jobId: string;
-        appId: number;
-        createdAt: Date;
-        mode: "ephemeral" | "session";
-      }
+      jobId: string;
+      appId: number;
+      createdAt: Date;
+      mode: "ephemeral" | "session";
+    }
     | undefined {
     return this.jobs.get(jobId);
   }
@@ -118,6 +118,8 @@ export interface KernelOptions {
   env?: Record<string, string>; // Added environment variables support
   mode?: "ephemeral" | "session"; // Added execution mode
   networkPolicy?: NetworkPolicy; // NEW: Network policy for job isolation
+  onStdout?: (message: string) => void; // Optional stdout callback
+  onStderr?: (message: string) => void; // Optional stderr callback
 }
 
 export interface KernelCommand {
@@ -132,6 +134,7 @@ export interface ExecutionResult {
   exitCode: number;
   duration: number;
   riskLevel: "low" | "medium" | "high";
+  jobId?: string; // NEW: Include Job ID in result
 }
 
 export type ExecutionEventHandler = (event: {
@@ -170,7 +173,9 @@ export class ExecutionKernel {
     node: [process.env.PROGRAMFILES, process.env["PROGRAMFILES(X86)"]],
   };
 
-  private constructor() {}
+  private activeProcesses: Map<string, any> = new Map();
+
+  private constructor() { }
 
   static getInstance(): ExecutionKernel {
     if (!ExecutionKernel.instance) {
@@ -398,19 +403,25 @@ export class ExecutionKernel {
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env, ...options.env }, // Include custom environment variables
       });
-
       let stdout = "";
       let stderr = "";
 
       child.stdout?.on("data", (data) => {
-        stdout += data.toString();
+        const msg = data.toString();
+        stdout += msg;
+        if (options.onStdout) options.onStdout(msg);
       });
 
       child.stderr?.on("data", (data) => {
-        stderr += data.toString();
+        const msg = data.toString();
+        stderr += msg;
+        if (options.onStderr) options.onStderr(msg);
       });
 
+      this.activeProcesses.set(_jobId, child);
+
       child.on("close", (code) => {
+        this.activeProcesses.delete(_jobId);
         resolve({
           stdout,
           stderr,
@@ -509,6 +520,7 @@ export class ExecutionKernel {
         ...result,
         duration,
         riskLevel,
+        jobId,
       };
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -519,6 +531,65 @@ export class ExecutionKernel {
 
       throw new Error(`Execution failed: ${(error as Error).message}`);
     }
+  }
+
+  /**
+   * Non-blocking execution - Spawns a process and returns the jobId immediately
+   */
+  async spawnControlled(
+    kernelCommand: KernelCommand,
+    defaultOptions: KernelOptions,
+    providerName = "default",
+  ): Promise<{ jobId: string; riskLevel: "low" | "medium" | "high" }> {
+    const options = { ...defaultOptions, ...kernelCommand.options };
+
+    // Default to session mode for spawned processes
+    if (!options.mode) {
+      options.mode = "session";
+    }
+
+    // Validate command is allowed
+    if (!this.ALLOWED_COMMANDS.has(kernelCommand.command)) {
+      throw new Error(`Command not allowed: ${kernelCommand.command}`);
+    }
+
+    // Enforce workspace limits BEFORE execution
+    await this.enforceWorkspaceLimits(options.cwd, options);
+
+    // Validate everything first
+    await this.validatePath(options.cwd, options.appId);
+    const validatedCommand = await this.validateExecutable(
+      kernelCommand.command,
+    );
+    const riskLevel = this.classifyRiskAdvanced(
+      kernelCommand.command,
+      kernelCommand.args,
+      providerName,
+    );
+
+    // Apply risk-based resource limits
+    const riskAdjustedOptions = this.applyRiskBasedLimits(options, riskLevel);
+
+    // Generate unique job ID
+    const jobId = `job_${options.appId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Register job in registry
+    jobRegistry.registerJob(options.appId, jobId, options.mode);
+
+    // Call executeThroughGuardian WITHOUT awaiting it
+    this.executeThroughGuardian(
+      validatedCommand,
+      kernelCommand.args,
+      riskAdjustedOptions,
+      riskLevel,
+      jobId,
+    ).catch((error) => {
+      logger.error(`Spawned job ${jobId} failed:`, error);
+      jobRegistry.unregisterJob(jobId);
+      this.activeProcesses.delete(jobId);
+    });
+
+    return { jobId, riskLevel };
   }
 
   /**
@@ -793,12 +864,15 @@ export class ExecutionKernel {
     }
 
     try {
-      // In a real implementation, this would call Guardian service to terminate the job
-      // For simulation, we'll just unregister it
-      logger.info(`Terminating job ${jobId} for app ${job.appId}`);
-
       // Unregister the job
       const success = jobRegistry.unregisterJob(jobId);
+
+      // Kill the actual process
+      const child = this.activeProcesses.get(jobId);
+      if (child) {
+        child.kill();
+        this.activeProcesses.delete(jobId);
+      }
 
       if (success) {
         logger.info(`Successfully terminated job ${jobId}`);
