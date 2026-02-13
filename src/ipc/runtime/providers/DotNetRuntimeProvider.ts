@@ -260,12 +260,81 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
     }
   }
 
+  private parseDependencyErrors(stderr: string, stdout: string): ErrorResponse[] {
+    const errors: ErrorResponse[] = [];
+    const combinedOutput = stderr + "\n" + stdout;
+    const lines = combinedOutput.split("\n");
+
+    for (const line of lines) {
+      // Look for common NuGet error patterns
+      const nugetErrorMatch = line.match(/(error|failed).*NU\d+.*(?:package|reference)/i);
+      if (nugetErrorMatch) {
+        const packageNameMatch = line.match(/(?:package|reference)\s+['"]?([^'"\s]+)['"]?/i);
+        const errorCodeMatch = line.match(/NU\d+/i);
+        
+        errors.push({
+          category: "dependency",
+          code: errorCodeMatch ? errorCodeMatch[0] : "NU_UNKNOWN",
+          message: line.trim(),
+          details: {
+            file: packageNameMatch ? packageNameMatch[1] : undefined,
+          },
+          timestamp: new Date(),
+        });
+        continue;
+      }
+
+      // Look for package not found errors
+      const packageNotFoundMatch = line.match(/(?:could not|unable to|package).*['"]?([^'"\s]+)['"]?.*(?:not found|does not exist)/i);
+      if (packageNotFoundMatch) {
+        errors.push({
+          category: "dependency",
+          code: "PACKAGE_NOT_FOUND",
+          message: line.trim(),
+          details: {
+            file: packageNotFoundMatch[1],
+          },
+          timestamp: new Date(),
+        });
+        continue;
+      }
+
+      // Look for network-related errors
+      const networkErrorMatch = line.match(/(?:network|connection|http|ssl|certificate|proxy|firewall)/i);
+      if (networkErrorMatch) {
+        errors.push({
+          category: "dependency",
+          code: "NETWORK_ERROR",
+          message: line.trim(),
+          details: {},
+          timestamp: new Date(),
+        });
+        continue;
+      }
+      
+      // Look for access denied errors
+      const accessDeniedMatch = line.match(/(?:access is denied|forbidden|authorization|permission denied)/i);
+      if (accessDeniedMatch) {
+        errors.push({
+          category: "dependency",
+          code: "ACCESS_DENIED",
+          message: line.trim(),
+          details: {},
+          timestamp: new Date(),
+        });
+        continue;
+      }
+    }
+
+    return errors;
+  }
+
   async resolveDependencies(options: {
     appPath: string;
     appId: number;
   }): Promise<ExecutionResult> {
     // Restore NuGet packages
-    return executionKernel.execute(
+    const result = await executionKernel.execute(
       { command: "dotnet", args: ["restore"] },
       {
         appId: options.appId,
@@ -276,6 +345,26 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
       },
       "dotnet",
     );
+
+    // Parse dependency errors from the output
+    const dependencyErrors = this.parseDependencyErrors(result.stderr, result.stdout);
+
+    // Log dependency errors for debugging
+    if (dependencyErrors.length > 0) {
+      console.log(`Dependency errors detected: ${dependencyErrors.length}`);
+      dependencyErrors.forEach(error => {
+        console.log(`  - ${error.code}: ${error.message}`);
+      });
+    }
+
+    // If there are dependency errors, we should modify the exit code to reflect failure
+    // Only adjust exit code if it was originally 0 but we found errors
+    if (dependencyErrors.length > 0 && result.exitCode === 0) {
+      // Even if exit code is 0, if there are significant dependency errors, we should consider it a failure
+      result.exitCode = 1;
+    }
+
+    return result;
   }
 
   async build(
