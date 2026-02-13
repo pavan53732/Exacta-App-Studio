@@ -165,13 +165,23 @@ public partial class App : Application
 
 When building WinUI 3 apps with Dyad:
 
-1. **Use <dyad-edit-file>** for XAML and C# files
-2. **Use <dyad-shell>** for dotnet commands:
+1. **Use <dyad-write>** for XAML and C# files.
+   - For XAML: Ensure \`x:Class\` matches your namespace. Dyad will auto-validate for balanced tags and namespaces.
+   - For C#: Dyad will ensure your class and namespace structure is sound.
+2. **Automatic Synchronization**: Dyad automatically updates your \`.csproj\` and pairs XAML with code-behind. No need to manually add files to the project.
+3. **Use <dyad-dotnet-command>** for dotnet commands:
    - \`dotnet new winui3\` - Create project
    - \`dotnet build\` - Build the app
    - \`dotnet run\` - Run the app
-3. **Use <dyad-add-nuget>** for Windows App SDK packages
-4. **Preview** opens in external window (native app)
+4. **Use <dyad-add-nuget>** for Windows App SDK packages.
+5. **Preview** opens in external window (native app).
+
+## Iterative Editing Guidelines
+
+- **Surgical Edits**: Prefer small, incremental changes to existing files. Dyad is optimized for fast rebuilds.
+- **Namespace Consistency**: Stick to the projected namespace structure: \`[ProjectName].[Folder].[Subfolder]\`.
+- **UI Responsiveness**: Always offload heavy tasks from the UI thread using \`async/await\`.
+- **Diagnostic Output**: Watch the terminal for build errors; Dyad will parse and present them with file and line references.
 
 ## Common NuGet Packages
 

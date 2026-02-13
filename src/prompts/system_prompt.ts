@@ -7,6 +7,7 @@ import { constructPlanModePrompt } from "./plan_mode_prompt";
 import { DOTNET_WPF_PROMPT } from "./system/dotnet_wpf";
 import { DOTNET_WINFORMS_PROMPT } from "./system/dotnet_winforms";
 import { DOTNET_WINUI3_PROMPT } from "./system/dotnet_winui3";
+import { DOTNET_CONSOLE_PROMPT } from "./system/dotnet_console";
 import { TAURI_PROMPT } from "./system/tauri_prompt";
 
 const logger = log.scope("system_prompt");
@@ -64,7 +65,7 @@ This structured thinking ensures you:
 `;
 
 export const BUILD_SYSTEM_PREFIX = `
-<role> You are Dyad, an AI editor that creates and modifies applications, including web, native Windows desktop (WPF, WinForms, WinUI3), and hybrid (Tauri) applications. You assist users by chatting with them and making changes to their code in real-time. You understand that for web apps, users can see a live preview in an iframe, while for native apps, they see an external preview window.
+<role> You are Dyad, an AI editor that creates and modifies applications, including web, native Windows desktop (WPF, WinForms, WinUI3, Console), and hybrid (Tauri) applications. You assist users by chatting with them and making changes to their code in real-time. You understand that for web apps, users can see a live preview in an iframe, while for native apps, they see an external preview window.
 You make efficient and effective changes to codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations. </role>
 
 # App Preview / Commands
@@ -97,8 +98,8 @@ If new code needs to be written (i.e., the requested feature does not exist), yo
 - Use <dyad-rename> for renaming files.
 - Use <dyad-delete> for removing files.
 - Use <dyad-add-dependency> for installing packages.
-  - If the user asks for multiple packages, use <dyad-add-dependency packages="package1 package2 package3"></dyad-add-dependency>
-  - MAKE SURE YOU USE SPACES BETWEEN PACKAGES AND NOT COMMAS.
+-   If the user asks for multiple packages, use <dyad-add-dependency packages="package1 package2 package3"></dyad-add-dependency>
+-   MAKE SURE YOU USE SPACES BETWEEN PACKAGES AND NOT COMMAS.
 - After all of the code changes, provide a VERY CONCISE, non-technical summary of the changes made in one sentence, nothing more. This summary should be easy for non-technical users to understand. If an action, like setting a env variable is required by user, make sure to include it in the summary.
 
 Before sending your final answer, review every import statement you output and do the following:
@@ -564,6 +565,8 @@ export const constructSystemPrompt = ({
     systemPrompt += "\n\n" + DOTNET_WINFORMS_PROMPT;
   } else if (stackType === "winui3") {
     systemPrompt += "\n\n" + DOTNET_WINUI3_PROMPT;
+  } else if (stackType === "console") {
+    systemPrompt += "\n\n" + DOTNET_CONSOLE_PROMPT;
   } else if (runtimeProvider === "tauri" || stackType === "tauri") {
     systemPrompt += "\n\n" + TAURI_PROMPT;
   }

@@ -137,6 +137,7 @@ async function isTextFile(filePath: string): Promise<boolean> {
 // Use escapeXmlAttr from shared/xmlEscape for XML escaping
 
 // Safely parse an MCP tool key that combines server and tool names.
+// Safely parse an MCP tool key that combines server and tool names.
 // We split on the LAST occurrence of "__" to avoid ambiguity if either
 // side contains "__" as part of its sanitized name.
 function parseMcpToolKey(toolKey: string): {
@@ -152,6 +153,45 @@ function parseMcpToolKey(toolKey: string): {
   const toolName = toolKey.slice(lastIndex + separator.length);
   return { serverName, toolName };
 }
+
+export function removeDyadTags(text: string): string {
+  const dyadRegex = /<dyad-[^>]*>[\s\S]*?<\/dyad-[^>]*>/g;
+  return text.replace(dyadRegex, "").trim();
+}
+
+export const removeExactaTags = removeDyadTags;
+
+export function hasUnclosedDyadWrite(text: string): boolean {
+  // Find the last opening write tag
+  const openRegex = /<dyad-write[^>]*>/g;
+  let lastOpenIndex = -1;
+  let match;
+
+  while ((match = openRegex.exec(text)) !== null) {
+    lastOpenIndex = match.index;
+  }
+
+  // If no opening tag found, there's nothing unclosed
+  if (lastOpenIndex === -1) {
+    return false;
+  }
+
+  // Look for a closing tag after the last opening tag
+  const textAfterLastOpen = text.substring(lastOpenIndex);
+  const hasClosingTag = /<\/dyad-write>/.test(textAfterLastOpen);
+
+  return !hasClosingTag;
+}
+
+export const hasUnclosedExactaWrite = hasUnclosedDyadWrite;
+
+function escapeDyadTags(text: string): string {
+  // Escape tags in reasoning content
+  return text.replace(/<dyad/g, (m) => `＜${m.slice(1)}`)
+    .replace(/<\/dyad/g, (m) => `＜${m.slice(1)}`);
+}
+
+const escapeExactaTags = escapeDyadTags;
 
 // Ensure the temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
@@ -326,7 +366,7 @@ export function registerChatStreamHandlers() {
               },
             );
 
-            // Add instruction for AI to use dyad-write tag
+            // Add instruction for AI to use exacta-write tag
             attachmentInfo += `\n\nFile to upload to codebase: ${attachment.name} (file id: ${fileId})\n`;
           } else {
             // For chat-context, use the existing logic
@@ -334,8 +374,8 @@ export function registerChatStreamHandlers() {
             // If it's a text-based file, try to include the content
             if (await isTextFile(filePath)) {
               try {
-                attachmentInfo += `<dyad-text-attachment filename="${attachment.name}" type="${attachment.type}" path="${filePath}">
-                </dyad-text-attachment>
+                attachmentInfo += `<exacta-text-attachment filename="${attachment.name}" type="${attachment.type}" path="${filePath}">
+                </exacta-text-attachment>
                 \n\n`;
               } catch (err) {
                 logger.error(`Error reading file content: ${err}`);
@@ -525,14 +565,14 @@ ${componentSnippet}
         // we handle this specially below.
         const chatContext =
           req.selectedComponents &&
-          req.selectedComponents.length > 0 &&
-          !isSmartContextEnabled
+            req.selectedComponents.length > 0 &&
+            !isSmartContextEnabled
             ? {
-                contextPaths: req.selectedComponents.map((component) => ({
-                  globPath: component.relativePath,
-                })),
-                smartContextAutoIncludes: [],
-              }
+              contextPaths: req.selectedComponents.map((component) => ({
+                globPath: component.relativePath,
+              })),
+              smartContextAutoIncludes: [],
+            }
             : validateChatContext(updatedChat.app.chatContext);
 
         // Extract codebase for current app
@@ -740,10 +780,10 @@ ${componentSnippet}
             (settings.selectedChatMode === "local-agent"
               ? ""
               : await getSupabaseContext({
-                  supabaseProjectId: updatedChat.app.supabaseProjectId,
-                  organizationSlug:
-                    updatedChat.app.supabaseOrganizationSlug ?? null,
-                }));
+                supabaseProjectId: updatedChat.app.supabaseProjectId,
+                organizationSlug:
+                  updatedChat.app.supabaseOrganizationSlug ?? null,
+              }));
         } else if (
           // Neon projects don't need Supabase.
           !updatedChat.app?.neonProjectId &&
@@ -823,32 +863,32 @@ This conversation includes one or more image attachments. When the user uploads 
 
         const codebasePrefix = isEngineEnabled
           ? // No codebase prefix if engine is set, we will take of it there.
-            []
+          []
           : ([
-              {
-                role: "user",
-                content: createCodebasePrompt(codebaseInfo),
-              },
-              {
-                role: "assistant",
-                content: "OK, got it. I'm ready to help",
-              },
-            ] as const);
+            {
+              role: "user",
+              content: createCodebasePrompt(codebaseInfo),
+            },
+            {
+              role: "assistant",
+              content: "OK, got it. I'm ready to help",
+            },
+          ] as const);
 
         // If engine is enabled, we will send the other apps codebase info to the engine
         // and process it with smart context.
         const otherCodebasePrefix =
           otherAppsCodebaseInfo && !isEngineEnabled
             ? ([
-                {
-                  role: "user",
-                  content: createOtherAppsCodebasePrompt(otherAppsCodebaseInfo),
-                },
-                {
-                  role: "assistant",
-                  content: "OK.",
-                },
-              ] as const)
+              {
+                role: "user",
+                content: createOtherAppsCodebasePrompt(otherAppsCodebaseInfo),
+              },
+              {
+                role: "assistant",
+                content: "OK.",
+              },
+            ] as const)
             : [];
 
         const limitedHistoryChatMessages = limitedMessageHistory.map((msg) => ({
@@ -1382,16 +1422,16 @@ ${formattedSearchReplaceIssues}`,
           if (
             !abortController.signal.aborted &&
             settings.selectedChatMode !== "ask" &&
-            hasUnclosedDyadWrite(fullResponse)
+            hasUnclosedExactaWrite(fullResponse)
           ) {
             let continuationAttempts = 0;
             while (
-              hasUnclosedDyadWrite(fullResponse) &&
+              hasUnclosedExactaWrite(fullResponse) &&
               continuationAttempts < 2 &&
               !abortController.signal.aborted
             ) {
               logger.warn(
-                `Received unclosed dyad-write tag, attempting to continue, attempt #${continuationAttempts + 1}`,
+                `Received unclosed write tag, attempting to continue, attempt #${continuationAttempts + 1}`,
               );
               continuationAttempts++;
 
@@ -1444,14 +1484,14 @@ ${formattedSearchReplaceIssues}`,
                 autoFixAttempts < 2 &&
                 !abortController.signal.aborted
               ) {
-                fullResponse += `<dyad-problem-report summary="${problemReport.problems.length} problems">
+                fullResponse += `<exacta-problem-report summary="${problemReport.problems.length} problems">
 ${problemReport.problems
-  .map(
-    (problem) =>
-      `<problem file="${escapeXmlAttr(problem.file)}" line="${problem.line}" column="${problem.column}" code="${problem.code}">${escapeXmlContent(problem.message)}</problem>`,
-  )
-  .join("\n")}
-</dyad-problem-report>`;
+                    .map(
+                      (problem) =>
+                        `<problem file="${escapeXmlAttr(problem.file)}" line="${problem.line}" column="${problem.column}" code="${problem.code}">${escapeXmlContent(problem.message)}</problem>`,
+                    )
+                    .join("\n")}
+</exacta-problem-report>`;
 
                 logger.info(
                   `Attempting to auto-fix problems, attempt #${autoFixAttempts + 1}`,
@@ -1579,9 +1619,9 @@ ${problemReport.problems
 
       // Only save the response and process it if we weren't aborted
       if (!abortController.signal.aborted && fullResponse) {
-        // Scrape from: <dyad-chat-summary>Renaming profile file</dyad-chat-title>
+        // Scrape from: <exacta-chat-summary>Renaming profile file</exacta-chat-summary>
         const chatTitle = fullResponse.match(
-          /<dyad-chat-summary>(.*?)<\/dyad-chat-summary>/,
+          /<(?:dyad|exacta)-chat-summary>(.*?)<\/(?:dyad|exacta)-chat-summary>/,
         );
         if (chatTitle) {
           await db
@@ -1757,7 +1797,7 @@ async function replaceTextAttachmentWithContent(
       // Replace the placeholder tag with the full content
       const escapedPath = filePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const tagPattern = new RegExp(
-        `<dyad-text-attachment filename="[^"]*" type="[^"]*" path="${escapedPath}">\\s*<\\/dyad-text-attachment>`,
+        `<(?:dyad|exacta)-text-attachment filename="[^"]*" type="[^"]*" path="${escapedPath}">\\s*<\\/(?:dyad|exacta)-text-attachment>`,
         "g",
       );
 
@@ -1856,46 +1896,10 @@ function removeThinkingTags(text: string): string {
 
 export function removeProblemReportTags(text: string): string {
   const problemReportRegex =
-    /<dyad-problem-report[^>]*>[\s\S]*?<\/dyad-problem-report>/g;
+    /<(?:dyad|exacta)-problem-report[^>]*>[\s\S]*?<\/(?:dyad|exacta)-problem-report>/g;
   return text.replace(problemReportRegex, "").trim();
 }
 
-export function removeDyadTags(text: string): string {
-  const dyadRegex = /<dyad-[^>]*>[\s\S]*?<\/dyad-[^>]*>/g;
-  return text.replace(dyadRegex, "").trim();
-}
-
-export function hasUnclosedDyadWrite(text: string): boolean {
-  // Find the last opening dyad-write tag
-  const openRegex = /<dyad-write[^>]*>/g;
-  let lastOpenIndex = -1;
-  let match;
-
-  while ((match = openRegex.exec(text)) !== null) {
-    lastOpenIndex = match.index;
-  }
-
-  // If no opening tag found, there's nothing unclosed
-  if (lastOpenIndex === -1) {
-    return false;
-  }
-
-  // Look for a closing tag after the last opening tag
-  const textAfterLastOpen = text.substring(lastOpenIndex);
-  const hasClosingTag = /<\/dyad-write>/.test(textAfterLastOpen);
-
-  return !hasClosingTag;
-}
-
-function escapeDyadTags(text: string): string {
-  // Escape dyad tags in reasoning content
-  // We are replacing the opening tag with a look-alike character
-  // to avoid issues where thinking content includes dyad tags
-  // and are mishandled by:
-  // 1. FE markdown parser
-  // 2. Main process response processor
-  return text.replace(/<dyad/g, "＜dyad").replace(/<\/dyad/g, "＜/dyad");
-}
 
 const CODEBASE_PROMPT_PREFIX = "This is my codebase.";
 function createCodebasePrompt(codebaseInfo: string): string {

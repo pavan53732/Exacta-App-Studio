@@ -13,6 +13,7 @@ export interface MentionedAppCodebase {
 export interface GetProviderOptionsParams {
   dyadAppId: number;
   dyadRequestId?: string;
+  exactaRequestId?: string;
   dyadDisableFiles?: boolean;
   smartContextMode?: SmartContextMode;
   files: CodebaseFile[];
@@ -29,6 +30,7 @@ export interface GetProviderOptionsParams {
 export function getProviderOptions({
   dyadAppId,
   dyadRequestId,
+  exactaRequestId,
   dyadDisableFiles,
   smartContextMode,
   files,
@@ -40,7 +42,7 @@ export function getProviderOptions({
   const providerOptions: Record<string, any> = {
     "dyad-engine": {
       dyadAppId,
-      dyadRequestId,
+      dyadRequestId: dyadRequestId || exactaRequestId,
       dyadDisableFiles,
       dyadSmartContextMode: smartContextMode,
       dyadFiles: versionedFiles ? undefined : files,

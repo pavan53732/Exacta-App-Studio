@@ -21,6 +21,8 @@ import type {
   ScaffoldResult,
 } from "../RuntimeProvider";
 import { templateManager } from "./dotnet/TemplateManager";
+import { projectFileSystem } from "./dotnet/ProjectFileSystem";
+import { editValidator } from "./dotnet/EditValidator";
 import type {
   CompilerError,
   ErrorResponse,
@@ -76,7 +78,7 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
       let match = line.match(
         /^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+([A-Z]+\d+):\s+(.+)$/,
       );
-      
+
       if (match) {
         errors.push({
           file: match[1],
@@ -237,7 +239,7 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
       // Initialize project state
       const framework = stackType.toUpperCase() as ProjectState["framework"];
       const fileMap = new Map<string, { path: string; type: "xaml" | "csharp" | "resource" | "config" | "project"; lastModified: Date }>();
-      
+
       for (const file of instantiated.files) {
         fileMap.set(file.path, {
           path: file.path,
@@ -260,6 +262,67 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
     }
   }
 
+  /**
+   * Applies an edit to a project file with validation and synchronization
+   */
+  async applyEdit(options: {
+    appId: number;
+    appPath: string;
+    filePath: string;
+    content: string;
+    projectName: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const fullPath = path.isAbsolute(options.filePath)
+        ? options.filePath
+        : path.join(options.appPath, options.filePath);
+
+      const fileExt = path.extname(fullPath).toLowerCase();
+      const relativePath = path.relative(options.appPath, fullPath);
+
+      // 1. Validate based on file type
+      if (fileExt === ".xaml") {
+        const validation = editValidator.validateXaml(options.content);
+        if (!validation.isValid) return { success: false, error: validation.error };
+      } else if (fileExt === ".cs") {
+        const validation = editValidator.validateCSharp(options.content);
+        if (!validation.isValid) return { success: false, error: validation.error };
+      }
+
+      // 2. Write file
+      await fs.ensureDir(path.dirname(fullPath));
+      await fs.writeFile(fullPath, options.content, "utf-8");
+
+      // 3. Post-write adjustments
+      if (fileExt === ".xaml") {
+        await projectFileSystem.pairXaml(fullPath, options.projectName);
+      }
+
+      // 4. Sync .csproj
+      const csprojPath = path.join(options.appPath, `${options.projectName}.csproj`);
+      const fileType = fileExt === ".xaml" ? "xaml" : (fileExt === ".cs" ? "csharp" : "resource");
+
+      await projectFileSystem.syncCsproj(csprojPath, [
+        { path: relativePath, type: fileType }
+      ]);
+
+      // 5. Update state
+      const state = this.getProjectState(options.appId);
+      if (state) {
+        state.files.set(relativePath, {
+          path: relativePath,
+          type: fileType as any,
+          lastModified: new Date(),
+        });
+        this.setProjectState(options.appId, state);
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
   private parseDependencyErrors(stderr: string, stdout: string): ErrorResponse[] {
     const errors: ErrorResponse[] = [];
     const combinedOutput = stderr + "\n" + stdout;
@@ -271,7 +334,7 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
       if (nugetErrorMatch) {
         const packageNameMatch = line.match(/(?:package|reference)\s+['"]?([^'"\s]+)['"]?/i);
         const errorCodeMatch = line.match(/NU\d+/i);
-        
+
         errors.push({
           category: "dependency",
           code: errorCodeMatch ? errorCodeMatch[0] : "NU_UNKNOWN",
@@ -311,7 +374,7 @@ class DotNetRuntimeProviderImpl implements RuntimeProvider {
         });
         continue;
       }
-      
+
       // Look for access denied errors
       const accessDeniedMatch = line.match(/(?:access is denied|forbidden|authorization|permission denied)/i);
       if (accessDeniedMatch) {

@@ -108,35 +108,18 @@ public partial class App : Application
 
 When working with Dyad for WPF development:
 
-1. **Use <dyad-edit-file>** for XAML and C# files
-2. **Use <dyad-shell>** for dotnet CLI commands
-3. **Use <dyad-add-nuget>** for package management
-4. **Test UI changes** by running the app - WPF uses external window preview
+1. **Use <dyad-write>** for XAML and C# files.
+   - For XAML: Ensure \`x:Class\` matches your namespace. Dyad will auto-validate for balanced tags and namespaces.
+   - For C#: Dyad will ensure your class and namespace structure is sound.
+2. **Automatic Synchronization**: Dyad automatically updates your \`.csproj\` and pairs XAML with code-behind. No need to manually add files to the project.
+3. **Use <dyad-dotnet-command>** for dotnet CLI commands.
+4. **Use <dyad-add-nuget>** for package management.
+5. **Test UI changes** by running the app - WPF uses external window preview.
 
-## NuGet Packages for WPF
+## Iterative Editing Guidelines
 
-Common packages to reference:
-- CommunityToolkit.Mvvm - MVVM toolkit
-- Microsoft.Extensions.DependencyInjection - DI container
-- Microsoft.Extensions.Hosting - Hosting abstractions
-- MaterialDesignThemes - Material Design for WPF
-- ModernWpfUI - Modern UI controls
-- Serilog - Logging
-- Refit - HTTP client generator
-
-## Window Management
-
-Support proper window lifecycle:
-- Handle Window.Closing for cleanup
-- Save/restore window position and size
-- Support single-instance applications
-- Implement proper shutdown logic
-
-## Performance Considerations
-
-- Use virtualization for large lists (VirtualizingStackPanel)
-- Implement data virtualization for large datasets
-- Use async loading for data-bound content
-- Leverage UI virtualization in ItemsControl
-- Profile with dotTrace/diagnostics tools
+- **Surgical Edits**: Prefer small, incremental changes to existing files. Dyad is optimized for fast rebuilds.
+- **Namespace Consistency**: Stick to the projected namespace structure: \`[ProjectName].[Folder].[Subfolder]\`.
+- **UI Responsiveness**: Always offload heavy tasks from the UI thread using \`async/await\`.
+- **Diagnostic Output**: Watch the terminal for build errors; Dyad will parse and present them with file and line references.
 `;

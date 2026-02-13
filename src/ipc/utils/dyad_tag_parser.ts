@@ -10,14 +10,14 @@ export function getDyadWriteTags(fullResponse: string): {
   content: string;
   description?: string;
 }[] {
-  const dyadWriteRegex = /<dyad-write([^>]*)>([\s\S]*?)<\/dyad-write>/gi;
+  const writeRegex = /<dyad-write([^>]*)>([\s\S]*?)<\/dyad-write>/gi;
   const pathRegex = /path="([^"]+)"/;
   const descriptionRegex = /description="([^"]+)"/;
 
   let match;
   const tags: { path: string; content: string; description?: string }[] = [];
 
-  while ((match = dyadWriteRegex.exec(fullResponse)) !== null) {
+  while ((match = writeRegex.exec(fullResponse)) !== null) {
     const attributesString = match[1];
     let content = unescapeXmlContent(match[2].trim());
 
@@ -42,7 +42,7 @@ export function getDyadWriteTags(fullResponse: string): {
       tags.push({ path: normalizePath(path), content, description });
     } else {
       logger.warn(
-        "Found <dyad-write> tag without a valid 'path' attribute:",
+        "Found write tag without a valid 'path' attribute:",
         match[0],
       );
     }
@@ -50,15 +50,17 @@ export function getDyadWriteTags(fullResponse: string): {
   return tags;
 }
 
+export const getExactaWriteTags = getDyadWriteTags;
+
 export function getDyadRenameTags(fullResponse: string): {
   from: string;
   to: string;
 }[] {
-  const dyadRenameRegex =
+  const renameRegex =
     /<dyad-rename from="([^"]+)" to="([^"]+)"[^>]*>([\s\S]*?)<\/dyad-rename>/g;
   let match;
   const tags: { from: string; to: string }[] = [];
-  while ((match = dyadRenameRegex.exec(fullResponse)) !== null) {
+  while ((match = renameRegex.exec(fullResponse)) !== null) {
     tags.push({
       from: normalizePath(unescapeXmlAttr(match[1])),
       to: normalizePath(unescapeXmlAttr(match[2])),
@@ -67,46 +69,54 @@ export function getDyadRenameTags(fullResponse: string): {
   return tags;
 }
 
+export const getExactaRenameTags = getDyadRenameTags;
+
 export function getDyadDeleteTags(fullResponse: string): string[] {
-  const dyadDeleteRegex =
+  const deleteRegex =
     /<dyad-delete path="([^"]+)"[^>]*>([\s\S]*?)<\/dyad-delete>/g;
   let match;
   const paths: string[] = [];
-  while ((match = dyadDeleteRegex.exec(fullResponse)) !== null) {
+  while ((match = deleteRegex.exec(fullResponse)) !== null) {
     paths.push(normalizePath(unescapeXmlAttr(match[1])));
   }
   return paths;
 }
 
+export const getExactaDeleteTags = getDyadDeleteTags;
+
 export function getDyadAddDependencyTags(fullResponse: string): string[] {
-  const dyadAddDependencyRegex =
+  const addDependencyRegex =
     /<dyad-add-dependency packages="([^"]+)">[^<]*<\/dyad-add-dependency>/g;
   let match;
   const packages: string[] = [];
-  while ((match = dyadAddDependencyRegex.exec(fullResponse)) !== null) {
+  while ((match = addDependencyRegex.exec(fullResponse)) !== null) {
     packages.push(...unescapeXmlAttr(match[1]).split(" "));
   }
   return packages;
 }
 
+export const getExactaAddDependencyTags = getDyadAddDependencyTags;
+
 export function getDyadChatSummaryTag(fullResponse: string): string | null {
-  const dyadChatSummaryRegex =
+  const chatSummaryRegex =
     /<dyad-chat-summary>([\s\S]*?)<\/dyad-chat-summary>/g;
-  const match = dyadChatSummaryRegex.exec(fullResponse);
+  const match = chatSummaryRegex.exec(fullResponse);
   if (match && match[1]) {
     return unescapeXmlContent(match[1].trim());
   }
   return null;
 }
 
+export const getExactaChatSummaryTag = getDyadChatSummaryTag;
+
 export function getDyadExecuteSqlTags(fullResponse: string): SqlQuery[] {
-  const dyadExecuteSqlRegex =
+  const executeSqlRegex =
     /<dyad-execute-sql([^>]*)>([\s\S]*?)<\/dyad-execute-sql>/g;
   const descriptionRegex = /description="([^"]+)"/;
   let match;
   const queries: { content: string; description?: string }[] = [];
 
-  while ((match = dyadExecuteSqlRegex.exec(fullResponse)) !== null) {
+  while ((match = executeSqlRegex.exec(fullResponse)) !== null) {
     const attributesString = match[1] || "";
     let content = unescapeXmlContent(match[2].trim());
     const descriptionMatch = descriptionRegex.exec(attributesString);
@@ -130,25 +140,29 @@ export function getDyadExecuteSqlTags(fullResponse: string): SqlQuery[] {
   return queries;
 }
 
+export const getExactaExecuteSqlTags = getDyadExecuteSqlTags;
+
 export function getDyadCommandTags(fullResponse: string): string[] {
-  const dyadCommandRegex =
+  const commandRegex =
     /<dyad-command type="([^"]+)"[^>]*><\/dyad-command>/g;
   let match;
   const commands: string[] = [];
 
-  while ((match = dyadCommandRegex.exec(fullResponse)) !== null) {
+  while ((match = commandRegex.exec(fullResponse)) !== null) {
     commands.push(unescapeXmlAttr(match[1]));
   }
 
   return commands;
 }
 
+export const getExactaCommandTags = getDyadCommandTags;
+
 export function getDyadSearchReplaceTags(fullResponse: string): {
   path: string;
   content: string;
   description?: string;
 }[] {
-  const dyadSearchReplaceRegex =
+  const searchReplaceRegex =
     /<dyad-search-replace([^>]*)>([\s\S]*?)<\/dyad-search-replace>/gi;
   const pathRegex = /path="([^"]+)"/;
   const descriptionRegex = /description="([^"]+)"/;
@@ -156,7 +170,7 @@ export function getDyadSearchReplaceTags(fullResponse: string): {
   let match;
   const tags: { path: string; content: string; description?: string }[] = [];
 
-  while ((match = dyadSearchReplaceRegex.exec(fullResponse)) !== null) {
+  while ((match = searchReplaceRegex.exec(fullResponse)) !== null) {
     const attributesString = match[1] || "";
     let content = unescapeXmlContent(match[2].trim());
 
@@ -182,7 +196,7 @@ export function getDyadSearchReplaceTags(fullResponse: string): {
       tags.push({ path: normalizePath(path), content, description });
     } else {
       logger.warn(
-        "Found <dyad-search-replace> tag without a valid 'path' attribute:",
+        "Found search-replace tag without a valid 'path' attribute:",
         match[0],
       );
     }
@@ -190,20 +204,24 @@ export function getDyadSearchReplaceTags(fullResponse: string): {
   return tags;
 }
 
+export const getExactaSearchReplaceTags = getDyadSearchReplaceTags;
+
 /**
  * Parse <dyad-add-nuget packages="..."> tags for NuGet package installation.
  * Used by Windows-only app builder for .NET projects.
  */
 export function getDyadAddNugetTags(fullResponse: string): string[] {
-  const dyadAddNugetRegex =
+  const addNugetRegex =
     /<dyad-add-nuget packages="([^"]+)">[^<]*<\/dyad-add-nuget>/g;
   let match;
   const packages: string[] = [];
-  while ((match = dyadAddNugetRegex.exec(fullResponse)) !== null) {
+  while ((match = addNugetRegex.exec(fullResponse)) !== null) {
     packages.push(...unescapeXmlAttr(match[1]).split(" "));
   }
   return packages;
 }
+
+export const getExactaAddNugetTags = getDyadAddNugetTags;
 
 /**
  * Parse <dyad-dotnet-command cmd="..." args="..."> tags for .NET CLI commands.
@@ -212,11 +230,11 @@ export function getDyadAddNugetTags(fullResponse: string): string[] {
 export function getDyadDotnetCommandTags(
   fullResponse: string,
 ): { cmd: string; args?: string }[] {
-  const dyadDotnetCommandRegex =
+  const dotnetCommandRegex =
     /<dyad-dotnet-command cmd="([^"]+)"(?: args="([^"]*)")?[^>]*>([\s\S]*?)<\/dyad-dotnet-command>/g;
   let match;
   const commands: { cmd: string; args?: string }[] = [];
-  while ((match = dyadDotnetCommandRegex.exec(fullResponse)) !== null) {
+  while ((match = dotnetCommandRegex.exec(fullResponse)) !== null) {
     commands.push({
       cmd: unescapeXmlAttr(match[1]),
       args: match[2] ? unescapeXmlAttr(match[2]) : undefined,
@@ -224,3 +242,5 @@ export function getDyadDotnetCommandTags(
   }
   return commands;
 }
+
+export const getExactaDotnetCommandTags = getDyadDotnetCommandTags;
