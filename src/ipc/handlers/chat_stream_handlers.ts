@@ -689,6 +689,8 @@ ${componentSnippet}
           enableTurboEditsV2: isTurboEditsV2Enabled(settings),
           themePrompt,
           basicAgentMode: isBasicAgentMode(settings),
+          stackType: updatedChat.app.stackType ?? undefined,
+          runtimeProvider: updatedChat.app.runtimeProvider ?? undefined,
         });
 
         // Add information about mentioned apps if any
@@ -1091,6 +1093,8 @@ This conversation includes one or more image attachments. When the user uploads 
             enableTurboEditsV2: false,
             themePrompt,
             readOnly: true,
+            stackType: updatedChat.app.stackType ?? undefined,
+            runtimeProvider: updatedChat.app.runtimeProvider ?? undefined,
           });
 
           // Return value indicates success/failure for quota tracking.
@@ -1134,6 +1138,8 @@ This conversation includes one or more image attachments. When the user uploads 
             chatMode: "plan",
             enableTurboEditsV2: false,
             themePrompt,
+            stackType: updatedChat.app.stackType ?? undefined,
+            runtimeProvider: updatedChat.app.runtimeProvider ?? undefined,
           });
 
           await handleLocalAgentStream(event, req, abortController, {
@@ -1229,6 +1235,8 @@ This conversation includes one or more image attachments. When the user uploads 
                 ),
                 chatMode: "agent",
                 enableTurboEditsV2: false,
+                stackType: updatedChat.app.stackType ?? undefined,
+                runtimeProvider: updatedChat.app.runtimeProvider ?? undefined,
               }),
               files: files,
               dyadDisableFiles: true,

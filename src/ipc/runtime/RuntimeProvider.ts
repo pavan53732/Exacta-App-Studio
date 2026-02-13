@@ -7,66 +7,19 @@ import type {
   ExecutionEventHandler,
 } from "../security/execution_kernel";
 
-export interface ScaffoldOptions {
-  projectName: string;
-  fullAppPath: string;
-  templateId?: string;
-}
-
-export interface ScaffoldResult {
-  success: boolean;
-  entryPoint?: string;
-  error?: string;
-  warning?: string;
-}
-
-export interface BuildOptions {
-  appId: number;
-  appPath: string;
-  configuration?: "Debug" | "Release";
-}
-
-export interface BuildResult {
-  success: boolean;
-  outputPath?: string;
-  errors?: string[];
-  warnings?: string[];
-}
-
-export interface RunOptions {
-  appId: number;
-  appPath: string;
-  installCommand?: string | null;
-  startCommand?: string | null;
-}
-
-export interface RunResult {
-  processId?: number;
-  ready: boolean;
-  error?: string;
-  jobId?: string; // Guardian Job ID for session mode
-}
-
-export type PreviewStrategy =
-  | "iframe"
-  | "external-window"
-  | "console-output"
-  | "hybrid";
-
-export interface PreviewOptions {
-  appId: number;
-  appPath: string;
-  onScreenshot?: (dataUrl: string) => void;
-  onConsoleOutput?: (output: string) => void;
-}
-
-export interface PackageOptions {
-  appPath: string;
-  outputFormat: "exe" | "msi" | "msix" | "single-file";
-  architecture?: "x64" | "x86" | "arm64";
-}
-
-export type RiskProfile = "low" | "medium" | "high" | "critical";
+// Re-export types that are safe for renderer
+export type {
+  PreviewStrategy,
+  RiskProfile,
+  ScaffoldOptions,
+  ScaffoldResult,
+  BuildOptions,
+  BuildResult,
+  RunOptions,
+  RunResult,
+  PreviewOptions,
+  PackageOptions,
+} from "./runtime_types";
 
 /**
  * RuntimeProvider - Abstract base for all runtime implementations

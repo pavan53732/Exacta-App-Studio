@@ -22,7 +22,10 @@ export function registerHotReloadHandlers(): void {
   // Start hot reload session
   handle(
     hotReloadContracts.startHotReload,
-    async (_event, params): Promise<{ success: boolean; session?: any; error?: string }> => {
+    async (
+      _event,
+      params,
+    ): Promise<{ success: boolean; session?: any; error?: string }> => {
       const { appId, configuration, framework, noRestore, env } = params;
 
       try {
@@ -81,8 +84,12 @@ export function registerHotReloadHandlers(): void {
           },
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to start hot reload for app ${appId}:`, errorMessage);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error(
+          `Failed to start hot reload for app ${appId}:`,
+          errorMessage,
+        );
         return {
           success: false,
           error: errorMessage,
@@ -101,8 +108,12 @@ export function registerHotReloadHandlers(): void {
         await hotReloadManager.stopHotReload(appId);
         return { success: true };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to stop hot reload for app ${appId}:`, errorMessage);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error(
+          `Failed to stop hot reload for app ${appId}:`,
+          errorMessage,
+        );
         return {
           success: false,
           error: errorMessage,
@@ -114,7 +125,10 @@ export function registerHotReloadHandlers(): void {
   // Get hot reload status
   handle(
     hotReloadContracts.getHotReloadStatus,
-    async (_event, params): Promise<{ status: string | null; session?: any }> => {
+    async (
+      _event,
+      params,
+    ): Promise<{ status: string | null; session?: any }> => {
       const { appId } = params;
 
       const status = hotReloadManager.getStatus(appId);
@@ -143,7 +157,10 @@ export function registerHotReloadHandlers(): void {
   // Check hot reload support
   handle(
     hotReloadContracts.checkHotReloadSupport,
-    async (_event, params): Promise<{ supported: boolean; message?: string }> => {
+    async (
+      _event,
+      params,
+    ): Promise<{ supported: boolean; message?: string }> => {
       const { stackType } = params;
 
       const supported = hotReloadManager.isHotReloadSupported(stackType);

@@ -2,24 +2,30 @@
 // .NET runtime implementation for Windows desktop apps
 // Supports: WPF, WinUI 3, WinForms, Console, MAUI (Windows-only)
 
-import {
-  type RuntimeProvider,
-  type ScaffoldOptions,
-  type ScaffoldResult,
-  type BuildOptions,
-  type BuildResult,
-  type RunOptions,
-  type RunResult,
-  type PreviewOptions,
-  type PackageOptions,
-  type RiskProfile,
-} from "../RuntimeProvider";
-import {
-  executionKernel,
-  type ExecutionResult,
-} from "../../security/execution_kernel";
 import path from "node:path";
 import fs from "fs-extra";
+import {
+  type ExecutionResult,
+  executionKernel,
+} from "../../security/execution_kernel";
+import type {
+  BuildOptions,
+  BuildResult,
+  PackageOptions,
+  PreviewOptions,
+  RiskProfile,
+  RunOptions,
+  RunResult,
+  RuntimeProvider,
+  ScaffoldOptions,
+  ScaffoldResult,
+} from "../RuntimeProvider";
+import { templateManager } from "./dotnet/TemplateManager";
+import type {
+  CompilerError,
+  ErrorResponse,
+  ProjectState,
+} from "./dotnet/types";
 
 // Type for event handlers
 type ExecutionEventHandler = (event: {
@@ -28,38 +34,115 @@ type ExecutionEventHandler = (event: {
   timestamp: number;
 }) => void;
 
-// .NET project templates
-const DOTNET_TEMPLATES: Record<string, string> = {
-  wpf: "wpf",
-  winui3: "winui3",
-  winforms: "winforms",
-  console: "console",
-  maui: "maui",
-};
+// Project state management
+class DotNetRuntimeProviderImpl implements RuntimeProvider {
+  private projectStates: Map<number, ProjectState> = new Map();
 
-// Helper function to determine entry point
-function getEntryPointForTemplate(
-  templateId: string,
-  projectName: string,
-): string {
-  const extensionMap: Record<string, string> = {
-    wpf: ".csproj",
-    winui3: ".csproj",
-    winforms: ".csproj",
-    console: ".csproj",
-    maui: ".csproj",
+  readonly runtimeId = "dotnet";
+  readonly runtimeName = ".NET";
+  readonly supportedStackTypes = [
+    "wpf",
+    "winui3",
+    "winforms",
+    "console",
+    "maui",
+  ];
+  readonly previewStrategy = "external-window" as const;
+  readonly diskQuotaBytes = 5 * 1024 * 1024 * 1024; // 5GB for .NET (larger builds)
+
+  // .NET project templates
+  private readonly DOTNET_TEMPLATES: Record<string, string> = {
+    wpf: "wpf",
+    winui3: "winui3",
+    winforms: "winforms",
+    console: "console",
+    maui: "maui",
   };
 
-  const ext = extensionMap[templateId] || ".csproj";
-  return `${projectName}${ext}`;
-}
+  private getProjectState(appId: number): ProjectState | undefined {
+    return this.projectStates.get(appId);
+  }
 
-export const dotNetRuntimeProvider: RuntimeProvider = {
-  runtimeId: "dotnet",
-  runtimeName: ".NET",
-  supportedStackTypes: ["wpf", "winui3", "winforms", "console", "maui"],
-  previewStrategy: "external-window", // .NET desktop apps run in external windows
-  diskQuotaBytes: 5 * 1024 * 1024 * 1024, // 5GB for .NET (larger builds)
+  private setProjectState(appId: number, state: ProjectState): void {
+    this.projectStates.set(appId, state);
+  }
+
+  private parseCompilerErrors(stderr: string): CompilerError[] {
+    const errors: CompilerError[] = [];
+    const lines = stderr.split("\n");
+
+    for (const line of lines) {
+      // Try MSBuild error format first: path(line,col): error CODE: message
+      let match = line.match(
+        /^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+([A-Z]+\d+):\s+(.+)$/,
+      );
+      
+      if (match) {
+        errors.push({
+          file: match[1],
+          line: Number.parseInt(match[2]),
+          column: Number.parseInt(match[3]),
+          severity: match[4] as "error" | "warning",
+          code: match[5],
+          message: match[6],
+        });
+        continue;
+      }
+
+      // Try simple format: error CODE: message (without file info)
+      match = line.match(/^(error|warning)\s+([A-Z]+\d+):\s+(.+)$/);
+      if (match) {
+        errors.push({
+          file: "",
+          line: 0,
+          column: 0,
+          severity: match[1] as "error" | "warning",
+          code: match[2],
+          message: match[3],
+        });
+      }
+    }
+
+    return errors;
+  }
+
+  private createErrorResponse(
+    category: ErrorResponse["category"],
+    code: string,
+    message: string,
+    details?: Partial<ErrorResponse["details"]>,
+  ): ErrorResponse {
+    return {
+      category,
+      code,
+      message,
+      details: {
+        file: details?.file,
+        line: details?.line,
+        column: details?.column,
+        stackTrace: details?.stackTrace,
+        innerError: details?.innerError,
+      },
+      timestamp: new Date(),
+    };
+  }
+
+  // Helper function to determine entry point
+  private getEntryPointForTemplate(
+    templateId: string,
+    projectName: string,
+  ): string {
+    const extensionMap: Record<string, string> = {
+      wpf: ".csproj",
+      winui3: ".csproj",
+      winforms: ".csproj",
+      console: ".csproj",
+      maui: ".csproj",
+    };
+
+    const ext = extensionMap[templateId] || ".csproj";
+    return `${projectName}${ext}`;
+  }
 
   async checkPrerequisites(): Promise<{
     installed: boolean;
@@ -89,7 +172,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     }
 
     return { installed: missing.length === 0, missing };
-  },
+  }
 
   getRiskProfile(command: string, args: string[]): RiskProfile {
     const fullCmd = `${command} ${args.join(" ")}`.toLowerCase();
@@ -114,58 +197,68 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
 
     // Low risk: Version checks, clean, list
     return "low";
-  },
+  }
 
   async scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
     try {
       const stackType = options.templateId || "wpf";
-      const templateName = DOTNET_TEMPLATES[stackType] || "wpf";
 
-      // Use dotnet new to create project
-      // First create the solution directory
-      await fs.ensureDir(options.fullAppPath);
-
-      // Create project using dotnet CLI template
-      const result = await executionKernel.execute(
-        {
-          command: "dotnet",
-          args: [
-            "new",
-            templateName,
-            "-n",
-            options.projectName,
-            "-o",
-            ".",
-            "--force",
-          ],
-        },
-        {
-          appId: 0,
-          cwd: options.fullAppPath,
-          networkAccess: true, // Template acquisition may need network
-          timeout: 120000,
-        },
-        "dotnet",
-      );
-
-      if (result.exitCode !== 0) {
+      // Get template from TemplateManager
+      const template = templateManager.getTemplate(stackType);
+      if (!template) {
         return {
           success: false,
-          error: `Template creation failed: ${result.stderr}`,
+          error: `Unknown framework type: ${stackType}. Supported types: ${templateManager.getAvailableFrameworks().join(", ")}`,
         };
       }
 
-      // Determine entry point based on template
-      const entryPoint = getEntryPointForTemplate(
-        stackType,
-        options.projectName,
+      // Instantiate template with project name
+      const instantiated = templateManager.instantiateTemplate(
+        template,
+        options.projectName
       );
+
+      // Create project directory
+      await fs.ensureDir(options.fullAppPath);
+
+      // Write all template files to disk
+      for (const file of instantiated.files) {
+        const filePath = path.join(options.fullAppPath, file.path);
+        await fs.ensureDir(path.dirname(filePath));
+        await fs.writeFile(filePath, file.content, "utf-8");
+      }
+
+      // Determine entry point (the .csproj file)
+      const entryPoint = this.getEntryPointForTemplate(
+        stackType,
+        options.projectName
+      );
+
+      // Initialize project state
+      const framework = stackType.toUpperCase() as ProjectState["framework"];
+      const fileMap = new Map<string, { path: string; type: "xaml" | "csharp" | "resource" | "config" | "project"; lastModified: Date }>();
+      
+      for (const file of instantiated.files) {
+        fileMap.set(file.path, {
+          path: file.path,
+          type: file.type as "xaml" | "csharp" | "resource" | "config" | "project",
+          lastModified: new Date(),
+        });
+      }
+
+      this.setProjectState(0, {
+        projectPath: options.fullAppPath,
+        projectName: options.projectName,
+        framework,
+        targetFramework: instantiated.targetFramework,
+        files: fileMap,
+      });
 
       return { success: true, entryPoint };
     } catch (error) {
       return { success: false, error: String(error) };
     }
-  },
+  }
 
   async resolveDependencies(options: {
     appPath: string;
@@ -183,7 +276,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       },
       "dotnet",
     );
-  },
+  }
 
   async build(
     options: BuildOptions,
@@ -206,16 +299,23 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       "dotnet",
     );
 
-    // Parse build output for errors and warnings
-    const errors: string[] = [];
-    const warnings: string[] = [];
+    // Parse build output for errors and warnings using the new parser
+    const compilerErrors = this.parseCompilerErrors(result.stderr);
+    const errors = compilerErrors
+      .filter((e) => e.severity === "error")
+      .map((e) => `${e.file}(${e.line},${e.column}): ${e.code}: ${e.message}`);
+    const warnings = compilerErrors
+      .filter((e) => e.severity === "warning")
+      .map((e) => `${e.file}(${e.line},${e.column}): ${e.code}: ${e.message}`);
 
-    const lines = result.stderr.split("\n");
-    for (const line of lines) {
-      if (line.includes("error CS") || line.includes("error MSB")) {
-        errors.push(line.trim());
-      } else if (line.includes("warning CS") || line.includes("warning MSB")) {
-        warnings.push(line.trim());
+    const outputPath = path.join(options.appPath, "bin", config);
+
+    // Update project state with executable path if build succeeded
+    if (result.exitCode === 0) {
+      const state = this.getProjectState(options.appId);
+      if (state) {
+        state.executablePath = outputPath;
+        this.setProjectState(options.appId, state);
       }
     }
 
@@ -223,9 +323,9 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       success: result.exitCode === 0,
       errors: errors.length > 0 ? errors : undefined,
       warnings: warnings.length > 0 ? warnings : undefined,
-      outputPath: path.join(options.appPath, "bin", config),
+      outputPath,
     };
-  },
+  }
 
   async run(
     options: RunOptions,
@@ -246,18 +346,41 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       "dotnet",
     );
 
+    const jobId =
+      result.exitCode === 0
+        ? `job_${options.appId}_${Date.now()}_dotnet`
+        : undefined;
+
+    // Update project state with process handle
+    if (jobId) {
+      const state = this.getProjectState(options.appId);
+      if (state) {
+        state.processHandle = {
+          pid: 0, // Will be set by execution kernel
+          startTime: new Date(),
+          executablePath: state.executablePath || "",
+          jobId,
+        };
+        this.setProjectState(options.appId, state);
+      }
+    }
+
     return {
       ready: result.exitCode === 0,
-      jobId:
-        result.exitCode === 0
-          ? `job_${options.appId}_${Date.now()}_dotnet`
-          : undefined,
+      jobId,
     };
-  },
+  }
 
   async stop(appId: number, jobId?: string): Promise<void> {
     if (jobId) {
       await executionKernel.terminateJob(jobId);
+
+      // Clear process handle from state
+      const state = this.getProjectState(appId);
+      if (state) {
+        state.processHandle = undefined;
+        this.setProjectState(appId, state);
+      }
       return;
     }
 
@@ -271,7 +394,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     } catch {
       // Process may already be terminated
     }
-  },
+  }
 
   async startPreview(options: PreviewOptions): Promise<void> {
     // For .NET desktop apps, "preview" means running the built executable
@@ -297,12 +420,12 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       },
       "dotnet",
     );
-  },
+  }
 
   async stopPreview(appId: number): Promise<void> {
     // Stop any running preview
     await this.stop(appId);
-  },
+  }
 
   async package(options: PackageOptions): Promise<ExecutionResult> {
     // Create deployment package using dotnet publish
@@ -336,7 +459,7 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
       },
       "dotnet",
     );
-  },
+  }
 
   isReady(message: string): boolean {
     // .NET apps ready when they indicate they're listening or started
@@ -349,5 +472,9 @@ export const dotNetRuntimeProvider: RuntimeProvider = {
     ];
 
     return readyPatterns.some((pattern) => pattern.test(message));
-  },
-};
+  }
+}
+
+// Export singleton instance
+export const dotNetRuntimeProvider: RuntimeProvider =
+  new DotNetRuntimeProviderImpl();

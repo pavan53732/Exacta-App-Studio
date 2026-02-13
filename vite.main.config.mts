@@ -10,12 +10,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: [
-        "better-sqlite3",
-        "electron-log",
-        "electron",
-        /^node:.*/
-      ],
+      external: ["better-sqlite3", "electron-log", "electron", /^node:.*/],
     },
   },
   plugins: [

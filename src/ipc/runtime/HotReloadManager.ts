@@ -126,7 +126,14 @@ export class HotReloadManager {
    * Start a hot reload session for an app
    */
   async startHotReload(options: HotReloadOptions): Promise<HotReloadSession> {
-    const { appId, appPath, configuration = "Debug", framework, noRestore, env } = options;
+    const {
+      appId,
+      appPath,
+      configuration = "Debug",
+      framework,
+      noRestore,
+      env,
+    } = options;
 
     // Check if session already exists
     if (this.hasActiveSession(appId)) {
@@ -165,7 +172,9 @@ export class HotReloadManager {
       // Add verbose output for better status tracking
       args.push("--verbosity", "normal");
 
-      logger.info(`Starting hot reload for app ${appId}: dotnet ${args.join(" ")}`);
+      logger.info(
+        `Starting hot reload for app ${appId}: dotnet ${args.join(" ")}`,
+      );
 
       // Send starting event
       this.sendEvent(appId, "starting", "Starting hot reload session...");
@@ -173,7 +182,16 @@ export class HotReloadManager {
       // Use ExecutionKernel to validate and prepare, but spawn watch process separately
       // because watch needs to run continuously
       await executionKernel.execute(
-        { command: "dotnet", args: ["build", "--configuration", configuration, "--verbosity", "quiet"] },
+        {
+          command: "dotnet",
+          args: [
+            "build",
+            "--configuration",
+            configuration,
+            "--verbosity",
+            "quiet",
+          ],
+        },
         {
           appId,
           cwd: appPath,
@@ -219,7 +237,9 @@ export class HotReloadManager {
 
       // Handle process exit
       watchProcess.on("close", (code, signal) => {
-        logger.info(`Hot reload process for app ${appId} exited with code ${code}, signal ${signal}`);
+        logger.info(
+          `Hot reload process for app ${appId} exited with code ${code}, signal ${signal}`,
+        );
         this.handleExit(appId, code || 0);
       });
 
@@ -234,19 +254,33 @@ export class HotReloadManager {
       this.sessions.set(appId, session);
 
       // Send running event
-      this.sendEvent(appId, "running", "Hot reload session started successfully");
+      this.sendEvent(
+        appId,
+        "running",
+        "Hot reload session started successfully",
+      );
 
       return session;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to start hot reload for app ${appId}:`, errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        `Failed to start hot reload for app ${appId}:`,
+        errorMessage,
+      );
 
       session.status = "error";
       session.error = errorMessage;
       this.sessions.set(appId, session);
 
       // Send error event
-      this.sendEvent(appId, "error", `Failed to start hot reload: ${errorMessage}`, undefined, errorMessage);
+      this.sendEvent(
+        appId,
+        "error",
+        `Failed to start hot reload: ${errorMessage}`,
+        undefined,
+        errorMessage,
+      );
 
       throw error;
     }
@@ -286,7 +320,8 @@ export class HotReloadManager {
       // Send stopped event
       this.sendEvent(appId, "stopped", "Hot reload session stopped");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error(`Error stopping hot reload for app ${appId}:`, errorMessage);
 
       session.status = "error";
@@ -308,7 +343,11 @@ export class HotReloadManager {
   /**
    * Handle output from the watch process
    */
-  private handleOutput(appId: number, message: string, type: "stdout" | "stderr"): void {
+  private handleOutput(
+    appId: number,
+    message: string,
+    type: "stdout" | "stderr",
+  ): void {
     const session = this.sessions.get(appId);
     if (!session) return;
 
@@ -336,7 +375,13 @@ export class HotReloadManager {
       session.error = message;
       this.sessions.set(appId, session);
 
-      this.sendEvent(appId, "error", "Build error detected", undefined, message);
+      this.sendEvent(
+        appId,
+        "error",
+        "Build error detected",
+        undefined,
+        message,
+      );
     }
   }
 
@@ -398,7 +443,11 @@ export class HotReloadManager {
     } else {
       session.status = "error";
       session.error = `Process exited with code ${exitCode}`;
-      this.sendEvent(appId, "error", `Process exited unexpectedly with code ${exitCode}`);
+      this.sendEvent(
+        appId,
+        "error",
+        `Process exited unexpectedly with code ${exitCode}`,
+      );
     }
 
     session.watchProcess = null;

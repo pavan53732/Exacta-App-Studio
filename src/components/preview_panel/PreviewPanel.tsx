@@ -24,8 +24,8 @@ import { SecurityPanel } from "./SecurityPanel";
 import { PlanPanel } from "./PlanPanel";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useTranslation } from "react-i18next";
-import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
-import type { PreviewStrategy } from "@/ipc/runtime/RuntimeProvider";
+import { rendererRuntimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry.renderer";
+import type { PreviewStrategy } from "@/ipc/runtime/runtime_types";
 
 interface ConsoleHeaderProps {
   isOpen: boolean;
@@ -72,8 +72,7 @@ function getPreviewStrategy(
   }
 
   try {
-    const provider = runtimeRegistry.getProvider(runtimeProvider);
-    return provider.previewStrategy;
+    return rendererRuntimeRegistry.getPreviewStrategy(runtimeProvider);
   } catch {
     // If provider not found, fall back to iframe
     return "iframe";

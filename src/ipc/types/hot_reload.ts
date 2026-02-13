@@ -2,7 +2,12 @@
 // Type definitions and IPC contracts for .NET Hot Reload
 
 import { z } from "zod";
-import { defineContract, createClient, defineEvent, createEventClient } from "../contracts/core";
+import {
+  defineContract,
+  createClient,
+  defineEvent,
+  createEventClient,
+} from "../contracts/core";
 
 // =============================================================================
 // Hot Reload Schemas

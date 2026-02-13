@@ -1,6 +1,6 @@
 import { spawn } from "child_process";
-import path from "path";
 import fs from "fs";
+import path from "path";
 import logger from "electron-log";
 import type { NetworkPolicy, QuotaExceededEvent } from "../types/guardian";
 
@@ -39,9 +39,7 @@ class JobRegistry {
     logger.info(`Registered job ${jobId} for app ${appId} (mode: ${mode})`);
   }
 
-  getJob(
-    jobId: string,
-  ):
+  getJob(jobId: string):
     | {
         jobId: string;
         appId: number;
@@ -87,7 +85,7 @@ class JobRegistry {
     return Array.from(this.jobs.values());
   }
 
-  cleanupExpiredJobs(maxAgeMinutes: number = 60): number {
+  cleanupExpiredJobs(maxAgeMinutes = 60): number {
     const now = Date.now();
     const maxAgeMs = maxAgeMinutes * 60 * 1000;
     let cleanedCount = 0;
@@ -189,22 +187,40 @@ export class ExecutionKernel {
       // Get canonical path using realpath
       const canonicalCwd = await fs.promises.realpath(cwd);
 
-      // Get expected app root
-      const expectedAppRoot = path.join(
+      // Get expected app root (legacy pattern)
+      const legacyAppRoot = path.join(
         process.env.USERDATA || "",
         `dyad-app-${appId}`,
       );
-      const canonicalAppRoot = await fs.promises.realpath(expectedAppRoot);
+      let canonicalLegacyAppRoot = "";
+      try {
+        if (fs.existsSync(legacyAppRoot)) {
+          canonicalLegacyAppRoot = await fs.promises.realpath(legacyAppRoot);
+        }
+      } catch {
+        // Ignore if legacy root doesn't exist
+      }
+
+      // Get standard app root (modern pattern)
+      const { getDyadAppsBaseDirectory } = require("../../paths/paths");
+      const standardAppsRoot = getDyadAppsBaseDirectory();
+      const canonicalStandardAppsRoot =
+        await fs.promises.realpath(standardAppsRoot);
 
       // Get templates path
       const templatesPath = path.join(process.cwd(), "templates");
       const canonicalTemplatesPath = await fs.promises.realpath(templatesPath);
 
       // Check if cwd is within allowed paths
-      const isInAppRoot = canonicalCwd.startsWith(canonicalAppRoot);
+      const isInLegacyAppRoot =
+        canonicalLegacyAppRoot &&
+        canonicalCwd.startsWith(canonicalLegacyAppRoot);
+      const isInStandardAppsRoot = canonicalCwd.startsWith(
+        canonicalStandardAppsRoot,
+      );
       const isInTemplates = canonicalCwd.startsWith(canonicalTemplatesPath);
 
-      if (!isInAppRoot && !isInTemplates) {
+      if (!isInLegacyAppRoot && !isInStandardAppsRoot && !isInTemplates) {
         throw new Error(
           `Path validation failed: ${cwd} is not within allowed directories`,
         );
@@ -422,7 +438,7 @@ export class ExecutionKernel {
   async execute(
     kernelCommand: KernelCommand,
     defaultOptions: KernelOptions,
-    providerName: string = "default",
+    providerName = "default",
   ): Promise<ExecutionResult> {
     const options = { ...defaultOptions, ...kernelCommand.options };
 
@@ -815,9 +831,7 @@ export class ExecutionKernel {
   /**
    * Get job status information
    */
-  getJobStatus(
-    jobId: string,
-  ): {
+  getJobStatus(jobId: string): {
     jobId: string;
     appId: number;
     createdAt: Date;
@@ -856,7 +870,7 @@ export class ExecutionKernel {
   /**
    * Cleanup expired jobs
    */
-  cleanupExpiredJobs(maxAgeMinutes: number = 60): number {
+  cleanupExpiredJobs(maxAgeMinutes = 60): number {
     return jobRegistry.cleanupExpiredJobs(maxAgeMinutes);
   }
 
@@ -931,9 +945,7 @@ export class ExecutionKernel {
   /**
    * Check if disk quota is exceeded for a job
    */
-  async checkJobDiskQuota(
-    _jobId: string,
-  ): Promise<{
+  async checkJobDiskQuota(_jobId: string): Promise<{
     exceeded: boolean;
     readBytes: number;
     writeBytes: number;

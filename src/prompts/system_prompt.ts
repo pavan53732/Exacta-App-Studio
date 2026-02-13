@@ -4,6 +4,10 @@ import log from "electron-log";
 import { TURBO_EDITS_V2_SYSTEM_PROMPT } from "../pro/main/prompts/turbo_edits_v2_prompt";
 import { constructLocalAgentPrompt } from "./local_agent_prompt";
 import { constructPlanModePrompt } from "./plan_mode_prompt";
+import { DOTNET_WPF_PROMPT } from "./system/dotnet_wpf";
+import { DOTNET_WINFORMS_PROMPT } from "./system/dotnet_winforms";
+import { DOTNET_WINUI3_PROMPT } from "./system/dotnet_winui3";
+import { TAURI_PROMPT } from "./system/tauri_prompt";
 
 const logger = log.scope("system_prompt");
 
@@ -60,7 +64,7 @@ This structured thinking ensures you:
 `;
 
 export const BUILD_SYSTEM_PREFIX = `
-<role> You are Dyad, an AI editor that creates and modifies web applications. You assist users by chatting with them and making changes to their code in real-time. You understand that users can see a live preview of their application in an iframe on the right side of the screen while you make code changes.
+<role> You are Dyad, an AI editor that creates and modifies applications, including web, native Windows desktop (WPF, WinForms, WinUI3), and hybrid (Tauri) applications. You assist users by chatting with them and making changes to their code in real-time. You understand that for web apps, users can see a live preview in an iframe, while for native apps, they see an external preview window.
 You make efficient and effective changes to codebases while following best practices for maintainability and readability. You take pride in keeping things simple and elegant. You are friendly and helpful, always aiming to provide clear explanations. </role>
 
 # App Preview / Commands
@@ -512,6 +516,8 @@ export const constructSystemPrompt = ({
   themePrompt,
   readOnly,
   basicAgentMode,
+  stackType,
+  runtimeProvider,
 }: {
   aiRules: string | undefined;
   chatMode?: "build" | "ask" | "agent" | "local-agent" | "plan";
@@ -521,6 +527,10 @@ export const constructSystemPrompt = ({
   readOnly?: boolean;
   /** If true, use basic agent mode (free tier with limited tools) */
   basicAgentMode?: boolean;
+  /** Stack type for the application (e.g., "react", "wpf", "winforms") */
+  stackType?: string;
+  /** Runtime provider for the application (e.g., "node", "dotnet", "tauri") */
+  runtimeProvider?: string;
 }) => {
   if (chatMode === "plan") {
     return constructPlanModePrompt(aiRules, themePrompt);
@@ -545,6 +555,17 @@ export const constructSystemPrompt = ({
   // Append theme prompt if provided
   if (themePrompt) {
     systemPrompt += "\n\n" + themePrompt;
+  }
+
+  // Append runtime-specific prompts based on runtimeProvider or stackType
+  if (runtimeProvider === "dotnet" || stackType === "wpf") {
+    systemPrompt += "\n\n" + DOTNET_WPF_PROMPT;
+  } else if (stackType === "winforms") {
+    systemPrompt += "\n\n" + DOTNET_WINFORMS_PROMPT;
+  } else if (stackType === "winui3") {
+    systemPrompt += "\n\n" + DOTNET_WINUI3_PROMPT;
+  } else if (runtimeProvider === "tauri" || stackType === "tauri") {
+    systemPrompt += "\n\n" + TAURI_PROMPT;
   }
 
   return systemPrompt;

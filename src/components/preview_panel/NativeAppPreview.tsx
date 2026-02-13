@@ -26,15 +26,16 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { ipc } from "@/ipc/types";
-import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import {
-  useHotReload,
-  useHotReloadEvents,
-} from "@/hooks/useHotReload";
+import { useHotReload, useHotReloadEvents } from "@/hooks/useHotReload";
 import type { HotReloadEventPayload } from "@/ipc/types/hot_reload";
 
 type AppStatus = "idle" | "starting" | "running" | "stopped" | "error";
@@ -56,7 +57,9 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [hotReloadEnabled, setHotReloadEnabled] = useState(false);
-  const [hotReloadNotification, setHotReloadNotification] = useState<string | null>(null);
+  const [hotReloadNotification, setHotReloadNotification] = useState<
+    string | null
+  >(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const jobIdRef = useRef<string | null>(null);
 
@@ -87,7 +90,10 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
       if (payload.status === "reloading") {
         setHotReloadNotification(`Reloading... (${payload.reloadCount} total)`);
         setTimeout(() => setHotReloadNotification(null), 2000);
-      } else if (payload.status === "running" && hotReloadStatus === "reloading") {
+      } else if (
+        payload.status === "running" &&
+        hotReloadStatus === "reloading"
+      ) {
         setHotReloadNotification("Reload complete!");
         setTimeout(() => setHotReloadNotification(null), 2000);
       }
@@ -249,18 +255,12 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
 
     setIsCapturingScreenshot(true);
     try {
-      const provider = runtimeRegistry.getProvider(app.runtimeProvider);
-      if (provider?.captureScreenshot) {
-        const dataUrl = await provider.captureScreenshot(selectedAppId);
-        setScreenshotData(dataUrl);
-      } else {
-        // Fallback: Use IPC to request screenshot
-        const result = await ipc.app.captureScreenshot?.({
-          appId: selectedAppId,
-        });
-        if (result?.dataUrl) {
-          setScreenshotData(result.dataUrl);
-        }
+      // Use IPC to request screenshot
+      const result = await ipc.app.captureScreenshot?.({
+        appId: selectedAppId,
+      });
+      if (result?.dataUrl) {
+        setScreenshotData(result.dataUrl);
       }
     } catch (error) {
       console.error("Failed to capture screenshot:", error);
@@ -467,7 +467,9 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
                       disabled={
                         isHotReloadStarting ||
                         isHotReloadStopping ||
-                        (status !== "running" && status !== "idle" && status !== "stopped")
+                        (status !== "running" &&
+                          status !== "idle" &&
+                          status !== "stopped")
                       }
                       className="data-[state=checked]:bg-orange-500"
                     />
@@ -574,8 +576,10 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
                       key={index}
                       className={cn(
                         "py-0.5 px-2 hover:bg-muted/50 rounded",
-                        log.type === "stderr" && "text-red-500 dark:text-red-400",
-                        log.message.includes("[Hot Reload]") && "text-orange-600 dark:text-orange-400",
+                        log.type === "stderr" &&
+                          "text-red-500 dark:text-red-400",
+                        log.message.includes("[Hot Reload]") &&
+                          "text-orange-600 dark:text-orange-400",
                       )}
                     >
                       <span className="text-muted-foreground mr-2">
@@ -612,7 +616,8 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
             <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300">
               <Flame className="w-4 h-4" />
               <span>
-                Hot Reload is active. Edit your code and save to see changes instantly.
+                Hot Reload is active. Edit your code and save to see changes
+                instantly.
               </span>
             </div>
           </div>

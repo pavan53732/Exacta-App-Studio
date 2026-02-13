@@ -74,6 +74,8 @@ export function registerTokenCountHandlers() {
             : settings.selectedChatMode,
         enableTurboEditsV2: isTurboEditsV2Enabled(settings),
         themePrompt,
+        stackType: chat.app.stackType ?? undefined,
+        runtimeProvider: chat.app.runtimeProvider ?? undefined,
       });
       let supabaseContext = "";
 

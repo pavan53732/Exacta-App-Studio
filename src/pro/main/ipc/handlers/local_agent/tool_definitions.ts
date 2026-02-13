@@ -44,6 +44,8 @@ import {
 } from "./tools/types";
 import { AgentToolConsent } from "@/lib/schemas";
 import { getSupabaseClientCode } from "@/supabase_admin/supabase_context";
+import type { AgentToolName } from "./tool_types";
+
 // Combined tool definitions array
 export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   writeFileTool,
@@ -74,11 +76,9 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   writePlanTool,
   exitPlanTool,
 ];
-// ============================================================================
-// Agent Tool Name Type (derived from TOOL_DEFINITIONS)
-// ============================================================================
 
-export type AgentToolName = (typeof TOOL_DEFINITIONS)[number]["name"];
+// Re-export AgentToolName type for convenience
+export type { AgentToolName };
 
 // ============================================================================
 // Agent Tool Consent Management

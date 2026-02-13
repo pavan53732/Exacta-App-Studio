@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { ipc } from "@/ipc/types";
-import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
@@ -210,10 +209,12 @@ export function HybridPreview({ loading }: { loading: boolean }) {
 
     setIsCapturingScreenshot(true);
     try {
-      const provider = runtimeRegistry.getProvider(app.runtimeProvider);
-      if (provider?.captureScreenshot) {
-        const dataUrl = await provider.captureScreenshot(selectedAppId);
-        setScreenshotData(dataUrl);
+      // Use IPC to request screenshot
+      const result = await ipc.app.captureScreenshot?.({
+        appId: selectedAppId,
+      });
+      if (result?.dataUrl) {
+        setScreenshotData(result.dataUrl);
       }
     } catch (error) {
       console.error("Failed to capture screenshot:", error);
