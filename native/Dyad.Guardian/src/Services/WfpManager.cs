@@ -1064,22 +1064,16 @@ public class WfpManager : IDisposable
         public ushort weight;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit)]
     private struct FWP_VALUE0
     {
-        public FWP_DATA_TYPE type;
-        public FWP_VALUE_UNION value;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    private struct FWP_VALUE_UNION
-    {
-        [FieldOffset(0)] public byte uint8;
-        [FieldOffset(0)] public ushort uint16;
-        [FieldOffset(0)] public uint uint32;
-        [FieldOffset(0)] public ulong uint64;
-        [FieldOffset(0)] public IntPtr byteBlob;
-        [FieldOffset(0)] public IntPtr unicodeString;
+        [FieldOffset(0)] public FWP_DATA_TYPE type;
+        [FieldOffset(4)] public byte uint8;
+        [FieldOffset(4)] public ushort uint16;
+        [FieldOffset(4)] public uint uint32;
+        [FieldOffset(4)] public ulong uint64;
+        [FieldOffset(4)] public IntPtr byteBlob;
+        [FieldOffset(4)] public IntPtr unicodeString;
     }
 
     [StructLayout(LayoutKind.Sequential)]

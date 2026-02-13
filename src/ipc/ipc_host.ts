@@ -39,6 +39,7 @@ import { registerAgentToolHandlers } from "../pro/main/ipc/handlers/local_agent/
 import { registerFreeAgentQuotaHandlers } from "./handlers/free_agent_quota_handlers";
 import { registerPlanHandlers } from "./handlers/plan_handlers";
 import { registerNuGetHandlers } from "./handlers/nuget_handlers";
+import { registerHotReloadHandlers } from "./handlers/hot_reload_handlers";
 
 export function registerIpcHandlers() {
   // Register all IPC handlers by category
@@ -83,4 +84,5 @@ export function registerIpcHandlers() {
   registerFreeAgentQuotaHandlers();
   registerPlanHandlers();
   registerNuGetHandlers();
+  registerHotReloadHandlers();
 }

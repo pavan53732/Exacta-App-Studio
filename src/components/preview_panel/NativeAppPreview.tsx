@@ -13,6 +13,9 @@ import {
   Terminal,
   CheckCircle2,
   XCircle,
+  Flame,
+  RefreshCw,
+  Zap,
 } from "lucide-react";
 import {
   selectedAppIdAtom,
@@ -22,10 +25,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ipc } from "@/ipc/types";
 import { runtimeRegistry } from "@/ipc/runtime/RuntimeProviderRegistry";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import {
+  useHotReload,
+  useHotReloadEvents,
+} from "@/hooks/useHotReload";
+import type { HotReloadEventPayload } from "@/ipc/types/hot_reload";
 
 type AppStatus = "idle" | "starting" | "running" | "stopped" | "error";
 
@@ -45,8 +55,48 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
   const [screenshotData, setScreenshotData] = useState<string | null>(null);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const [exitCode, setExitCode] = useState<number | null>(null);
+  const [hotReloadEnabled, setHotReloadEnabled] = useState(false);
+  const [hotReloadNotification, setHotReloadNotification] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const jobIdRef = useRef<string | null>(null);
+
+  // Hot reload hook
+  const {
+    isSupported: isHotReloadSupported,
+    status: hotReloadStatus,
+    isStarting: isHotReloadStarting,
+    isStopping: isHotReloadStopping,
+    startHotReload,
+    stopHotReload,
+  } = useHotReload(selectedAppId, app?.stackType);
+
+  // Handle hot reload events
+  const handleHotReloadEvent = useCallback(
+    (payload: HotReloadEventPayload) => {
+      // Add log entry
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: payload.timestamp,
+          message: `[Hot Reload] ${payload.message}`,
+          type: payload.status === "error" ? "stderr" : "stdout",
+        },
+      ]);
+
+      // Show notification for reload events
+      if (payload.status === "reloading") {
+        setHotReloadNotification(`Reloading... (${payload.reloadCount} total)`);
+        setTimeout(() => setHotReloadNotification(null), 2000);
+      } else if (payload.status === "running" && hotReloadStatus === "reloading") {
+        setHotReloadNotification("Reload complete!");
+        setTimeout(() => setHotReloadNotification(null), 2000);
+      }
+    },
+    [hotReloadStatus],
+  );
+
+  // Subscribe to hot reload events
+  useHotReloadEvents(selectedAppId, handleHotReloadEvent);
 
   // Auto-scroll logs to bottom
   useEffect(() => {
@@ -180,13 +230,18 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
     if (!selectedAppId) return;
 
     try {
+      // Stop hot reload first if active
+      if (hotReloadEnabled) {
+        await stopHotReload();
+        setHotReloadEnabled(false);
+      }
       await ipc.app.stopApp({ appId: selectedAppId });
       setStatus("stopped");
       jobIdRef.current = null;
     } catch (error) {
       console.error("Failed to stop app:", error);
     }
-  }, [selectedAppId]);
+  }, [selectedAppId, hotReloadEnabled, stopHotReload]);
 
   // Capture screenshot
   const handleScreenshot = useCallback(async () => {
@@ -213,6 +268,66 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
       setIsCapturingScreenshot(false);
     }
   }, [selectedAppId, app?.runtimeProvider]);
+
+  // Toggle hot reload
+  const handleToggleHotReload = useCallback(
+    async (enabled: boolean) => {
+      if (!selectedAppId) return;
+
+      setHotReloadEnabled(enabled);
+
+      if (enabled) {
+        try {
+          const result = await startHotReload();
+          if (!result?.success) {
+            setHotReloadEnabled(false);
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: Date.now(),
+                message: `Failed to start hot reload: ${result?.error || "Unknown error"}`,
+                type: "stderr",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: Date.now(),
+                message: "[Hot Reload] Session started successfully",
+                type: "stdout",
+              },
+            ]);
+          }
+        } catch (error) {
+          setHotReloadEnabled(false);
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: Date.now(),
+              message: `Failed to start hot reload: ${error}`,
+              type: "stderr",
+            },
+          ]);
+        }
+      } else {
+        try {
+          await stopHotReload();
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: Date.now(),
+              message: "[Hot Reload] Session stopped",
+              type: "stdout",
+            },
+          ]);
+        } catch (error) {
+          console.error("Failed to stop hot reload:", error);
+        }
+      }
+    },
+    [selectedAppId, startHotReload, stopHotReload],
+  );
 
   // Format timestamp for log entries
   const formatTimestamp = (timestamp: number) => {
@@ -258,10 +373,32 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
     }
   };
 
+  // Get hot reload status badge
+  const getHotReloadStatusInfo = () => {
+    switch (hotReloadStatus) {
+      case "starting":
+        return { color: "bg-yellow-500", text: "Starting..." };
+      case "running":
+        return { color: "bg-green-500", text: "Active" };
+      case "reloading":
+        return { color: "bg-blue-500", text: "Reloading..." };
+      case "stopped":
+        return { color: "bg-gray-500", text: "Stopped" };
+      case "error":
+        return { color: "bg-red-500", text: "Error" };
+      default:
+        return null;
+    }
+  };
+
   const statusInfo = getStatusInfo();
+  const hotReloadStatusInfo = getHotReloadStatusInfo();
 
   // Determine if this is a console app
   const isConsoleApp = app?.stackType === "console";
+
+  // Check if this is a .NET app that supports hot reload
+  const isDotNetApp = app?.runtimeProvider === "dotnet";
 
   if (loading) {
     return (
@@ -272,151 +409,215 @@ export function NativeAppPreview({ loading }: { loading: boolean }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with controls */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-background">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="flex items-center gap-2">
-            <span className={cn("w-2 h-2 rounded-full", statusInfo.color)} />
-            {statusInfo.text}
-          </Badge>
-          {exitCode !== null && (
-            <Badge
-              variant={exitCode === 0 ? "default" : "destructive"}
-              className="flex items-center gap-1"
-            >
-              {exitCode === 0 ? (
-                <CheckCircle2 className="w-3 h-3" />
-              ) : (
-                <XCircle className="w-3 h-3" />
-              )}
-              Exit: {exitCode}
+    <TooltipProvider>
+      <div className="flex flex-col h-full">
+        {/* Header with controls */}
+        <div className="flex items-center justify-between p-3 border-b border-border bg-background">
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="flex items-center gap-2">
+              <span className={cn("w-2 h-2 rounded-full", statusInfo.color)} />
+              {statusInfo.text}
             </Badge>
-          )}
-        </div>
+            {exitCode !== null && (
+              <Badge
+                variant={exitCode === 0 ? "default" : "destructive"}
+                className="flex items-center gap-1"
+              >
+                {exitCode === 0 ? (
+                  <CheckCircle2 className="w-3 h-3" />
+                ) : (
+                  <XCircle className="w-3 h-3" />
+                )}
+                Exit: {exitCode}
+              </Badge>
+            )}
+            {/* Hot reload status badge */}
+            {hotReloadEnabled && hotReloadStatusInfo && (
+              <Badge
+                variant="outline"
+                className="flex items-center gap-2 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700"
+              >
+                <Flame className="w-3 h-3" />
+                {hotReloadStatusInfo.text}
+              </Badge>
+            )}
+            {/* Hot reload notification */}
+            {hotReloadNotification && (
+              <Badge
+                variant="outline"
+                className="flex items-center gap-2 animate-pulse"
+              >
+                <RefreshCw className="w-3 h-3" />
+                {hotReloadNotification}
+              </Badge>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2">
-          {status === "idle" || status === "stopped" || status === "error" ? (
-            <Button
-              onClick={handleStart}
-              size="sm"
-              className="flex items-center gap-2"
-              disabled={!selectedAppId}
-            >
-              <Play className="w-4 h-4" />
-              {t("preview.native.launch") || "Launch"}
-            </Button>
-          ) : status === "starting" ? (
-            <Button size="sm" disabled>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              {t("preview.native.starting") || "Starting..."}
-            </Button>
-          ) : (
-            <>
+          <div className="flex items-center gap-2">
+            {/* Hot reload toggle - only for .NET apps */}
+            {isDotNetApp && isHotReloadSupported && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50">
+                    <Zap className="w-4 h-4 text-orange-500" />
+                    <span className="text-xs font-medium">Hot Reload</span>
+                    <Switch
+                      checked={hotReloadEnabled}
+                      onCheckedChange={handleToggleHotReload}
+                      disabled={
+                        isHotReloadStarting ||
+                        isHotReloadStopping ||
+                        (status !== "running" && status !== "idle" && status !== "stopped")
+                      }
+                      className="data-[state=checked]:bg-orange-500"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {hotReloadEnabled
+                      ? "Disable Hot Reload"
+                      : "Enable Hot Reload - See code changes without restarting"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {status === "idle" || status === "stopped" || status === "error" ? (
               <Button
-                onClick={handleStop}
+                onClick={handleStart}
                 size="sm"
-                variant="destructive"
                 className="flex items-center gap-2"
+                disabled={!selectedAppId}
               >
-                <Square className="w-4 h-4" />
-                {t("preview.native.stop") || "Stop"}
+                <Play className="w-4 h-4" />
+                {t("preview.native.launch") || "Launch"}
               </Button>
-              {!isConsoleApp && (
+            ) : status === "starting" ? (
+              <Button size="sm" disabled>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                {t("preview.native.starting") || "Starting..."}
+              </Button>
+            ) : (
+              <>
                 <Button
-                  onClick={handleScreenshot}
+                  onClick={handleStop}
                   size="sm"
-                  variant="outline"
+                  variant="destructive"
                   className="flex items-center gap-2"
-                  disabled={isCapturingScreenshot}
                 >
-                  {isCapturingScreenshot ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Camera className="w-4 h-4" />
-                  )}
-                  {t("preview.native.screenshot") || "Screenshot"}
+                  <Square className="w-4 h-4" />
+                  {t("preview.native.stop") || "Stop"}
                 </Button>
-              )}
-            </>
-          )}
+                {!isConsoleApp && (
+                  <Button
+                    onClick={handleScreenshot}
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    disabled={isCapturingScreenshot}
+                  >
+                    {isCapturingScreenshot ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                    {t("preview.native.screenshot") || "Screenshot"}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Screenshot preview (for GUI apps) */}
-        {screenshotData && !isConsoleApp && (
-          <div className="border-b border-border p-2">
-            <div className="relative">
-              <img
-                src={screenshotData}
-                alt="App Screenshot"
-                className="max-w-full h-auto rounded border border-border"
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-2 right-2"
-                onClick={() => setScreenshotData(null)}
-              >
-                <XCircle className="w-4 h-4" />
-              </Button>
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Screenshot preview (for GUI apps) */}
+          {screenshotData && !isConsoleApp && (
+            <div className="border-b border-border p-2">
+              <div className="relative">
+                <img
+                  src={screenshotData}
+                  alt="App Screenshot"
+                  className="max-w-full h-auto rounded border border-border"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="absolute top-2 right-2"
+                  onClick={() => setScreenshotData(null)}
+                >
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Logs panel */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/50">
+              <Terminal className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                {t("preview.native.logs") || "Application Logs"}
+              </span>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="font-mono text-xs p-2">
+                {logs.length === 0 ? (
+                  <div className="text-muted-foreground text-center py-8">
+                    {t("preview.native.noLogs") ||
+                      "No logs yet. Launch the app to see output."}
+                  </div>
+                ) : (
+                  logs.map((log, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "py-0.5 px-2 hover:bg-muted/50 rounded",
+                        log.type === "stderr" && "text-red-500 dark:text-red-400",
+                        log.message.includes("[Hot Reload]") && "text-orange-600 dark:text-orange-400",
+                      )}
+                    >
+                      <span className="text-muted-foreground mr-2">
+                        [{formatTimestamp(log.timestamp)}]
+                      </span>
+                      <span className="whitespace-pre-wrap break-words">
+                        {log.message}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div ref={logsEndRef} />
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Info banner for external window apps */}
+        {status === "running" && !isConsoleApp && (
+          <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 border-t border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <ExternalLink className="w-4 h-4" />
+              <span>
+                {t("preview.native.externalWindow") ||
+                  "App is running in an external window. Use the controls above to manage it."}
+              </span>
             </div>
           </div>
         )}
 
-        {/* Logs panel */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/50">
-            <Terminal className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {t("preview.native.logs") || "Application Logs"}
-            </span>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="font-mono text-xs p-2">
-              {logs.length === 0 ? (
-                <div className="text-muted-foreground text-center py-8">
-                  {t("preview.native.noLogs") ||
-                    "No logs yet. Launch the app to see output."}
-                </div>
-              ) : (
-                logs.map((log, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "py-0.5 px-2 hover:bg-muted/50 rounded",
-                      log.type === "stderr" && "text-red-500 dark:text-red-400",
-                    )}
-                  >
-                    <span className="text-muted-foreground mr-2">
-                      [{formatTimestamp(log.timestamp)}]
-                    </span>
-                    <span className="whitespace-pre-wrap break-words">
-                      {log.message}
-                    </span>
-                  </div>
-                ))
-              )}
-              <div ref={logsEndRef} />
+        {/* Hot reload info banner */}
+        {hotReloadEnabled && status === "running" && (
+          <div className="px-3 py-2 bg-orange-50 dark:bg-orange-950 border-t border-orange-200 dark:border-orange-800">
+            <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300">
+              <Flame className="w-4 h-4" />
+              <span>
+                Hot Reload is active. Edit your code and save to see changes instantly.
+              </span>
             </div>
-          </ScrollArea>
-        </div>
-      </div>
-
-      {/* Info banner for external window apps */}
-      {status === "running" && !isConsoleApp && (
-        <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 border-t border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-            <ExternalLink className="w-4 h-4" />
-            <span>
-              {t("preview.native.externalWindow") ||
-                "App is running in an external window. Use the controls above to manage it."}
-            </span>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }

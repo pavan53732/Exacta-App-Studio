@@ -142,3 +142,22 @@ public record ListJobsResponse
 {
     public required List<string> JobNames { get; init; }
 }
+
+/// <summary>
+/// Detailed information about a job object
+/// </summary>
+public record JobObjectInfo
+{
+    public required string JobName { get; init; }
+    public int ActiveProcesses { get; init; }
+    public long? MemoryLimitBytes { get; init; }
+    public long? MemoryLimit { get => MemoryLimitBytes; init => MemoryLimitBytes = value; }
+    public long CurrentMemoryUsage { get; init; }
+    public int? CpuRatePercent { get; init; }
+    public int? CpuRate { get => CpuRatePercent; init => CpuRatePercent = value; }
+    public int? ActiveProcessLimit { get; init; }
+    public long? DiskQuotaBytes { get; init; }
+    public long TotalDiskReadBytes { get; init; }
+    public long TotalDiskWriteBytes { get; init; }
+    public DateTime CreatedAt { get; init; }
+}

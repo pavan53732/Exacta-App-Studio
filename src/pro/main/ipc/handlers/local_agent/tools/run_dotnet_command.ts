@@ -11,9 +11,10 @@ import {
   escapeXmlAttr,
   escapeXmlContent,
 } from "./types";
-import { executionKernel } from "@/ipc/security/execution_kernel";
+import { executionKernel } from "../../../../../../ipc/security/execution_kernel";
 
-const logger = require("electron-log").scope("run_dotnet_command");
+import log from "electron-log";
+const logger = log.scope("run_dotnet_command");
 
 // Schema for dotnet command arguments
 const runDotnetCommandSchema = z.object({

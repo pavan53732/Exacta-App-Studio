@@ -265,14 +265,27 @@ let mainWindow: BrowserWindow | null = null;
 let pendingForceCloseData: any = null;
 
 const createWindow = () => {
-  // Create the browser window.
+  // Create the browser window with enhanced security
+  const securityHeaders = {
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "connect-src 'self' ws:",
+      process.env.NODE_ENV === 'development' ? "connect-src 'self' ws://localhost:*" : "",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self'",
+      "frame-src 'none'"
+    ].filter(Boolean).join('; ')
+  };
+
   mainWindow = new BrowserWindow({
     width: process.env.NODE_ENV === "development" ? 1280 : 960,
     minWidth: 800,
     height: 700,
     minHeight: 500,
     titleBarStyle: "hidden",
-    titleBarOverlay: false,
+    titleBarOverlap: false,
     trafficLightPosition: {
       x: 10,
       y: 8,
@@ -281,7 +294,7 @@ const createWindow = () => {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
-      // transparent: true,
+      sandbox: true
     },
     icon: path.join(app.getAppPath(), "assets/icon/logo.png"),
     // backgroundColor: "#00000001",

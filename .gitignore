@@ -111,3 +111,7 @@ __pycache__/
 
 # Storybook
 storybook-static/
+
+# .NET
+bin/
+obj/
